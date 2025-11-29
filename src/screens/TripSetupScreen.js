@@ -4,6 +4,7 @@ import {
   Dimensions, Animated, ScrollView, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DatePickerModal from '../components/DatePickerModal';
 
 const { width } = Dimensions.get('window');
 
@@ -37,6 +38,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     budget: '',
   });
   const [newParticipant, setNewParticipant] = useState('');
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   
   // Animations
   const slideAnim = useState(new Animated.Value(0))[0];
@@ -164,47 +167,68 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         return (
           <View style={styles.stepContent}>
             <Animated.View style={[styles.illustration, { transform: [{ translateY: floatTranslate }] }]}>
-              <View style={styles.illustrationBg}>
-                <Text style={styles.illustrationEmoji}>📅</Text>
-              </View>
-              <View style={styles.calendarDeco}>
-                <View style={styles.calendarLine} />
-                <View style={styles.calendarLine} />
-                <View style={styles.calendarLine} />
+              <View style={styles.calendarIllustration}>
+                <View style={styles.calendarTop}>
+                  <View style={styles.calendarRing} />
+                  <View style={styles.calendarRing} />
+                </View>
+                <View style={styles.calendarBody}>
+                  <Text style={styles.calendarEmoji}>📅</Text>
+                </View>
               </View>
             </Animated.View>
 
             <View style={styles.dateContainer}>
-              <View style={styles.dateCard}>
-                <Text style={styles.dateLabel}>START DATE</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  placeholder="DD/MM/YYYY"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={tripData.startDate}
-                  onChangeText={(text) => setTripData({ ...tripData, startDate: text })}
-                />
+              {/* Start Date */}
+              <TouchableOpacity 
+                style={styles.dateCard}
+                onPress={() => setShowStartDatePicker(true)}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.dateIcon}>🛫</Text>
-              </View>
+                <Text style={styles.dateLabel}>START DATE</Text>
+                <Text style={styles.dateValue}>
+                  {tripData.startDate || 'Tap to select'}
+                </Text>
+              </TouchableOpacity>
 
               <View style={styles.dateArrowContainer}>
                 <View style={styles.dateArrowLine} />
-                <Text style={styles.dateArrowText}>→</Text>
+                <View style={styles.dateArrowCircle}>
+                  <Text style={styles.dateArrowText}>→</Text>
+                </View>
                 <View style={styles.dateArrowLine} />
               </View>
 
-              <View style={styles.dateCard}>
-                <Text style={styles.dateLabel}>END DATE</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  placeholder="DD/MM/YYYY"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={tripData.endDate}
-                  onChangeText={(text) => setTripData({ ...tripData, endDate: text })}
-                />
+              {/* End Date */}
+              <TouchableOpacity 
+                style={styles.dateCard}
+                onPress={() => setShowEndDatePicker(true)}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.dateIcon}>🛬</Text>
-              </View>
+                <Text style={styles.dateLabel}>END DATE</Text>
+                <Text style={styles.dateValue}>
+                  {tripData.endDate || 'Tap to select'}
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            {/* Date Pickers */}
+            <DatePickerModal
+              visible={showStartDatePicker}
+              onClose={() => setShowStartDatePicker(false)}
+              onSelect={(date) => setTripData({ ...tripData, startDate: date })}
+              selectedDate={tripData.startDate}
+              title="Start Date"
+            />
+            <DatePickerModal
+              visible={showEndDatePicker}
+              onClose={() => setShowEndDatePicker(false)}
+              onSelect={(date) => setTripData({ ...tripData, endDate: date })}
+              selectedDate={tripData.endDate}
+              title="End Date"
+            />
           </View>
         );
 
@@ -240,7 +264,6 @@ export default function TripSetupScreen({ onComplete, onBack }) {
             </View>
 
             <ScrollView style={styles.participantsList} showsVerticalScrollIndicator={false}>
-              {/* You (default) */}
               <View style={styles.participantCard}>
                 <View style={styles.participantAvatar}>
                   <Text style={styles.avatarEmoji}>👑</Text>
@@ -328,10 +351,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
@@ -362,7 +382,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
           <Text style={styles.stepSubtitle}>{STEPS[currentStep - 1].subtitle}</Text>
         </View>
 
-        {/* Animated Content */}
+        {/* Content */}
         <Animated.View style={[
           styles.contentContainer,
           { opacity: fadeAnim, transform: [{ translateX: slideAnim }] }
@@ -381,10 +401,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
               {currentStep === STEPS.length ? 'Start Trip 🚀' : 'Continue'}
             </Text>
           </TouchableOpacity>
-          
-          <Text style={styles.stepIndicator}>
-            Step {currentStep} of {STEPS.length}
-          </Text>
+          <Text style={styles.stepIndicator}>Step {currentStep} of {STEPS.length}</Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -558,6 +575,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.greenBorder,
   },
+  calendarIllustration: {
+    alignItems: 'center',
+  },
+  calendarTop: {
+    flexDirection: 'row',
+    gap: 30,
+    marginBottom: -10,
+    zIndex: 1,
+  },
+  calendarRing: {
+    width: 12,
+    height: 20,
+    backgroundColor: COLORS.green,
+    borderRadius: 6,
+  },
+  calendarBody: {
+    width: 100,
+    height: 90,
+    backgroundColor: COLORS.greenMuted,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.greenBorder,
+  },
+  calendarEmoji: {
+    fontSize: 40,
+  },
   dateContainer: {
     alignItems: 'center',
   },
@@ -565,30 +610,26 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: COLORS.card,
     borderRadius: 20,
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: COLORS.greenBorder,
-    position: 'relative',
+  },
+  dateIcon: {
+    fontSize: 32,
+    marginBottom: 8,
   },
   dateLabel: {
     color: COLORS.green,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  dateInput: {
-    fontSize: 24,
+  dateValue: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
-    textAlign: 'center',
-  },
-  dateIcon: {
-    position: 'absolute',
-    right: 20,
-    top: 20,
-    fontSize: 24,
   },
   dateArrowContainer: {
     flexDirection: 'row',
@@ -596,26 +637,25 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   dateArrowLine: {
-    width: 30,
+    width: 40,
     height: 2,
     backgroundColor: COLORS.greenBorder,
   },
+  dateArrowCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.greenMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+  },
   dateArrowText: {
     color: COLORS.green,
-    fontSize: 24,
-    marginHorizontal: 10,
-  },
-  calendarDeco: {
-    position: 'absolute',
-    bottom: -20,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  calendarLine: {
-    width: 20,
-    height: 4,
-    backgroundColor: COLORS.greenBorder,
-    borderRadius: 2,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   participantsIllustration: {
     flexDirection: 'row',
