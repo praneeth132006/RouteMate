@@ -2,25 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
-const COLORS = {
-  bg: '#000000',
-  card: '#0A0A0A',
-  cardLight: '#111111',
-  green: '#00FF7F',
-  greenMuted: 'rgba(0, 255, 127, 0.1)',
-  greenBorder: 'rgba(0, 255, 127, 0.3)',
-  text: '#FFFFFF',
-  textMuted: '#666666',
-  textLight: '#999999',
-};
-
 export default function HomeScreen({ onBackToHome }) {
   const { tripInfo, setTripInfo, budget, getTotalExpenses, getRemainingBudget, packingItems, itinerary } = useTravelContext();
+  const { colors } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
 
+  const styles = createStyles(colors);
   const packedCount = packingItems.filter(item => item.packed).length;
   const spentPercentage = budget.total > 0 ? (getTotalExpenses() / budget.total) * 100 : 0;
 
@@ -51,7 +42,7 @@ export default function HomeScreen({ onBackToHome }) {
               <TextInput
                 style={styles.destinationInput}
                 placeholder="Enter destination..."
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={tripInfo.destination}
                 onChangeText={(text) => setTripInfo({...tripInfo, destination: text})}
               />
@@ -59,7 +50,7 @@ export default function HomeScreen({ onBackToHome }) {
                 <TextInput
                   style={styles.dateInput}
                   placeholder="Start date"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   value={tripInfo.startDate}
                   onChangeText={(text) => setTripInfo({...tripInfo, startDate: text})}
                 />
@@ -69,7 +60,7 @@ export default function HomeScreen({ onBackToHome }) {
                 <TextInput
                   style={styles.dateInput}
                   placeholder="End date"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   value={tripInfo.endDate}
                   onChangeText={(text) => setTripInfo({...tripInfo, endDate: text})}
                 />
@@ -117,7 +108,7 @@ export default function HomeScreen({ onBackToHome }) {
               </View>
               <View style={styles.budgetDivider} />
               <View style={styles.budgetStat}>
-                <Text style={[styles.budgetStatValue, { color: COLORS.green }]}>${getRemainingBudget()}</Text>
+                <Text style={[styles.budgetStatValue, { color: colors.primary }]}>${getRemainingBudget()}</Text>
                 <Text style={styles.budgetStatLabel}>Remaining</Text>
               </View>
             </View>
@@ -158,60 +149,64 @@ export default function HomeScreen({ onBackToHome }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { paddingHorizontal: 20 },
   header: { flexDirection: 'row', alignItems: 'center', paddingTop: 10, paddingBottom: 10 },
-  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
-  backButtonText: { color: COLORS.green, fontSize: 24, fontWeight: 'bold' },
+  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  backButtonText: { color: colors.primary, fontSize: 24, fontWeight: 'bold' },
   headerContent: { flex: 1, marginLeft: 14 },
-  greeting: { color: COLORS.green, fontSize: 14, fontWeight: '600', letterSpacing: 1 },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: 'bold', marginTop: 2 },
-  tripBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: COLORS.greenMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
-  tripBadgeText: { color: COLORS.green, fontSize: 14, fontWeight: 'bold' },
-  destinationCard: { marginTop: 16, backgroundColor: COLORS.card, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: COLORS.greenBorder, overflow: 'hidden' },
-  destinationGlow: { position: 'absolute', top: -50, right: -50, width: 150, height: 150, backgroundColor: COLORS.green, opacity: 0.05, borderRadius: 75 },
-  destinationLabel: { color: COLORS.green, fontSize: 11, fontWeight: '700', letterSpacing: 2 },
-  destinationName: { color: COLORS.text, fontSize: 24, fontWeight: 'bold', marginTop: 8 },
+  greeting: { color: colors.primary, fontSize: 14, fontWeight: '600', letterSpacing: 1 },
+  title: { color: colors.text, fontSize: 24, fontWeight: 'bold', marginTop: 2 },
+  tripBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  tripBadgeText: { color: colors.primary, fontSize: 14, fontWeight: 'bold' },
+  
+  destinationCard: { marginTop: 16, backgroundColor: colors.card, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: colors.primaryBorder, overflow: 'hidden' },
+  destinationGlow: { position: 'absolute', top: -50, right: -50, width: 150, height: 150, backgroundColor: colors.primary, opacity: 0.05, borderRadius: 75 },
+  destinationLabel: { color: colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 2 },
+  destinationName: { color: colors.text, fontSize: 24, fontWeight: 'bold', marginTop: 8 },
   dateDisplay: { marginTop: 16 },
-  dateBadge: { backgroundColor: COLORS.greenMuted, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, alignSelf: 'flex-start', borderWidth: 1, borderColor: COLORS.greenBorder },
-  dateBadgeText: { color: COLORS.green, fontSize: 13, fontWeight: '600' },
+  dateBadge: { backgroundColor: colors.primaryMuted, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.primaryBorder },
+  dateBadgeText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
   editContainer: { gap: 12 },
-  destinationInput: { backgroundColor: COLORS.cardLight, color: COLORS.text, fontSize: 18, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: COLORS.greenBorder },
+  destinationInput: { backgroundColor: colors.cardLight, color: colors.text, fontSize: 18, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.primaryBorder },
   dateInputRow: { flexDirection: 'row', alignItems: 'center' },
-  dateInput: { flex: 1, backgroundColor: COLORS.cardLight, color: COLORS.text, fontSize: 14, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: COLORS.greenBorder },
+  dateInput: { flex: 1, backgroundColor: colors.cardLight, color: colors.text, fontSize: 14, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.primaryBorder },
   dateArrow: { paddingHorizontal: 12 },
-  dateArrowText: { color: COLORS.green, fontSize: 18 },
-  saveButton: { backgroundColor: COLORS.green, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 4 },
-  saveButtonText: { color: COLORS.bg, fontSize: 16, fontWeight: 'bold' },
+  dateArrowText: { color: colors.primary, fontSize: 18 },
+  saveButton: { backgroundColor: colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 4 },
+  saveButtonText: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
+  
   statsContainer: { marginTop: 24 },
-  sectionTitle: { color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
-  budgetCard: { backgroundColor: COLORS.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: COLORS.greenBorder },
+  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
+  budgetCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.primaryBorder },
   budgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  budgetLabel: { color: COLORS.textLight, fontSize: 11, letterSpacing: 1.5, fontWeight: '600' },
-  budgetAmount: { color: COLORS.text, fontSize: 30, fontWeight: 'bold', marginTop: 4 },
+  budgetLabel: { color: colors.textLight, fontSize: 11, letterSpacing: 1.5, fontWeight: '600' },
+  budgetAmount: { color: colors.text, fontSize: 30, fontWeight: 'bold', marginTop: 4 },
   budgetPercentage: { alignItems: 'flex-end' },
-  percentageText: { color: COLORS.green, fontSize: 22, fontWeight: 'bold' },
-  percentageLabel: { color: COLORS.textMuted, fontSize: 12 },
+  percentageText: { color: colors.primary, fontSize: 22, fontWeight: 'bold' },
+  percentageLabel: { color: colors.textMuted, fontSize: 12 },
   progressContainer: { marginTop: 16 },
-  progressTrack: { height: 8, backgroundColor: COLORS.cardLight, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: COLORS.green, borderRadius: 4 },
+  progressTrack: { height: 8, backgroundColor: colors.cardLight, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 4 },
   budgetFooter: { flexDirection: 'row', marginTop: 16, alignItems: 'center' },
   budgetStat: { flex: 1 },
-  budgetStatValue: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-  budgetStatLabel: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  budgetDivider: { width: 1, height: 36, backgroundColor: COLORS.greenBorder, marginHorizontal: 16 },
+  budgetStatValue: { color: colors.text, fontSize: 18, fontWeight: 'bold' },
+  budgetStatLabel: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  budgetDivider: { width: 1, height: 36, backgroundColor: colors.primaryBorder, marginHorizontal: 16 },
+  
   miniStatsRow: { flexDirection: 'row', marginTop: 12, gap: 12 },
-  miniStatCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
-  miniStatIcon: { width: 44, height: 44, backgroundColor: COLORS.greenMuted, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  miniStatCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  miniStatIcon: { width: 44, height: 44, backgroundColor: colors.primaryMuted, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   miniStatEmoji: { fontSize: 20 },
   miniStatContent: { marginLeft: 12, flex: 1 },
-  miniStatValue: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-  miniStatLabel: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  shareCard: { marginTop: 20, backgroundColor: COLORS.card, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: COLORS.greenBorder },
+  miniStatValue: { color: colors.text, fontSize: 18, fontWeight: 'bold' },
+  miniStatLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  
+  shareCard: { marginTop: 20, backgroundColor: colors.card, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: colors.primaryBorder },
   shareContent: { flex: 1 },
-  shareTitle: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
-  shareDescription: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
-  codeContainer: { backgroundColor: COLORS.greenMuted, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.green },
-  tripCode: { color: COLORS.green, fontSize: 18, fontWeight: 'bold', letterSpacing: 2 },
+  shareTitle: { color: colors.text, fontSize: 16, fontWeight: 'bold' },
+  shareDescription: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  codeContainer: { backgroundColor: colors.primaryMuted, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.primary },
+  tripCode: { color: colors.primary, fontSize: 18, fontWeight: 'bold', letterSpacing: 2 },
 });

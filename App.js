@@ -4,14 +4,17 @@ import { StatusBar } from 'expo-status-bar';
 
 import AppNavigator from './src/navigation/AppNavigator';
 import { TravelProvider } from './src/context/TravelContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
-      <TravelProvider>
-        <AppNavigator />
-      </TravelProvider>
+      <ThemeProvider>
+        <TravelProvider>
+          <StatusBar style="light" />
+          <AppNavigator />
+        </TravelProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
