@@ -21,25 +21,28 @@ export const THEMES = {
       textMuted: '#666666',
       textLight: '#888888',
       accent: '#00FF7F',
+      danger: '#FF4444',
     }
   },
-  ocean: {
-    id: 'ocean',
-    name: 'Ocean Blue',
-    preview: ['#1B3C53', '#D2C1B6'],
+  lavender: {
+    id: 'lavender',
+    name: 'Lavender Dream',
+    preview: ['#2C2C2C', '#B39CD0'],
     colors: {
-      bg: '#1B3C53',
-      card: '#234C6A',
-      cardLight: '#456882',
-      cardDark: '#152F42',
-      primary: '#D2C1B6',
-      primaryDark: '#B8A89D',
-      primaryMuted: 'rgba(210, 193, 182, 0.15)',
-      primaryBorder: 'rgba(210, 193, 182, 0.3)',
-      text: '#FFFFFF',
-      textMuted: '#8BA5B8',
-      textLight: '#A8BDC9',
-      accent: '#D2C1B6',
+      bg: '#2C2C2C',
+      card: '#363636',
+      cardLight: '#404040',
+      cardDark: '#222222',
+      primary: '#B39CD0',
+      primaryDark: '#9A7FC0',
+      primaryMuted: 'rgba(179, 156, 208, 0.15)',
+      primaryBorder: 'rgba(179, 156, 208, 0.3)',
+      text: '#E4E4E4',
+      textMuted: '#A8A8A8',
+      textLight: '#BEBEBE',
+      accent: '#A8DADC',
+      accent2: '#FFC1CC',
+      danger: '#FF6B6B',
     }
   },
   midnight: {
@@ -59,6 +62,7 @@ export const THEMES = {
       textMuted: '#948979',
       textLight: '#A9A090',
       accent: '#DFD0B8',
+      danger: '#FF6B6B',
     }
   },
   sunset: {
@@ -78,6 +82,7 @@ export const THEMES = {
       textMuted: '#666666',
       textLight: '#888888',
       accent: '#FF6D1F',
+      danger: '#DC3545',
     }
   },
 };
