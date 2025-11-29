@@ -6,54 +6,57 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
+import TimePickerModal from '../components/TimePickerModal';
 
 const { width } = Dimensions.get('window');
 
+// Simplified and organized stop types
 const STOP_TYPES = [
   { key: 'flight', label: 'Flight', icon: '✈️', color: '#87CEEB', category: 'transport' },
+  { key: 'train', label: 'Train', icon: '🚆', color: '#4682B4', category: 'transport' },
+  { key: 'bus', label: 'Bus', icon: '🚌', color: '#32CD32', category: 'transport' },
+  { key: 'car', label: 'Car/Taxi', icon: '🚗', color: '#FFA500', category: 'transport' },
   { key: 'hotel', label: 'Hotel', icon: '🏨', color: '#DDA0DD', category: 'accommodation' },
   { key: 'checkin', label: 'Check-in', icon: '🔑', color: '#9370DB', category: 'accommodation' },
   { key: 'checkout', label: 'Check-out', icon: '🚪', color: '#8A2BE2', category: 'accommodation' },
-  { key: 'attraction', label: 'Attraction', icon: '🏛️', color: '#00FF7F', category: 'activity' },
-  { key: 'restaurant', label: 'Restaurant', icon: '🍽️', color: '#FFD700', category: 'meal' },
   { key: 'breakfast', label: 'Breakfast', icon: '🥐', color: '#FFA07A', category: 'meal' },
   { key: 'lunch', label: 'Lunch', icon: '🥗', color: '#98FB98', category: 'meal' },
   { key: 'dinner', label: 'Dinner', icon: '🍝', color: '#FF6347', category: 'meal' },
-  { key: 'activity', label: 'Activity', icon: '🎯', color: '#FF6B6B', category: 'activity' },
-  { key: 'transport', label: 'Transport', icon: '🚗', color: '#FFA500', category: 'transport' },
-  { key: 'train', label: 'Train', icon: '🚆', color: '#4682B4', category: 'transport' },
-  { key: 'bus', label: 'Bus', icon: '🚌', color: '#32CD32', category: 'transport' },
+  { key: 'cafe', label: 'Cafe/Snack', icon: '☕', color: '#D2691E', category: 'meal' },
+  { key: 'attraction', label: 'Attraction', icon: '🏛️', color: '#00FF7F', category: 'activity' },
+  { key: 'tour', label: 'Tour', icon: '🎫', color: '#FF6B6B', category: 'activity' },
   { key: 'shopping', label: 'Shopping', icon: '🛍️', color: '#FF69B4', category: 'activity' },
-  { key: 'photo', label: 'Photo Spot', icon: '📸', color: '#00CED1', category: 'activity' },
-  { key: 'relaxation', label: 'Relaxation', icon: '🧘', color: '#DEB887', category: 'activity' },
+  { key: 'nature', label: 'Nature', icon: '🌳', color: '#228B22', category: 'activity' },
+  { key: 'beach', label: 'Beach', icon: '🏖️', color: '#00CED1', category: 'activity' },
+  { key: 'museum', label: 'Museum', icon: '🖼️', color: '#8B4513', category: 'activity' },
+  { key: 'nightlife', label: 'Nightlife', icon: '🎉', color: '#9932CC', category: 'activity' },
 ];
 
-const TIME_SLOTS = [
-  { key: 'early', label: 'Early Morning', time: '06:00 AM', icon: '🌅' },
-  { key: 'morning', label: 'Morning', time: '09:00 AM', icon: '☀️' },
-  { key: 'midday', label: 'Midday', time: '12:00 PM', icon: '🌞' },
-  { key: 'afternoon', label: 'Afternoon', time: '03:00 PM', icon: '🌤️' },
-  { key: 'evening', label: 'Evening', time: '06:00 PM', icon: '🌆' },
-  { key: 'night', label: 'Night', time: '09:00 PM', icon: '🌙' },
-];
+// Helper to convert time to 24hr format for sorting
+const timeToMinutes = (timeStr) => {
+  if (!timeStr) return 9999; // Put items without time at the end
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return 9999;
+  let hours = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+};
 
 // Helper to generate days between two dates
 const generateDays = (startDate, endDate) => {
   const days = [];
-  
   if (!startDate || !endDate) {
-    for (let i = 1; i <= 5; i++) {
-      days.push({ dayNumber: i, dateString: `Day ${i}`, date: null });
-    }
+    for (let i = 1; i <= 5; i++) days.push({ dayNumber: i, dateString: `Day ${i}`, date: null });
     return days;
   }
-
   const parseDate = (dateStr) => {
     const parts = dateStr.split(' ');
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return new Date(parseInt(parts[2]), months.indexOf(parts[1]), parseInt(parts[0]));
   };
-
   try {
     const start = parseDate(startDate);
     const end = parseDate(endDate);
@@ -61,25 +64,18 @@ const generateDays = (startDate, endDate) => {
     let dayNumber = 1;
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    
     while (currentDate <= end) {
       days.push({
-        dayNumber,
-        dateString: `${currentDate.getDate()} ${months[currentDate.getMonth()]}`,
-        dayName: dayNames[currentDate.getDay()],
-        shortDay: dayNames[currentDate.getDay()].slice(0, 3),
-        date: new Date(currentDate),
-        fullDate: `${currentDate.getDate()} ${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`,
+        dayNumber, dateString: `${currentDate.getDate()} ${months[currentDate.getMonth()]}`,
+        dayName: dayNames[currentDate.getDay()], shortDay: dayNames[currentDate.getDay()].slice(0, 3),
+        date: new Date(currentDate), fullDate: `${currentDate.getDate()} ${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`,
       });
       currentDate.setDate(currentDate.getDate() + 1);
       dayNumber++;
     }
   } catch (e) {
-    for (let i = 1; i <= 5; i++) {
-      days.push({ dayNumber: i, dateString: `Day ${i}`, date: null });
-    }
+    for (let i = 1; i <= 5; i++) days.push({ dayNumber: i, dateString: `Day ${i}`, date: null });
   }
-  
   return days;
 };
 
@@ -87,12 +83,13 @@ export default function MapScreen() {
   const { itinerary, addItineraryItem, deleteItineraryItem, tripInfo } = useTravelContext();
   const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [activeDay, setActiveDay] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [newStop, setNewStop] = useState({ 
-    name: '', type: 'activity', dayNumber: 1, time: '', notes: '', location: '', 
-    duration: '', cost: '', bookingRef: '' 
+    name: '', type: 'attraction', dayNumber: 1, time: '', notes: '', location: '', 
+    duration: '', cost: ''
   });
   
   const scrollViewRef = useRef(null);
@@ -118,7 +115,7 @@ export default function MapScreen() {
   const handleAddStop = () => {
     if (newStop.name.trim()) {
       addItineraryItem({ ...newStop, dayNumber: selectedDay?.dayNumber || 1, latitude: 0, longitude: 0 });
-      setNewStop({ name: '', type: 'activity', dayNumber: 1, time: '', notes: '', location: '', duration: '', cost: '', bookingRef: '' });
+      setNewStop({ name: '', type: 'attraction', dayNumber: 1, time: '', notes: '', location: '', duration: '', cost: '' });
       setModalVisible(false);
       setSelectedDay(null);
     }
@@ -130,16 +127,13 @@ export default function MapScreen() {
     setModalVisible(true); 
   };
 
-  const getStopType = (key) => STOP_TYPES.find(t => t.key === key) || STOP_TYPES[4];
+  const getStopType = (key) => STOP_TYPES.find(t => t.key === key) || STOP_TYPES[11];
   
+  // Sort stops by time
   const getStopsForDay = (dayNumber) => {
     return itinerary
       .filter(s => s.dayNumber === dayNumber)
-      .sort((a, b) => {
-        const timeA = a.time || '99:99';
-        const timeB = b.time || '99:99';
-        return timeA.localeCompare(timeB);
-      });
+      .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
   };
 
   const getCategoryStats = (dayNumber) => {
@@ -213,22 +207,12 @@ export default function MapScreen() {
             const dayStops = getStopsForDay(day.dayNumber);
             const hasStops = dayStops.length > 0;
             return (
-              <TouchableOpacity 
-                key={day.dayNumber} 
-                style={[styles.dayPill, isActive && styles.dayPillActive]} 
-                onPress={() => setActiveDay(day.dayNumber)}
-              >
-                <Text style={[styles.dayPillNumber, isActive && styles.dayPillNumberActive]}>
-                  {day.dayNumber}
-                </Text>
-                <Text style={[styles.dayPillLabel, isActive && styles.dayPillLabelActive]}>
-                  {day.shortDay || 'Day'}
-                </Text>
+              <TouchableOpacity key={day.dayNumber} style={[styles.dayPill, isActive && styles.dayPillActive]} onPress={() => setActiveDay(day.dayNumber)}>
+                <Text style={[styles.dayPillNumber, isActive && styles.dayPillNumberActive]}>{day.dayNumber}</Text>
+                <Text style={[styles.dayPillLabel, isActive && styles.dayPillLabelActive]}>{day.shortDay || 'Day'}</Text>
                 {hasStops && (
                   <View style={[styles.dayPillBadge, isActive && styles.dayPillBadgeActive]}>
-                    <Text style={[styles.dayPillBadgeText, isActive && styles.dayPillBadgeTextActive]}>
-                      {dayStops.length}
-                    </Text>
+                    <Text style={[styles.dayPillBadgeText, isActive && styles.dayPillBadgeTextActive]}>{dayStops.length}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -272,9 +256,7 @@ export default function MapScreen() {
                   {/* Day Badge Column */}
                   <View style={styles.dayCardLeft}>
                     <View style={[styles.dayBadge, hasStops && styles.dayBadgeActive]}>
-                      <Text style={[styles.dayBadgeText, hasStops && styles.dayBadgeTextActive]}>
-                        {day.dayNumber}
-                      </Text>
+                      <Text style={[styles.dayBadgeText, hasStops && styles.dayBadgeTextActive]}>{day.dayNumber}</Text>
                     </View>
                     {!isLastDay && <View style={styles.dayConnector} />}
                   </View>
@@ -285,9 +267,7 @@ export default function MapScreen() {
                     <View style={styles.dayCardHeader}>
                       <View>
                         <Text style={styles.dayCardTitle}>Day {day.dayNumber}</Text>
-                        <Text style={styles.dayCardDate}>
-                          {day.dayName ? `${day.dayName}, ${day.dateString}` : day.dateString}
-                        </Text>
+                        <Text style={styles.dayCardDate}>{day.dayName ? `${day.dayName}, ${day.dateString}` : day.dateString}</Text>
                       </View>
                       <TouchableOpacity style={styles.addButton} onPress={() => openAddModal(day)}>
                         <Text style={styles.addButtonIcon}>+</Text>
@@ -297,30 +277,10 @@ export default function MapScreen() {
                     {/* Day Stats Mini */}
                     {hasStops && (
                       <View style={styles.dayStats}>
-                        {stats.transport > 0 && (
-                          <View style={styles.dayStatItem}>
-                            <Text style={styles.dayStatIcon}>🚗</Text>
-                            <Text style={styles.dayStatCount}>{stats.transport}</Text>
-                          </View>
-                        )}
-                        {stats.accommodation > 0 && (
-                          <View style={styles.dayStatItem}>
-                            <Text style={styles.dayStatIcon}>🏨</Text>
-                            <Text style={styles.dayStatCount}>{stats.accommodation}</Text>
-                          </View>
-                        )}
-                        {stats.meal > 0 && (
-                          <View style={styles.dayStatItem}>
-                            <Text style={styles.dayStatIcon}>🍽️</Text>
-                            <Text style={styles.dayStatCount}>{stats.meal}</Text>
-                          </View>
-                        )}
-                        {stats.activity > 0 && (
-                          <View style={styles.dayStatItem}>
-                            <Text style={styles.dayStatIcon}>🎯</Text>
-                            <Text style={styles.dayStatCount}>{stats.activity}</Text>
-                          </View>
-                        )}
+                        {stats.transport > 0 && <View style={styles.dayStatItem}><Text style={styles.dayStatIcon}>🚗</Text><Text style={styles.dayStatCount}>{stats.transport}</Text></View>}
+                        {stats.accommodation > 0 && <View style={styles.dayStatItem}><Text style={styles.dayStatIcon}>🏨</Text><Text style={styles.dayStatCount}>{stats.accommodation}</Text></View>}
+                        {stats.meal > 0 && <View style={styles.dayStatItem}><Text style={styles.dayStatIcon}>🍽️</Text><Text style={styles.dayStatCount}>{stats.meal}</Text></View>}
+                        {stats.activity > 0 && <View style={styles.dayStatItem}><Text style={styles.dayStatIcon}>🎯</Text><Text style={styles.dayStatCount}>{stats.activity}</Text></View>}
                       </View>
                     )}
 
@@ -351,9 +311,7 @@ export default function MapScreen() {
                               <View style={[styles.stopCard, { borderLeftColor: type.color }]}>
                                 {/* Category Tag */}
                                 <View style={[styles.categoryTag, { backgroundColor: type.color + '20' }]}>
-                                  <Text style={[styles.categoryTagText, { color: type.color }]}>
-                                    {type.category.toUpperCase()}
-                                  </Text>
+                                  <Text style={[styles.categoryTagText, { color: type.color }]}>{type.category.toUpperCase()}</Text>
                                 </View>
 
                                 <View style={styles.stopCardHeader}>
@@ -366,9 +324,7 @@ export default function MapScreen() {
                                       <View style={[styles.stopTypeBadge, { backgroundColor: type.color + '15' }]}>
                                         <Text style={[styles.stopTypeBadgeText, { color: type.color }]}>{type.label}</Text>
                                       </View>
-                                      {stop.duration && (
-                                        <Text style={styles.stopDuration}>⏱️ {stop.duration}</Text>
-                                      )}
+                                      {stop.duration && <Text style={styles.stopDuration}>⏱️ {stop.duration}</Text>}
                                     </View>
                                   </View>
                                   <TouchableOpacity style={styles.stopDeleteBtn} onPress={() => deleteItineraryItem(stop.id)}>
@@ -387,13 +343,6 @@ export default function MapScreen() {
                                   <View style={styles.stopDetailRow}>
                                     <Text style={styles.stopDetailIcon}>💰</Text>
                                     <Text style={styles.stopDetailText}>${stop.cost}</Text>
-                                  </View>
-                                )}
-
-                                {stop.bookingRef && (
-                                  <View style={styles.stopDetailRow}>
-                                    <Text style={styles.stopDetailIcon}>🎫</Text>
-                                    <Text style={styles.stopDetailText}>Ref: {stop.bookingRef}</Text>
                                   </View>
                                 )}
                                 
@@ -449,11 +398,7 @@ export default function MapScreen() {
               {/* Category Filter */}
               <View style={styles.categoryFilter}>
                 {['all', 'transport', 'accommodation', 'meal', 'activity'].map(cat => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.categoryChip, selectedCategory === cat && styles.categoryChipActive]}
-                    onPress={() => setSelectedCategory(cat)}
-                  >
+                  <TouchableOpacity key={cat} style={[styles.categoryChip, selectedCategory === cat && styles.categoryChipActive]} onPress={() => setSelectedCategory(cat)}>
                     <Text style={[styles.categoryChipText, selectedCategory === cat && styles.categoryChipTextActive]}>
                       {cat === 'all' ? '🌟 All' : cat === 'transport' ? '🚗 Transport' : cat === 'accommodation' ? '🏨 Stay' : cat === 'meal' ? '🍽️ Meals' : '🎯 Activities'}
                     </Text>
@@ -466,11 +411,7 @@ export default function MapScreen() {
                 <Text style={styles.inputLabel}>Type</Text>
                 <View style={styles.typeGrid}>
                   {filteredTypes.map(type => (
-                    <TouchableOpacity
-                      key={type.key}
-                      style={[styles.typeChip, newStop.type === type.key && { backgroundColor: type.color, borderColor: type.color }]}
-                      onPress={() => setNewStop({...newStop, type: type.key})}
-                    >
+                    <TouchableOpacity key={type.key} style={[styles.typeChip, newStop.type === type.key && { backgroundColor: type.color, borderColor: type.color }]} onPress={() => setNewStop({...newStop, type: type.key})}>
                       <Text style={styles.typeChipIcon}>{type.icon}</Text>
                       <Text style={[styles.typeChipText, newStop.type === type.key && { color: colors.bg }]}>{type.label}</Text>
                     </TouchableOpacity>
@@ -481,41 +422,31 @@ export default function MapScreen() {
               {/* Name */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Name / Description *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Flight to Paris, Eiffel Tower Visit"
-                  placeholderTextColor={colors.textMuted}
-                  value={newStop.name}
-                  onChangeText={(t) => setNewStop({...newStop, name: t})}
-                />
+                <TextInput style={styles.input} placeholder="e.g., Flight to Paris, Eiffel Tower Visit" placeholderTextColor={colors.textMuted} value={newStop.name} onChangeText={(t) => setNewStop({...newStop, name: t})} />
               </View>
 
-              {/* Time & Duration Row */}
+              {/* Time - Tap to open picker */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>⏰ Time</Text>
+                <TouchableOpacity style={styles.timePickerButton} onPress={() => setTimePickerVisible(true)}>
+                  <Text style={styles.timePickerIcon}>🕐</Text>
+                  <Text style={[styles.timePickerText, !newStop.time && { color: colors.textMuted }]}>
+                    {newStop.time || 'Tap to select time'}
+                  </Text>
+                  <Text style={styles.timePickerArrow}>→</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Duration & Cost Row */}
               <View style={styles.inputRow}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.inputLabel}>Time</Text>
-                  <TextInput style={styles.input} placeholder="09:00 AM" placeholderTextColor={colors.textMuted} value={newStop.time} onChangeText={(t) => setNewStop({...newStop, time: t})} />
-                </View>
-                <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Duration</Text>
+                  <Text style={styles.inputLabel}>⏱️ Duration</Text>
                   <TextInput style={styles.input} placeholder="2 hours" placeholderTextColor={colors.textMuted} value={newStop.duration} onChangeText={(t) => setNewStop({...newStop, duration: t})} />
                 </View>
-              </View>
-
-              {/* Quick Time Selection */}
-              <View style={styles.quickTimeContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {TIME_SLOTS.map(slot => (
-                    <TouchableOpacity 
-                      key={slot.key} 
-                      style={[styles.quickTimeChip, newStop.time === slot.time && styles.quickTimeChipActive]}
-                      onPress={() => setNewStop({...newStop, time: slot.time})}
-                    >
-                      <Text style={styles.quickTimeIcon}>{slot.icon}</Text>
-                      <Text style={[styles.quickTimeText, newStop.time === slot.time && styles.quickTimeTextActive]}>{slot.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.inputLabel}>💰 Cost (optional)</Text>
+                  <TextInput style={styles.input} placeholder="$50" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={newStop.cost} onChangeText={(t) => setNewStop({...newStop, cost: t})} />
+                </View>
               </View>
 
               {/* Location */}
@@ -524,22 +455,10 @@ export default function MapScreen() {
                 <TextInput style={styles.input} placeholder="Address or place name" placeholderTextColor={colors.textMuted} value={newStop.location} onChangeText={(t) => setNewStop({...newStop, location: t})} />
               </View>
 
-              {/* Cost & Booking Row */}
-              <View style={styles.inputRow}>
-                <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.inputLabel}>💰 Cost</Text>
-                  <TextInput style={styles.input} placeholder="$50" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={newStop.cost} onChangeText={(t) => setNewStop({...newStop, cost: t})} />
-                </View>
-                <View style={[styles.inputGroup, { flex: 1.5 }]}>
-                  <Text style={styles.inputLabel}>🎫 Booking Reference</Text>
-                  <TextInput style={styles.input} placeholder="ABC123" placeholderTextColor={colors.textMuted} value={newStop.bookingRef} onChangeText={(t) => setNewStop({...newStop, bookingRef: t})} />
-                </View>
-              </View>
-
               {/* Notes */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>📝 Notes</Text>
-                <TextInput style={[styles.input, styles.notesInput]} placeholder="Additional details, tips, reminders..." placeholderTextColor={colors.textMuted} value={newStop.notes} onChangeText={(t) => setNewStop({...newStop, notes: t})} multiline />
+                <Text style={styles.inputLabel}>📝 Notes (optional)</Text>
+                <TextInput style={[styles.input, styles.notesInput]} placeholder="Tips, reminders, details..." placeholderTextColor={colors.textMuted} value={newStop.notes} onChangeText={(t) => setNewStop({...newStop, notes: t})} multiline />
               </View>
 
               <TouchableOpacity style={[styles.submitButton, !newStop.name.trim() && styles.submitButtonDisabled]} onPress={handleAddStop} disabled={!newStop.name.trim()}>
@@ -549,6 +468,15 @@ export default function MapScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Time Picker Modal */}
+      <TimePickerModal
+        visible={timePickerVisible}
+        onClose={() => setTimePickerVisible(false)}
+        onSelect={(time) => setNewStop({...newStop, time})}
+        selectedTime={newStop.time}
+        title="Select Time"
+      />
     </SafeAreaView>
   );
 }
@@ -666,7 +594,7 @@ const createStyles = (colors) => StyleSheet.create({
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.8)' },
-  modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingHorizontal: 20, paddingBottom: 20, maxHeight: '90%' },
+  modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingHorizontal: 20, paddingBottom: 20, maxHeight: '88%' },
   modalHandle: { width: 40, height: 4, backgroundColor: colors.textMuted, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   modalHeaderInfo: {},
@@ -690,13 +618,11 @@ const createStyles = (colors) => StyleSheet.create({
   input: { backgroundColor: colors.cardLight, color: colors.text, padding: 14, borderRadius: 10, fontSize: 14, borderWidth: 1, borderColor: colors.primaryBorder },
   notesInput: { height: 70, textAlignVertical: 'top' },
   
-  // Quick Time
-  quickTimeContainer: { marginBottom: 14 },
-  quickTimeChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginRight: 8, borderWidth: 1, borderColor: colors.primaryBorder },
-  quickTimeChipActive: { backgroundColor: colors.primaryMuted, borderColor: colors.primary },
-  quickTimeIcon: { fontSize: 14, marginRight: 6 },
-  quickTimeText: { color: colors.textMuted, fontSize: 11 },
-  quickTimeTextActive: { color: colors.primary, fontWeight: '600' },
+  // Time Picker Button
+  timePickerButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.primaryBorder },
+  timePickerIcon: { fontSize: 20, marginRight: 10 },
+  timePickerText: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '500' },
+  timePickerArrow: { color: colors.primary, fontSize: 16 },
 
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   typeChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.primaryBorder },
