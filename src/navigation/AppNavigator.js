@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
@@ -59,13 +59,10 @@ function TripTabs({ onBackToHome }) {
   );
 }
 
-// Import Text for Tab icons
-import { Text } from 'react-native';
-
 export default function AppNavigator() {
   const [screen, setScreen] = useState('welcome');
   const [activeTab, setActiveTab] = useState('home');
-  const { setTripInfo, setBudget, tripInfo } = useTravelContext();
+  const { setTripInfo, setBudget } = useTravelContext();
 
   const handlePlanTrip = () => setScreen('setup');
 
@@ -88,7 +85,10 @@ export default function AppNavigator() {
     setActiveTab('trip');
   };
 
-  const handleBackToWelcome = () => setScreen('welcome');
+  const handleBackToWelcome = () => {
+    setScreen('welcome');
+    setActiveTab('home');
+  };
 
   const handleTabPress = (tab) => {
     setActiveTab(tab);
@@ -125,7 +125,8 @@ export default function AppNavigator() {
     }
   };
 
-  const showFooter = screen !== 'setup';
+  // Only show floating footer on welcome, history, and profile screens
+  const showFooter = screen === 'welcome' || screen === 'history' || screen === 'profile';
 
   return (
     <View style={styles.container}>

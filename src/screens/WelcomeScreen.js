@@ -215,6 +215,9 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip }) {
             ))}
           </View>
         </Animated.View>
+
+        {/* Spacer View */}
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Join Trip Modal */}
@@ -277,7 +280,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 40,
+    paddingBottom: 100, // Add padding for footer
   },
   bgElements: {
     position: 'absolute',

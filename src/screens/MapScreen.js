@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Modal, StyleSheet, Animated, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
-import DatePickerModal from '../components/DatePickerModal';
 
 const { width } = Dimensions.get('window');
 
@@ -26,12 +25,86 @@ const STOP_TYPES = [
   { key: 'transport', label: 'Transport', icon: '🚗', color: '#FFA500' },
 ];
 
+// Helper to generate days between two dates
+const generateDays = (startDate, endDate) => {
+  const days = [];
+  
+  if (!startDate || !endDate) {
+    // Default 5 days if no dates set
+    for (let i = 1; i <= 5; i++) {
+      days.push({
+        dayNumber: i,
+        dateString: `Day ${i}`,
+        date: null,
+      });
+    }
+    return days;
+  }
+
+  // Parse dates (format: "25 Dec 2024")
+  const parseDate = (dateStr) => {
+    const parts = dateStr.split(' ');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = parseInt(parts[0]);
+    const month = months.indexOf(parts[1]);
+    const year = parseInt(parts[2]);
+    return new Date(year, month, day);
+  };
+
+  try {
+    const start = parseDate(startDate);
+    const end = parseDate(endDate);
+    
+    let currentDate = new Date(start);
+    let dayNumber = 1;
+    
+    while (currentDate <= end) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      
+      days.push({
+        dayNumber,
+        dateString: `${currentDate.getDate()} ${months[currentDate.getMonth()]}`,
+        dayName: dayNames[currentDate.getDay()],
+        date: new Date(currentDate),
+        fullDate: `${currentDate.getDate()} ${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`,
+      });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+      dayNumber++;
+    }
+  } catch (e) {
+    // Fallback to 5 days
+    for (let i = 1; i <= 5; i++) {
+      days.push({
+        dayNumber: i,
+        dateString: `Day ${i}`,
+        date: null,
+      });
+    }
+  }
+  
+  return days;
+};
+
 export default function MapScreen() {
-  const { itinerary, addItineraryItem, deleteItineraryItem } = useTravelContext();
+  const { itinerary, addItineraryItem, deleteItineraryItem, tripInfo } = useTravelContext();
   const [modalVisible, setModalVisible] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [newStop, setNewStop] = useState({ name: '', type: 'attraction', date: '', time: '', notes: '', location: '' });
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [newStop, setNewStop] = useState({ 
+    name: '', 
+    type: 'attraction', 
+    dayNumber: 1, 
+    time: '', 
+    notes: '', 
+    location: '' 
+  });
   const floatAnim = useState(new Animated.Value(0))[0];
+
+  // Generate days based on trip dates
+  const tripDays = useMemo(() => {
+    return generateDays(tripInfo.startDate, tripInfo.endDate);
+  }, [tripInfo.startDate, tripInfo.endDate]);
 
   useEffect(() => {
     Animated.loop(
@@ -49,27 +122,36 @@ export default function MapScreen() {
 
   const handleAddStop = () => {
     if (newStop.name.trim()) {
-      addItineraryItem({ ...newStop, latitude: 0, longitude: 0 });
-      setNewStop({ name: '', type: 'attraction', date: '', time: '', notes: '', location: '' });
+      addItineraryItem({ 
+        ...newStop, 
+        dayNumber: selectedDay?.dayNumber || 1,
+        latitude: 0, 
+        longitude: 0 
+      });
+      setNewStop({ name: '', type: 'attraction', dayNumber: 1, time: '', notes: '', location: '' });
       setModalVisible(false);
+      setSelectedDay(null);
     }
   };
 
+  const openAddModal = (day) => {
+    setSelectedDay(day);
+    setNewStop({ ...newStop, dayNumber: day.dayNumber });
+    setModalVisible(true);
+  };
+
   const getStopType = (key) => STOP_TYPES.find(t => t.key === key) || STOP_TYPES[2];
+  
+  const getStopsForDay = (dayNumber) => {
+    return itinerary
+      .filter(stop => stop.dayNumber === dayNumber)
+      .sort((a, b) => {
+        if (!a.time || !b.time) return 0;
+        return a.time.localeCompare(b.time);
+      });
+  };
 
-  // Group itinerary by date
-  const groupedItinerary = itinerary.reduce((acc, stop) => {
-    const date = stop.date || 'Unscheduled';
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(stop);
-    return acc;
-  }, {});
-
-  const sortedDates = Object.keys(groupedItinerary).sort((a, b) => {
-    if (a === 'Unscheduled') return 1;
-    if (b === 'Unscheduled') return -1;
-    return a.localeCompare(b);
-  });
+  const totalStops = itinerary.length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -78,292 +160,394 @@ export default function MapScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Itinerary</Text>
-            <Text style={styles.subtitle}>{itinerary.length} stops planned</Text>
+            <Text style={styles.subtitle}>
+              {tripDays.length} days • {totalStops} stops
+            </Text>
           </View>
-          <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-            <Text style={styles.addButtonText}>+</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Hero Illustration */}
-        {itinerary.length === 0 && (
+        {/* Trip Date Range */}
+        {tripInfo.startDate && tripInfo.endDate && (
+          <View style={styles.dateRangeCard}>
+            <View style={styles.dateRangeItem}>
+              <Text style={styles.dateRangeLabel}>START</Text>
+              <Text style={styles.dateRangeValue}>{tripInfo.startDate}</Text>
+            </View>
+            <View style={styles.dateRangeDivider}>
+              <Text style={styles.dateRangeArrow}>→</Text>
+            </View>
+            <View style={styles.dateRangeItem}>
+              <Text style={styles.dateRangeLabel}>END</Text>
+              <Text style={styles.dateRangeValue}>{tripInfo.endDate}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Hero when no stops */}
+        {totalStops === 0 && (
           <Animated.View style={[styles.heroContainer, { transform: [{ translateY: floatTranslate }] }]}>
             <View style={styles.heroGlobe}>
-              <Text style={styles.heroEmoji}>🌍</Text>
+              <Text style={styles.heroEmoji}>🗺️</Text>
               <View style={styles.heroRing} />
-              <View style={styles.heroRing2} />
             </View>
-            <View style={styles.heroPlane}>
-              <Text style={styles.planeEmoji}>✈️</Text>
-            </View>
-            <View style={styles.heroPin}>
-              <Text style={styles.pinEmoji}>📍</Text>
-            </View>
+            <View style={styles.heroPlane}><Text style={styles.planeEmoji}>✈️</Text></View>
+            <View style={styles.heroPin}><Text style={styles.pinEmoji}>📍</Text></View>
           </Animated.View>
         )}
 
-        {/* Empty State */}
-        {itinerary.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Plan Your Journey</Text>
-            <Text style={styles.emptyText}>Add stops to create your perfect itinerary</Text>
-            <TouchableOpacity style={styles.emptyButton} onPress={() => setModalVisible(true)}>
-              <Text style={styles.emptyButtonText}>Add First Stop</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.timeline}>
-            {sortedDates.map((date, dateIndex) => (
-              <View key={date} style={styles.daySection}>
-                {/* Day Header */}
-                <View style={styles.dayHeader}>
-                  <View style={styles.dayBadge}>
-                    <Text style={styles.dayBadgeText}>
-                      {date === 'Unscheduled' ? '📅' : '📆'}
+        {/* Timeline */}
+        <View style={styles.timeline}>
+          {tripDays.map((day, dayIndex) => {
+            const dayStops = getStopsForDay(day.dayNumber);
+            const hasStops = dayStops.length > 0;
+            const isLastDay = dayIndex === tripDays.length - 1;
+            
+            return (
+              <View key={day.dayNumber} style={styles.dayContainer}>
+                {/* Center Timeline with Day Marker */}
+                <View style={styles.centerTimeline}>
+                  {/* Top Line */}
+                  {dayIndex > 0 && <View style={styles.timelineLineTop} />}
+                  
+                  {/* Day Circle */}
+                  <View style={[styles.dayCircle, hasStops && styles.dayCircleActive]}>
+                    <Text style={[styles.dayCircleNumber, hasStops && styles.dayCircleNumberActive]}>
+                      {day.dayNumber}
                     </Text>
                   </View>
-                  <View style={styles.dayInfo}>
-                    <Text style={styles.dayTitle}>{date}</Text>
-                    <Text style={styles.daySubtitle}>{groupedItinerary[date].length} stops</Text>
-                  </View>
+                  
+                  {/* Bottom Line */}
+                  {!isLastDay && <View style={styles.timelineLineBottom} />}
                 </View>
 
-                {/* Stops for this day */}
-                {groupedItinerary[date].map((stop, stopIndex) => {
-                  const type = getStopType(stop.type);
-                  const isLast = stopIndex === groupedItinerary[date].length - 1;
-                  
-                  return (
-                    <View key={stop.id} style={styles.stopContainer}>
-                      {/* Timeline connector */}
-                      <View style={styles.timelineTrack}>
-                        <View style={[styles.timelineDot, { backgroundColor: type.color }]}>
-                          <Text style={styles.timelineDotEmoji}>{type.icon}</Text>
-                        </View>
-                        {!isLast && <View style={styles.timelineLine} />}
-                      </View>
+                {/* Day Content */}
+                <View style={styles.dayContentWrapper}>
+                  {/* Day Header */}
+                  <View style={styles.dayHeader}>
+                    <View style={styles.dayInfo}>
+                      <Text style={styles.dayTitle}>Day {day.dayNumber}</Text>
+                      {day.dateString && (
+                        <Text style={styles.dayDate}>
+                          {day.dayName ? `${day.dayName}, ` : ''}{day.dateString}
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.addDayButton}
+                      onPress={() => openAddModal(day)}
+                    >
+                      <Text style={styles.addDayButtonText}>+ Add</Text>
+                    </TouchableOpacity>
+                  </View>
 
-                      {/* Stop Card */}
-                      <View style={styles.stopCard}>
-                        <View style={styles.stopCardHeader}>
-                          <View style={styles.stopInfo}>
-                            <Text style={styles.stopName}>{stop.name}</Text>
-                            <View style={styles.stopMeta}>
-                              <View style={[styles.typeBadge, { backgroundColor: type.color + '20' }]}>
-                                <Text style={[styles.typeBadgeText, { color: type.color }]}>{type.label}</Text>
+                  {/* Stops List */}
+                  {dayStops.length === 0 ? (
+                    <TouchableOpacity 
+                      style={styles.emptyDayCard}
+                      onPress={() => openAddModal(day)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.emptyDayText}>Tap to add activities</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.stopsContainer}>
+                      {dayStops.map((stop, stopIndex) => {
+                        const type = getStopType(stop.type);
+                        return (
+                          <View key={stop.id} style={styles.stopCard}>
+                            <View style={[styles.stopIconBg, { backgroundColor: type.color + '20' }]}>
+                              <Text style={styles.stopIcon}>{type.icon}</Text>
+                            </View>
+                            <View style={styles.stopContent}>
+                              <View style={styles.stopHeader}>
+                                <Text style={styles.stopName}>{stop.name}</Text>
+                                <TouchableOpacity 
+                                  onPress={() => deleteItineraryItem(stop.id)}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                  <Text style={styles.deleteBtn}>×</Text>
+                                </TouchableOpacity>
                               </View>
-                              {stop.time && (
-                                <Text style={styles.stopTime}>⏰ {stop.time}</Text>
+                              <View style={styles.stopMeta}>
+                                <View style={[styles.typeBadge, { backgroundColor: type.color + '15' }]}>
+                                  <Text style={[styles.typeBadgeText, { color: type.color }]}>{type.label}</Text>
+                                </View>
+                                {stop.time && <Text style={styles.stopTime}>⏰ {stop.time}</Text>}
+                              </View>
+                              {stop.location && (
+                                <View style={styles.stopLocation}>
+                                  <Text style={styles.locationText}>📍 {stop.location}</Text>
+                                </View>
                               )}
+                              {stop.notes && <Text style={styles.stopNotes}>{stop.notes}</Text>}
                             </View>
                           </View>
-                          <TouchableOpacity 
-                            onPress={() => deleteItineraryItem(stop.id)}
-                            style={styles.deleteButton}
-                          >
-                            <Text style={styles.deleteText}>×</Text>
-                          </TouchableOpacity>
-                        </View>
-                        
-                        {stop.location && (
-                          <View style={styles.stopLocation}>
-                            <Text style={styles.locationIcon}>📍</Text>
-                            <Text style={styles.locationText}>{stop.location}</Text>
-                          </View>
-                        )}
-                        
-                        {stop.notes && (
-                          <Text style={styles.stopNotes}>{stop.notes}</Text>
-                        )}
-                      </View>
+                        );
+                      })}
                     </View>
-                  );
-                })}
+                  )}
+                </View>
               </View>
-            ))}
-          </View>
-        )}
+            );
+          })}
+        </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Add Stop Modal */}
-      <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+      <Modal 
+        animationType="slide" 
+        transparent 
+        visible={modalVisible} 
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
             
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Stop</Text>
+              <View>
+                <Text style={styles.modalTitle}>Add Event</Text>
+                {selectedDay && (
+                  <Text style={styles.modalSubtitle}>
+                    Day {selectedDay.dayNumber} {selectedDay.dateString ? `• ${selectedDay.dateString}` : ''}
+                  </Text>
+                )}
+              </View>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalClose}>
                 <Text style={styles.modalCloseText}>×</Text>
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Stop name"
-              placeholderTextColor={COLORS.textMuted}
-              value={newStop.name}
-              onChangeText={(t) => setNewStop({...newStop, name: t})}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="📍 Location (optional)"
-              placeholderTextColor={COLORS.textMuted}
-              value={newStop.location}
-              onChangeText={(t) => setNewStop({...newStop, location: t})}
-            />
-
-            <View style={styles.dateTimeRow}>
-              <TouchableOpacity 
-                style={styles.dateTimeButton}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={styles.dateTimeIcon}>📅</Text>
-                <Text style={styles.dateTimeText}>{newStop.date || 'Date'}</Text>
-              </TouchableOpacity>
-              
+            <ScrollView showsVerticalScrollIndicator={false}>
               <TextInput
-                style={styles.timeInput}
-                placeholder="⏰ Time"
+                style={styles.input}
+                placeholder="Event name *"
+                placeholderTextColor={COLORS.textMuted}
+                value={newStop.name}
+                onChangeText={(t) => setNewStop({...newStop, name: t})}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="📍 Location"
+                placeholderTextColor={COLORS.textMuted}
+                value={newStop.location}
+                onChangeText={(t) => setNewStop({...newStop, location: t})}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="⏰ Time (e.g., 10:00 AM)"
                 placeholderTextColor={COLORS.textMuted}
                 value={newStop.time}
                 onChangeText={(t) => setNewStop({...newStop, time: t})}
               />
-            </View>
 
-            <Text style={styles.inputLabel}>Type</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScroll}>
-              {STOP_TYPES.map(type => (
-                <TouchableOpacity
-                  key={type.key}
-                  style={[
-                    styles.typeChip,
-                    newStop.type === type.key && { backgroundColor: type.color, borderColor: type.color }
-                  ]}
-                  onPress={() => setNewStop({...newStop, type: type.key})}
-                >
-                  <Text style={styles.typeChipIcon}>{type.icon}</Text>
-                  <Text style={[
-                    styles.typeChipText,
-                    newStop.type === type.key && { color: COLORS.bg }
-                  ]}>{type.label}</Text>
-                </TouchableOpacity>
-              ))}
+              <Text style={styles.inputLabel}>Type</Text>
+              <View style={styles.typeGrid}>
+                {STOP_TYPES.map(type => (
+                  <TouchableOpacity
+                    key={type.key}
+                    style={[
+                      styles.typeChip,
+                      newStop.type === type.key && { backgroundColor: type.color, borderColor: type.color }
+                    ]}
+                    onPress={() => setNewStop({...newStop, type: type.key})}
+                  >
+                    <Text style={styles.typeChipIcon}>{type.icon}</Text>
+                    <Text style={[
+                      styles.typeChipText,
+                      newStop.type === type.key && { color: COLORS.bg }
+                    ]}>{type.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TextInput
+                style={[styles.input, styles.notesInput]}
+                placeholder="Notes (optional)"
+                placeholderTextColor={COLORS.textMuted}
+                value={newStop.notes}
+                onChangeText={(t) => setNewStop({...newStop, notes: t})}
+                multiline
+              />
+
+              <TouchableOpacity 
+                style={[styles.submitButton, !newStop.name.trim() && styles.submitButtonDisabled]} 
+                onPress={handleAddStop}
+                disabled={!newStop.name.trim()}
+              >
+                <Text style={styles.submitButtonText}>Add to Day {selectedDay?.dayNumber}</Text>
+              </TouchableOpacity>
             </ScrollView>
-
-            <TextInput
-              style={[styles.input, styles.notesInput]}
-              placeholder="Notes (optional)"
-              placeholderTextColor={COLORS.textMuted}
-              value={newStop.notes}
-              onChangeText={(t) => setNewStop({...newStop, notes: t})}
-              multiline
-            />
-
-            <TouchableOpacity style={styles.submitButton} onPress={handleAddStop}>
-              <Text style={styles.submitButtonText}>Add to Itinerary</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
-      {/* Date Picker */}
-      <DatePickerModal
-        visible={showDatePicker}
-        onClose={() => setShowDatePicker(false)}
-        onSelect={(date) => setNewStop({...newStop, date})}
-        selectedDate={newStop.date}
-        title="Select Date"
-      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20 },
+  header: { paddingHorizontal: 20, paddingTop: 20, marginBottom: 16 },
   title: { color: COLORS.text, fontSize: 32, fontWeight: 'bold' },
   subtitle: { color: COLORS.textMuted, fontSize: 14, marginTop: 4 },
-  addButton: { width: 48, height: 48, backgroundColor: COLORS.green, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  addButtonText: { color: COLORS.bg, fontSize: 28, fontWeight: 'bold', marginTop: -2 },
-  
+
+  // Date Range Card
+  dateRangeCard: {
+    marginHorizontal: 20,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+    marginBottom: 20,
+  },
+  dateRangeItem: { flex: 1 },
+  dateRangeLabel: { color: COLORS.green, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  dateRangeValue: { color: COLORS.text, fontSize: 14, fontWeight: '600', marginTop: 4 },
+  dateRangeDivider: { paddingHorizontal: 16 },
+  dateRangeArrow: { color: COLORS.green, fontSize: 20 },
+
   // Hero
-  heroContainer: { alignItems: 'center', marginTop: 40, marginBottom: 20 },
-  heroGlobe: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
-  heroEmoji: { fontSize: 70 },
-  heroRing: { position: 'absolute', width: 140, height: 140, borderRadius: 70, borderWidth: 2, borderColor: COLORS.greenBorder, opacity: 0.5 },
-  heroRing2: { position: 'absolute', width: 170, height: 170, borderRadius: 85, borderWidth: 1, borderColor: COLORS.greenBorder, opacity: 0.3 },
-  heroPlane: { position: 'absolute', top: 10, right: width * 0.2 },
-  planeEmoji: { fontSize: 30 },
-  heroPin: { position: 'absolute', bottom: 20, left: width * 0.25 },
-  pinEmoji: { fontSize: 26 },
-  
-  // Empty state
-  emptyState: { alignItems: 'center', paddingHorizontal: 40 },
-  emptyTitle: { color: COLORS.text, fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
-  emptyText: { color: COLORS.textMuted, fontSize: 15, textAlign: 'center' },
-  emptyButton: { marginTop: 24, backgroundColor: COLORS.green, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 14 },
-  emptyButtonText: { color: COLORS.bg, fontSize: 16, fontWeight: 'bold' },
-  
+  heroContainer: { alignItems: 'center', marginVertical: 20 },
+  heroGlobe: { width: 80, height: 80, alignItems: 'center', justifyContent: 'center' },
+  heroEmoji: { fontSize: 40 },
+  heroRing: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: COLORS.greenBorder },
+  heroPlane: { position: 'absolute', top: 0, right: width * 0.28 },
+  planeEmoji: { fontSize: 20 },
+  heroPin: { position: 'absolute', bottom: 5, left: width * 0.3 },
+  pinEmoji: { fontSize: 18 },
+
   // Timeline
-  timeline: { paddingHorizontal: 20, marginTop: 20 },
-  daySection: { marginBottom: 24 },
-  dayHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  dayBadge: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.greenMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
-  dayBadgeText: { fontSize: 20 },
-  dayInfo: { marginLeft: 14 },
+  timeline: { paddingHorizontal: 20 },
+  dayContainer: { flexDirection: 'row', minHeight: 100 },
+
+  // Center Timeline
+  centerTimeline: { width: 50, alignItems: 'center' },
+  timelineLineTop: { width: 2, height: 20, backgroundColor: COLORS.greenBorder },
+  timelineLineBottom: { width: 2, flex: 1, backgroundColor: COLORS.greenBorder, marginTop: 8 },
+  dayCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.greenBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCircleActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
+  dayCircleNumber: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
+  dayCircleNumberActive: { color: COLORS.bg },
+
+  // Day Content
+  dayContentWrapper: { flex: 1, paddingLeft: 12, paddingBottom: 20 },
+  dayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  dayInfo: {},
   dayTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-  daySubtitle: { color: COLORS.textMuted, fontSize: 13, marginTop: 2 },
-  
-  // Stop
-  stopContainer: { flexDirection: 'row', marginLeft: 10 },
-  timelineTrack: { alignItems: 'center', width: 50 },
-  timelineDot: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  timelineDotEmoji: { fontSize: 18 },
-  timelineLine: { width: 2, flex: 1, backgroundColor: COLORS.greenBorder, marginVertical: 4 },
-  
-  stopCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 18, padding: 16, marginLeft: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.greenBorder },
-  stopCardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  stopInfo: { flex: 1 },
-  stopName: { color: COLORS.text, fontSize: 17, fontWeight: '600' },
-  stopMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 10 },
-  typeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  typeBadgeText: { fontSize: 12, fontWeight: '600' },
-  stopTime: { color: COLORS.textMuted, fontSize: 13 },
-  deleteButton: { padding: 4 },
-  deleteText: { color: COLORS.textMuted, fontSize: 24 },
-  stopLocation: { flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: COLORS.cardLight, padding: 10, borderRadius: 10 },
-  locationIcon: { fontSize: 14, marginRight: 6 },
-  locationText: { color: COLORS.textMuted, fontSize: 13 },
-  stopNotes: { color: COLORS.textMuted, fontSize: 14, marginTop: 10, lineHeight: 20 },
-  
+  dayDate: { color: COLORS.green, fontSize: 13, marginTop: 2 },
+  addDayButton: {
+    backgroundColor: COLORS.greenMuted,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+  },
+  addDayButtonText: { color: COLORS.green, fontSize: 13, fontWeight: '600' },
+
+  // Empty Day
+  emptyDayCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+    borderStyle: 'dashed',
+  },
+  emptyDayText: { color: COLORS.textMuted, fontSize: 14 },
+
+  // Stops
+  stopsContainer: { gap: 10 },
+  stopCard: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+  },
+  stopIconBg: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopIcon: { fontSize: 20 },
+  stopContent: { flex: 1, marginLeft: 12 },
+  stopHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  stopName: { color: COLORS.text, fontSize: 15, fontWeight: '600', flex: 1 },
+  deleteBtn: { color: COLORS.textMuted, fontSize: 22, marginLeft: 8 },
+  stopMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8, flexWrap: 'wrap' },
+  typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  typeBadgeText: { fontSize: 11, fontWeight: '600' },
+  stopTime: { color: COLORS.textMuted, fontSize: 12 },
+  stopLocation: { marginTop: 8 },
+  locationText: { color: COLORS.textMuted, fontSize: 12 },
+  stopNotes: { color: COLORS.textMuted, fontSize: 13, marginTop: 8, lineHeight: 18 },
+
   // Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
-  modalContent: { backgroundColor: COLORS.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '85%' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' },
+  modalContent: { backgroundColor: COLORS.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '80%' },
   modalHandle: { width: 40, height: 4, backgroundColor: COLORS.textMuted, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   modalTitle: { color: COLORS.text, fontSize: 24, fontWeight: 'bold' },
+  modalSubtitle: { color: COLORS.green, fontSize: 14, marginTop: 4 },
   modalClose: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   modalCloseText: { color: COLORS.textMuted, fontSize: 28 },
-  
-  input: { backgroundColor: COLORS.cardLight, color: COLORS.text, padding: 16, borderRadius: 14, fontSize: 16, borderWidth: 1, borderColor: COLORS.greenBorder, marginBottom: 12 },
+
+  input: {
+    backgroundColor: COLORS.cardLight,
+    color: COLORS.text,
+    padding: 16,
+    borderRadius: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+    marginBottom: 12,
+  },
   notesInput: { height: 80, textAlignVertical: 'top' },
+  inputLabel: { color: COLORS.textMuted, fontSize: 13, marginBottom: 10, marginTop: 4 },
   
-  dateTimeRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  dateTimeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cardLight, padding: 16, borderRadius: 14, borderWidth: 1, borderColor: COLORS.greenBorder },
-  dateTimeIcon: { fontSize: 18, marginRight: 10 },
-  dateTimeText: { color: COLORS.text, fontSize: 15 },
-  timeInput: { flex: 1, backgroundColor: COLORS.cardLight, color: COLORS.text, padding: 16, borderRadius: 14, fontSize: 15, borderWidth: 1, borderColor: COLORS.greenBorder },
-  
-  inputLabel: { color: COLORS.textMuted, fontSize: 13, marginBottom: 10 },
-  typeScroll: { marginBottom: 16 },
-  typeChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cardLight, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, marginRight: 10, borderWidth: 1, borderColor: COLORS.greenBorder },
-  typeChipIcon: { fontSize: 16, marginRight: 6 },
-  typeChipText: { color: COLORS.text, fontSize: 13 },
-  
-  submitButton: { backgroundColor: COLORS.green, padding: 18, borderRadius: 14, alignItems: 'center', marginTop: 8 },
+  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  typeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardLight,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+  },
+  typeChipIcon: { fontSize: 14, marginRight: 6 },
+  typeChipText: { color: COLORS.text, fontSize: 12 },
+
+  submitButton: {
+    backgroundColor: COLORS.green,
+    padding: 18,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  submitButtonDisabled: { opacity: 0.5 },
   submitButtonText: { color: COLORS.bg, fontSize: 17, fontWeight: 'bold' },
 });
