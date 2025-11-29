@@ -1,25 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, Text, TouchableOpacity, StyleSheet, Dimensions, 
   Animated, TextInput, Modal, ScrollView 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
-const COLORS = {
-  bg: '#000000',
-  card: '#0A0A0A',
-  cardLight: '#111111',
-  green: '#00FF7F',
-  greenDark: '#00CC66',
-  greenMuted: 'rgba(0, 255, 127, 0.1)',
-  greenBorder: 'rgba(0, 255, 127, 0.3)',
-  text: '#FFFFFF',
-  textMuted: '#666666',
-};
-
 export default function WelcomeScreen({ onPlanTrip, onJoinTrip }) {
+  const { colors } = useTheme();
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [tripCode, setTripCode] = useState('');
   
@@ -29,6 +19,8 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip }) {
   const scaleAnim1 = useState(new Animated.Value(0.8))[0];
   const scaleAnim2 = useState(new Animated.Value(0.8))[0];
   const floatAnim = useState(new Animated.Value(0))[0];
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     // Entry animations
@@ -92,9 +84,9 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip }) {
     <SafeAreaView style={styles.container}>
       {/* Background Elements */}
       <View style={styles.bgElements}>
-        <View style={[styles.bgCircle, styles.bgCircle1]} />
-        <View style={[styles.bgCircle, styles.bgCircle2]} />
-        <View style={[styles.bgCircle, styles.bgCircle3]} />
+        <View style={styles.bgCircle1} />
+        <View style={styles.bgCircle2} />
+        <View style={styles.bgCircle3} />
       </View>
 
       {/* Content */}
@@ -245,7 +237,7 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip }) {
             <TextInput
               style={styles.codeInput}
               placeholder="Enter trip code"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={tripCode}
               onChangeText={setTripCode}
               autoCapitalize="characters"
@@ -273,10 +265,10 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
   },
   scrollContent: {
     flexGrow: 1,
@@ -287,29 +279,35 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  bgCircle: {
-    position: 'absolute',
-    borderRadius: 999,
-    backgroundColor: COLORS.green,
-    opacity: 0.03,
-  },
   bgCircle1: {
+    position: 'absolute',
     width: 400,
     height: 400,
     top: -100,
     right: -150,
+    borderRadius: 200,
+    backgroundColor: colors.primary,
+    opacity: 0.03,
   },
   bgCircle2: {
+    position: 'absolute',
     width: 300,
     height: 300,
     bottom: 100,
     left: -150,
+    borderRadius: 150,
+    backgroundColor: colors.primary,
+    opacity: 0.03,
   },
   bgCircle3: {
+    position: 'absolute',
     width: 200,
     height: 200,
     bottom: -50,
     right: -50,
+    borderRadius: 100,
+    backgroundColor: colors.primary,
+    opacity: 0.03,
   },
   header: {
     alignItems: 'center',
@@ -323,12 +321,12 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     letterSpacing: 1,
   },
   tagline: {
     fontSize: 16,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 8,
   },
   illustrationContainer: {
@@ -347,11 +345,11 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: COLORS.greenMuted,
+    backgroundColor: colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
   },
   globeEmoji: {
     fontSize: 64,
@@ -362,7 +360,7 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 80,
     borderWidth: 1,
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
     opacity: 0.5,
   },
   globeRing2: {
@@ -371,7 +369,7 @@ const styles = StyleSheet.create({
     height: 190,
     borderRadius: 95,
     borderWidth: 1,
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
     opacity: 0.3,
   },
   floatingIcon: {
@@ -379,11 +377,11 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
   },
   floatingIcon1: { top: 10, left: width * 0.15 },
   floatingIcon2: { top: 30, right: width * 0.15 },
@@ -397,17 +395,17 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   optionCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderRadius: 24,
     padding: 24,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.green,
+    borderColor: colors.primary,
     overflow: 'hidden',
   },
   optionCardSecondary: {
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
   },
   optionGlow: {
     position: 'absolute',
@@ -415,7 +413,7 @@ const styles = StyleSheet.create({
     right: -50,
     width: 150,
     height: 150,
-    backgroundColor: COLORS.green,
+    backgroundColor: colors.primary,
     opacity: 0.1,
     borderRadius: 75,
   },
@@ -426,14 +424,14 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 20,
-    backgroundColor: COLORS.green,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionIconBgSecondary: {
-    backgroundColor: COLORS.greenMuted,
+    backgroundColor: colors.primaryMuted,
     borderWidth: 1,
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
   },
   optionIcon: {
     fontSize: 28,
@@ -444,26 +442,26 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 6,
   },
   optionDescription: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     lineHeight: 18,
   },
   optionArrow: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.greenMuted,
+    backgroundColor: colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 12,
   },
   arrowText: {
     fontSize: 20,
-    color: COLORS.green,
+    color: colors.primary,
     fontWeight: 'bold',
   },
   featuresContainer: {
@@ -473,7 +471,7 @@ const styles = StyleSheet.create({
   featuresTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -488,11 +486,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
     marginBottom: 8,
   },
   featureIcon: {
@@ -500,7 +498,7 @@ const styles = StyleSheet.create({
   },
   featureLabel: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   modalOverlay: {
     flex: 1,
@@ -508,7 +506,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.8)',
   },
   modalContent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 24,
@@ -517,7 +515,7 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: COLORS.textMuted,
+    backgroundColor: colors.textMuted,
     borderRadius: 2,
     marginBottom: 24,
   },
@@ -528,11 +526,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: COLORS.greenMuted,
+    backgroundColor: colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
   },
   modalIcon: {
     fontSize: 40,
@@ -540,32 +538,32 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 8,
   },
   modalDescription: {
     fontSize: 15,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 24,
   },
   codeInput: {
     width: '100%',
-    backgroundColor: COLORS.cardLight,
+    backgroundColor: colors.cardLight,
     borderRadius: 16,
     padding: 20,
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     textAlign: 'center',
     letterSpacing: 8,
     borderWidth: 2,
-    borderColor: COLORS.greenBorder,
+    borderColor: colors.primaryBorder,
     marginBottom: 20,
   },
   joinButton: {
     width: '100%',
-    backgroundColor: COLORS.green,
+    backgroundColor: colors.primary,
     borderRadius: 16,
     padding: 18,
     alignItems: 'center',
@@ -577,13 +575,13 @@ const styles = StyleSheet.create({
   joinButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.bg,
+    color: colors.bg,
   },
   cancelButton: {
     padding: 16,
   },
   cancelButtonText: {
     fontSize: 16,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
 });

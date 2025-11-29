@@ -1,17 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const COLORS = {
-  bg: '#000000',
-  card: '#0A0A0A',
-  cardLight: '#111111',
-  green: '#00FF7F',
-  greenMuted: 'rgba(0, 255, 127, 0.1)',
-  greenBorder: 'rgba(0, 255, 127, 0.3)',
-  text: '#FFFFFF',
-  textMuted: '#666666',
-};
+import { useTheme } from '../context/ThemeContext';
 
 const SAMPLE_TRIPS = [
   { id: 1, name: 'Paris Adventure', destination: 'Paris, France', date: 'Dec 2024', days: 7, spent: 2500, status: 'completed' },
@@ -20,21 +10,18 @@ const SAMPLE_TRIPS = [
 ];
 
 export default function HistoryScreen({ onBack }) {
+  const { colors } = useTheme();
   const floatAnim = useState(new Animated.Value(0))[0];
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-        Animated.timing(floatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
-      ])
-    ).start();
+    Animated.loop(Animated.sequence([
+      Animated.timing(floatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      Animated.timing(floatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+    ])).start();
   }, []);
 
-  const floatTranslate = floatAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -8],
-  });
+  const floatTranslate = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -109,37 +96,37 @@ export default function HistoryScreen({ onBack }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { paddingHorizontal: 20 },
   header: { flexDirection: 'row', alignItems: 'center', paddingTop: 10, marginBottom: 20 },
-  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
-  backButtonText: { color: COLORS.green, fontSize: 24, fontWeight: 'bold' },
+  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  backButtonText: { color: colors.primary, fontSize: 24, fontWeight: 'bold' },
   headerContent: { marginLeft: 16 },
-  title: { color: COLORS.text, fontSize: 28, fontWeight: 'bold' },
-  subtitle: { color: COLORS.textMuted, fontSize: 14, marginTop: 2 },
+  title: { color: colors.text, fontSize: 28, fontWeight: 'bold' },
+  subtitle: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
   illustration: { alignItems: 'center', marginVertical: 20 },
-  illustrationBg: { width: 80, height: 80, borderRadius: 24, backgroundColor: COLORS.greenMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.greenBorder },
+  illustrationBg: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.primaryBorder },
   illustrationEmoji: { fontSize: 40 },
-  floatingElement1: { position: 'absolute', top: -5, right: '25%', width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
-  floatingElement2: { position: 'absolute', bottom: 0, left: '25%', width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
+  floatingElement1: { position: 'absolute', top: -5, right: '25%', width: 36, height: 36, borderRadius: 10, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  floatingElement2: { position: 'absolute', bottom: 0, left: '25%', width: 36, height: 36, borderRadius: 10, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
   floatingEmoji: { fontSize: 18 },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 30 },
-  statCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
-  statValue: { color: COLORS.green, fontSize: 24, fontWeight: 'bold' },
-  statLabel: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
-  sectionTitle: { color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
-  tripCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, borderRadius: 18, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.greenBorder },
-  tripIcon: { width: 50, height: 50, borderRadius: 14, backgroundColor: COLORS.greenMuted, alignItems: 'center', justifyContent: 'center' },
+  statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  statValue: { color: colors.primary, fontSize: 24, fontWeight: 'bold' },
+  statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
+  tripCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 18, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.primaryBorder },
+  tripIcon: { width: 50, height: 50, borderRadius: 14, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
   tripEmoji: { fontSize: 24 },
   tripInfo: { flex: 1, marginLeft: 14 },
-  tripName: { color: COLORS.text, fontSize: 16, fontWeight: '600' },
-  tripDestination: { color: COLORS.textMuted, fontSize: 13, marginTop: 2 },
+  tripName: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  tripDestination: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   tripMeta: { flexDirection: 'row', marginTop: 6 },
-  tripDate: { color: COLORS.green, fontSize: 12 },
-  tripDays: { color: COLORS.textMuted, fontSize: 12, marginLeft: 6 },
+  tripDate: { color: colors.primary, fontSize: 12 },
+  tripDays: { color: colors.textMuted, fontSize: 12, marginLeft: 6 },
   tripStats: { alignItems: 'flex-end' },
-  tripSpent: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
-  completedBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: COLORS.green, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  completedText: { color: COLORS.bg, fontSize: 12, fontWeight: 'bold' },
+  tripSpent: { color: colors.text, fontSize: 16, fontWeight: 'bold' },
+  completedBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  completedText: { color: colors.bg, fontSize: 12, fontWeight: 'bold' },
 });
