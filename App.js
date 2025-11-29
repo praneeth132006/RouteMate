@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 
 import HomeScreen from './src/screens/HomeScreen';
 import BudgetScreen from './src/screens/BudgetScreen';
@@ -14,21 +14,6 @@ import { TravelProvider } from './src/context/TravelContext';
 
 const Tab = createBottomTabNavigator();
 
-const TabIcon = ({ name, focused }) => (
-  <View className={`items-center justify-center p-2 ${focused ? 'bg-accent-green/20 rounded-xl' : ''}`}>
-    <Text className={`text-xl ${focused ? 'text-accent-green' : 'text-gray-400'}`}>
-      {name === 'Home' && '🏠'}
-      {name === 'Budget' && '💰'}
-      {name === 'Expenses' && '💳'}
-      {name === 'Packing' && '🎒'}
-      {name === 'Map' && '🗺️'}
-    </Text>
-    <Text className={`text-xs mt-1 ${focused ? 'text-accent-green font-semibold' : 'text-gray-400'}`}>
-      {name}
-    </Text>
-  </View>
-);
-
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -38,16 +23,21 @@ export default function App() {
           <Tab.Navigator
             screenOptions={({ route }) => ({
               headerShown: false,
-              tabBarStyle: {
-                backgroundColor: '#0D0D0D',
-                borderTopColor: '#1F1F3D',
-                borderTopWidth: 1,
-                height: 80,
-                paddingBottom: 10,
-                paddingTop: 10,
+              tabBarStyle: styles.tabBar,
+              tabBarActiveTintColor: '#00FF7F',
+              tabBarInactiveTintColor: '#666666',
+              tabBarIcon: ({ focused }) => {
+                let emoji = '🏠';
+                if (route.name === 'Budget') emoji = '💰';
+                if (route.name === 'Expenses') emoji = '💳';
+                if (route.name === 'Packing') emoji = '🎒';
+                if (route.name === 'Map') emoji = '🗺️';
+                return (
+                  <View style={[styles.iconWrap, focused && styles.iconActive]}>
+                    <Text style={styles.icon}>{emoji}</Text>
+                  </View>
+                );
               },
-              tabBarShowLabel: false,
-              tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
             })}
           >
             <Tab.Screen name="Home" component={HomeScreen} />
@@ -61,3 +51,24 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: '#000000',
+    borderTopColor: '#1a1a1a',
+    borderTopWidth: 1,
+    height: 65,
+    paddingBottom: 8,
+    paddingTop: 8,
+  },
+  iconWrap: {
+    padding: 6,
+    borderRadius: 10,
+  },
+  iconActive: {
+    backgroundColor: 'rgba(0, 255, 127, 0.15)',
+  },
+  icon: {
+    fontSize: 20,
+  },
+});

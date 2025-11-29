@@ -1,11 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const TravelContext = createContext();
+const TravelContext = createContext(null);
 
-export const useTravelContext = () => useContext(TravelContext);
+export const useTravelContext = () => {
+  const context = useContext(TravelContext);
+  if (!context) {
+    throw new Error('useTravelContext must be used within TravelProvider');
+  }
+  return context;
+};
 
 export const TravelProvider = ({ children }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [budget, setBudget] = useState({
     total: 0,
     categories: {
@@ -28,29 +35,31 @@ export const TravelProvider = ({ children }) => {
     currency: 'USD'
   });
 
-  // Load data from AsyncStorage
   useEffect(() => {
     loadData();
   }, []);
 
-  // Save data whenever it changes
   useEffect(() => {
-    saveData();
-  }, [budget, expenses, packingItems, itinerary, tripInfo]);
+    if (isLoaded) {
+      saveData();
+    }
+  }, [budget, expenses, packingItems, itinerary, tripInfo, isLoaded]);
 
   const loadData = async () => {
     try {
       const data = await AsyncStorage.getItem('travelData');
       if (data) {
         const parsed = JSON.parse(data);
-        setBudget(parsed.budget || budget);
-        setExpenses(parsed.expenses || []);
-        setPackingItems(parsed.packingItems || []);
-        setItinerary(parsed.itinerary || []);
-        setTripInfo(parsed.tripInfo || tripInfo);
+        if (parsed.budget) setBudget(parsed.budget);
+        if (parsed.expenses) setExpenses(parsed.expenses);
+        if (parsed.packingItems) setPackingItems(parsed.packingItems);
+        if (parsed.itinerary) setItinerary(parsed.itinerary);
+        if (parsed.tripInfo) setTripInfo(parsed.tripInfo);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.log('Error loading data:', error);
+    } finally {
+      setIsLoaded(true);
     }
   };
 
@@ -60,42 +69,42 @@ export const TravelProvider = ({ children }) => {
         budget, expenses, packingItems, itinerary, tripInfo
       }));
     } catch (error) {
-      console.error('Error saving data:', error);
+      console.log('Error saving data:', error);
     }
   };
 
   const addExpense = (expense) => {
-    setExpenses([...expenses, { ...expense, id: Date.now().toString() }]);
+    setExpenses(prev => [...prev, { ...expense, id: Date.now().toString() }]);
   };
 
   const deleteExpense = (id) => {
-    setExpenses(expenses.filter(e => e.id !== id));
+    setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
   const addPackingItem = (item) => {
-    setPackingItems([...packingItems, { ...item, id: Date.now().toString(), packed: false }]);
+    setPackingItems(prev => [...prev, { ...item, id: Date.now().toString(), packed: false }]);
   };
 
   const togglePackingItem = (id) => {
-    setPackingItems(packingItems.map(item => 
+    setPackingItems(prev => prev.map(item => 
       item.id === id ? { ...item, packed: !item.packed } : item
     ));
   };
 
   const deletePackingItem = (id) => {
-    setPackingItems(packingItems.filter(item => item.id !== id));
+    setPackingItems(prev => prev.filter(item => item.id !== id));
   };
 
   const addItineraryItem = (item) => {
-    setItinerary([...itinerary, { ...item, id: Date.now().toString() }]);
+    setItinerary(prev => [...prev, { ...item, id: Date.now().toString() }]);
   };
 
   const deleteItineraryItem = (id) => {
-    setItinerary(itinerary.filter(item => item.id !== id));
+    setItinerary(prev => prev.filter(item => item.id !== id));
   };
 
   const getTotalExpenses = () => {
-    return expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    return expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
   };
 
   const getRemainingBudget = () => {
@@ -104,20 +113,23 @@ export const TravelProvider = ({ children }) => {
 
   const getExpensesByCategory = () => {
     return expenses.reduce((acc, exp) => {
-      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+      acc[exp.category] = (acc[exp.category] || 0) + (exp.amount || 0);
       return acc;
     }, {});
   };
 
+  const value = {
+    budget, setBudget,
+    expenses, addExpense, deleteExpense,
+    packingItems, addPackingItem, togglePackingItem, deletePackingItem,
+    itinerary, addItineraryItem, deleteItineraryItem,
+    tripInfo, setTripInfo,
+    getTotalExpenses, getRemainingBudget, getExpensesByCategory,
+    isLoaded
+  };
+
   return (
-    <TravelContext.Provider value={{
-      budget, setBudget,
-      expenses, addExpense, deleteExpense,
-      packingItems, addPackingItem, togglePackingItem, deletePackingItem,
-      itinerary, addItineraryItem, deleteItineraryItem,
-      tripInfo, setTripInfo,
-      getTotalExpenses, getRemainingBudget, getExpensesByCategory
-    }}>
+    <TravelContext.Provider value={value}>
       {children}
     </TravelContext.Provider>
   );

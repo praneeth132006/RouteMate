@@ -1,271 +1,185 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 
-const ITEM_CATEGORIES = [
-  { key: 'clothing', label: 'Clothing', emoji: '👕' },
-  { key: 'toiletries', label: 'Toiletries', emoji: '🧴' },
-  { key: 'electronics', label: 'Electronics', emoji: '📱' },
-  { key: 'documents', label: 'Documents', emoji: '📄' },
-  { key: 'accessories', label: 'Accessories', emoji: '👜' },
-  { key: 'medication', label: 'Medication', emoji: '💊' },
-  { key: 'other', label: 'Other', emoji: '📦' },
+const COLORS = {
+  bg: '#000000',
+  card: '#0A0A0A',
+  cardLight: '#111111',
+  green: '#00FF7F',
+  greenMuted: 'rgba(0, 255, 127, 0.1)',
+  greenBorder: 'rgba(0, 255, 127, 0.3)',
+  text: '#FFFFFF',
+  textMuted: '#666666',
+};
+
+const CATEGORIES = [
+  { key: 'clothing', label: 'Clothing', icon: '👕' },
+  { key: 'toiletries', label: 'Toiletries', icon: '🧴' },
+  { key: 'electronics', label: 'Electronics', icon: '📱' },
+  { key: 'documents', label: 'Documents', icon: '📄' },
+  { key: 'other', label: 'Other', icon: '📦' },
 ];
 
-const QUICK_ADD_ITEMS = [
-  { name: 'Passport', category: 'documents' },
-  { name: 'Phone Charger', category: 'electronics' },
-  { name: 'Toothbrush', category: 'toiletries' },
-  { name: 'T-Shirts', category: 'clothing' },
-  { name: 'Underwear', category: 'clothing' },
-  { name: 'Sunglasses', category: 'accessories' },
-  { name: 'Medications', category: 'medication' },
-  { name: 'Wallet', category: 'documents' },
-];
+const QUICK_ADD = ['Passport', 'Phone Charger', 'Toothbrush', 'Clothes', 'Wallet', 'Sunglasses'];
 
 export default function PackingScreen() {
   const { packingItems, addPackingItem, togglePackingItem, deletePackingItem } = useTravelContext();
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [newItem, setNewItem] = useState({ name: '', category: 'clothing', quantity: '1' });
+  const [newItem, setNewItem] = useState({ name: '', category: 'clothing' });
 
   const handleAddItem = () => {
     if (newItem.name.trim()) {
-      addPackingItem({
-        name: newItem.name,
-        category: newItem.category,
-        quantity: parseInt(newItem.quantity) || 1
-      });
-      setNewItem({ name: '', category: 'clothing', quantity: '1' });
+      addPackingItem({ name: newItem.name, category: newItem.category, quantity: 1 });
+      setNewItem({ name: '', category: 'clothing' });
       setModalVisible(false);
     }
   };
 
-  const handleQuickAdd = (item) => {
-    addPackingItem({
-      name: item.name,
-      category: item.category,
-      quantity: 1
-    });
-  };
-
-  const filteredItems = selectedCategory === 'all' 
-    ? packingItems 
-    : packingItems.filter(item => item.category === selectedCategory);
-
-  const packedCount = packingItems.filter(item => item.packed).length;
+  const packedCount = packingItems.filter(i => i.packed).length;
   const totalCount = packingItems.length;
-  const progressPercentage = totalCount > 0 ? (packedCount / totalCount) * 100 : 0;
+  const progress = totalCount > 0 ? (packedCount / totalCount) * 100 : 0;
 
-  const getCategoryEmoji = (key) => ITEM_CATEGORIES.find(c => c.key === key)?.emoji || '📦';
-
-  const PackingItem = ({ item }) => (
-    <View className={`bg-surface-card rounded-2xl p-4 mb-2 border ${item.packed ? 'border-accent-green/50' : 'border-gray-700'}`}>
-      <View className="flex-row items-center">
-        <TouchableOpacity 
-          onPress={() => togglePackingItem(item.id)}
-          className={`w-7 h-7 rounded-full border-2 mr-3 items-center justify-center ${
-            item.packed ? 'bg-accent-green border-accent-green' : 'border-gray-500'
-          }`}
-        >
-          {item.packed && <Text className="text-primary-black text-sm">✓</Text>}
-        </TouchableOpacity>
-        
-        <Text className="text-xl mr-3">{getCategoryEmoji(item.category)}</Text>
-        
-        <View className="flex-1">
-          <Text className={`font-medium ${item.packed ? 'text-gray-400 line-through' : 'text-white'}`}>
-            {item.name}
-          </Text>
-          {item.quantity > 1 && (
-            <Text className="text-gray-500 text-xs">Qty: {item.quantity}</Text>
-          )}
-        </View>
-        
-        <TouchableOpacity onPress={() => deletePackingItem(item.id)}>
-          <Text className="text-red-400 text-lg">🗑️</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const getCategoryIcon = (key) => CATEGORIES.find(c => c.key === key)?.icon || '📦';
 
   return (
-    <SafeAreaView className="flex-1 bg-primary-black">
-      <ScrollView className="flex-1">
+    <SafeAreaView style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View className="px-4 mt-4 mb-4">
-          <Text className="text-white text-3xl font-bold">Packing List 🎒</Text>
-          <Text className="text-gray-400 mt-1">Never forget essentials again</Text>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.title}>Packing</Text>
+            <Text style={styles.subtitle}>{packedCount} of {totalCount} items packed</Text>
+          </View>
+          <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+            <Text style={styles.addButtonText}>+</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Progress Card */}
-        <View className="mx-4 bg-surface-card rounded-3xl p-5 mb-4 border border-accent-green/30">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-white text-lg font-semibold">Packing Progress</Text>
-            <Text className="text-accent-green font-bold">{packedCount}/{totalCount}</Text>
+        <View style={styles.progressCard}>
+          <View style={styles.progressCircleContainer}>
+            <View style={styles.progressCircle}>
+              <Text style={styles.progressPercent}>{progress.toFixed(0)}%</Text>
+            </View>
           </View>
-          <View className="h-4 bg-gray-700 rounded-full overflow-hidden">
-            <View 
-              className="h-full bg-accent-green rounded-full"
-              style={{ width: `${progressPercentage}%` }}
-            />
+          <View style={styles.progressInfo}>
+            <Text style={styles.progressTitle}>
+              {progress === 100 ? '🎉 All Packed!' : 'Keep going!'}
+            </Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${progress}%` }]} />
+            </View>
           </View>
-          <Text className="text-gray-400 text-center text-sm mt-2">
-            {progressPercentage === 100 ? '🎉 All packed!' : `${progressPercentage.toFixed(0)}% complete`}
-          </Text>
         </View>
 
         {/* Quick Add */}
-        <View className="px-4 mb-4">
-          <Text className="text-white text-sm font-semibold mb-2">Quick Add</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {QUICK_ADD_ITEMS.map((item, index) => (
+        <View style={styles.quickAddSection}>
+          <Text style={styles.sectionTitle}>Quick Add</Text>
+          <View style={styles.quickAddGrid}>
+            {QUICK_ADD.map((item, index) => (
               <TouchableOpacity
                 key={index}
-                className="bg-secondary-purple/20 border border-secondary-purple/30 rounded-full px-4 py-2 mr-2"
-                onPress={() => handleQuickAdd(item)}
+                style={styles.quickAddChip}
+                onPress={() => addPackingItem({ name: item, category: 'other', quantity: 1 })}
               >
-                <Text className="text-secondary-purple text-sm">+ {item.name}</Text>
+                <Text style={styles.quickAddText}>+ {item}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
         </View>
-
-        {/* Category Filter */}
-        <View className="px-4 mb-4">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity
-              className={`mr-2 px-4 py-2 rounded-full ${
-                selectedCategory === 'all' ? 'bg-accent-green' : 'bg-surface-card border border-gray-700'
-              }`}
-              onPress={() => setSelectedCategory('all')}
-            >
-              <Text className={selectedCategory === 'all' ? 'text-primary-black font-medium' : 'text-white'}>
-                All ({packingItems.length})
-              </Text>
-            </TouchableOpacity>
-            {ITEM_CATEGORIES.map((cat) => {
-              const count = packingItems.filter(i => i.category === cat.key).length;
-              if (count === 0) return null;
-              return (
-                <TouchableOpacity
-                  key={cat.key}
-                  className={`mr-2 px-4 py-2 rounded-full flex-row items-center ${
-                    selectedCategory === cat.key ? 'bg-accent-green' : 'bg-surface-card border border-gray-700'
-                  }`}
-                  onPress={() => setSelectedCategory(cat.key)}
-                >
-                  <Text className="mr-1">{cat.emoji}</Text>
-                  <Text className={selectedCategory === cat.key ? 'text-primary-black font-medium' : 'text-white'}>
-                    {count}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Add Item Button */}
-        <TouchableOpacity 
-          className="mx-4 bg-accent-green rounded-2xl p-4 mb-4 flex-row items-center justify-center"
-          onPress={() => setModalVisible(true)}
-        >
-          <Text className="text-primary-black text-lg font-bold">+ Add Custom Item</Text>
-        </TouchableOpacity>
 
         {/* Items List */}
-        <View className="px-4 pb-24">
-          {filteredItems.length === 0 ? (
-            <View className="items-center py-10">
-              <Text className="text-5xl mb-4">📦</Text>
-              <Text className="text-gray-400 text-center">No items yet.{'\n'}Start adding things to pack!</Text>
+        <View style={styles.itemsSection}>
+          {packingItems.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🎒</Text>
+              <Text style={styles.emptyText}>No items yet</Text>
             </View>
           ) : (
             <>
-              {/* Unpacked Items */}
-              {filteredItems.filter(i => !i.packed).length > 0 && (
-                <Text className="text-gray-400 text-sm mb-2">To Pack</Text>
+              {/* Unpacked */}
+              {packingItems.filter(i => !i.packed).length > 0 && (
+                <>
+                  <Text style={styles.listLabel}>TO PACK</Text>
+                  {packingItems.filter(i => !i.packed).map(item => (
+                    <View key={item.id} style={styles.itemCard}>
+                      <TouchableOpacity 
+                        style={styles.checkbox}
+                        onPress={() => togglePackingItem(item.id)}
+                      />
+                      <Text style={styles.itemIcon}>{getCategoryIcon(item.category)}</Text>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      <TouchableOpacity onPress={() => deletePackingItem(item.id)}>
+                        <Text style={styles.deleteButton}>×</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </>
               )}
-              {filteredItems.filter(i => !i.packed).map(item => (
-                <PackingItem key={item.id} item={item} />
-              ))}
-              
-              {/* Packed Items */}
-              {filteredItems.filter(i => i.packed).length > 0 && (
-                <Text className="text-gray-400 text-sm mb-2 mt-4">Packed ✓</Text>
+
+              {/* Packed */}
+              {packingItems.filter(i => i.packed).length > 0 && (
+                <>
+                  <Text style={[styles.listLabel, { marginTop: 24 }]}>PACKED ✓</Text>
+                  {packingItems.filter(i => i.packed).map(item => (
+                    <View key={item.id} style={[styles.itemCard, styles.itemCardPacked]}>
+                      <TouchableOpacity 
+                        style={[styles.checkbox, styles.checkboxChecked]}
+                        onPress={() => togglePackingItem(item.id)}
+                      >
+                        <Text style={styles.checkmark}>✓</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.itemIcon}>{getCategoryIcon(item.category)}</Text>
+                      <Text style={[styles.itemName, styles.itemNamePacked]}>{item.name}</Text>
+                      <TouchableOpacity onPress={() => deletePackingItem(item.id)}>
+                        <Text style={styles.deleteButton}>×</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </>
               )}
-              {filteredItems.filter(i => i.packed).map(item => (
-                <PackingItem key={item.id} item={item} />
-              ))}
             </>
           )}
         </View>
+
+        <View style={{ height: 30 }} />
       </ScrollView>
 
-      {/* Add Item Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-surface-dark rounded-t-3xl p-6">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-white text-xl font-bold">Add Item</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text className="text-gray-400 text-2xl">✕</Text>
-              </TouchableOpacity>
-            </View>
-
+      {/* Modal */}
+      <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Add Item</Text>
+            
             <TextInput
-              className="bg-primary-dark text-white p-4 rounded-xl mb-3 border border-gray-700"
+              style={styles.input}
               placeholder="Item name"
-              placeholderTextColor="#666"
+              placeholderTextColor={COLORS.textMuted}
               value={newItem.name}
-              onChangeText={(text) => setNewItem({...newItem, name: text})}
+              onChangeText={(t) => setNewItem({...newItem, name: t})}
             />
 
-            <View className="flex-row mb-3">
-              <View className="flex-1 mr-2">
-                <Text className="text-gray-400 text-sm mb-2">Quantity</Text>
-                <TextInput
-                  className="bg-primary-dark text-white p-4 rounded-xl border border-gray-700"
-                  placeholder="1"
-                  placeholderTextColor="#666"
-                  keyboardType="numeric"
-                  value={newItem.quantity}
-                  onChangeText={(text) => setNewItem({...newItem, quantity: text})}
-                />
-              </View>
-            </View>
-
-            <Text className="text-gray-400 text-sm mb-2">Category</Text>
-            <View className="flex-row flex-wrap mb-4">
-              {ITEM_CATEGORIES.map((cat) => (
+            <Text style={styles.inputLabel}>Category</Text>
+            <View style={styles.categoryGrid}>
+              {CATEGORIES.map(cat => (
                 <TouchableOpacity
                   key={cat.key}
-                  className={`mr-2 mb-2 px-4 py-3 rounded-xl flex-row items-center ${
-                    newItem.category === cat.key 
-                      ? 'bg-accent-green' 
-                      : 'bg-primary-dark border border-gray-700'
-                  }`}
+                  style={[styles.categoryChip, newItem.category === cat.key && styles.categoryChipActive]}
                   onPress={() => setNewItem({...newItem, category: cat.key})}
                 >
-                  <Text className="mr-2">{cat.emoji}</Text>
-                  <Text className={newItem.category === cat.key ? 'text-primary-black font-medium' : 'text-white'}>
+                  <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                  <Text style={[styles.categoryText, newItem.category === cat.key && styles.categoryTextActive]}>
                     {cat.label}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <TouchableOpacity 
-              className="bg-accent-green rounded-xl p-4"
-              onPress={handleAddItem}
-            >
-              <Text className="text-primary-black text-center text-lg font-bold">Add Item</Text>
+            <TouchableOpacity style={styles.submitButton} onPress={handleAddItem}>
+              <Text style={styles.submitButtonText}>Add Item</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -273,3 +187,127 @@ export default function PackingScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  title: { color: COLORS.text, fontSize: 32, fontWeight: 'bold' },
+  subtitle: { color: COLORS.textMuted, fontSize: 14, marginTop: 4 },
+  addButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: COLORS.green,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonText: { color: COLORS.bg, fontSize: 28, fontWeight: 'bold', marginTop: -2 },
+  progressCard: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+  },
+  progressCircleContainer: { marginRight: 20 },
+  progressCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 4,
+    borderColor: COLORS.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressPercent: { color: COLORS.green, fontSize: 20, fontWeight: 'bold' },
+  progressInfo: { flex: 1 },
+  progressTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  progressBar: { height: 8, backgroundColor: COLORS.cardLight, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: COLORS.green, borderRadius: 4 },
+  quickAddSection: { marginTop: 30, paddingHorizontal: 20 },
+  sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginBottom: 14 },
+  quickAddGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  quickAddChip: {
+    backgroundColor: COLORS.greenMuted,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+  },
+  quickAddText: { color: COLORS.green, fontSize: 13, fontWeight: '600' },
+  itemsSection: { marginTop: 30, paddingHorizontal: 20 },
+  listLabel: { color: COLORS.green, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 12 },
+  itemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+  },
+  itemCardPacked: { opacity: 0.6 },
+  checkbox: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: COLORS.green,
+    marginRight: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: COLORS.green },
+  checkmark: { color: COLORS.bg, fontSize: 14, fontWeight: 'bold' },
+  itemIcon: { fontSize: 20, marginRight: 12 },
+  itemName: { flex: 1, color: COLORS.text, fontSize: 16, fontWeight: '500' },
+  itemNamePacked: { textDecorationLine: 'line-through', color: COLORS.textMuted },
+  deleteButton: { color: COLORS.textMuted, fontSize: 24, paddingLeft: 10 },
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyText: { color: COLORS.textMuted, fontSize: 16 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
+  modalContent: { backgroundColor: COLORS.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
+  modalHandle: { width: 40, height: 4, backgroundColor: COLORS.textMuted, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalTitle: { color: COLORS.text, fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  input: {
+    backgroundColor: COLORS.cardLight,
+    color: COLORS.text,
+    padding: 18,
+    borderRadius: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+    marginBottom: 20,
+  },
+  inputLabel: { color: COLORS.textMuted, marginBottom: 12 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardLight,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+  },
+  categoryChipActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
+  categoryIcon: { fontSize: 16, marginRight: 6 },
+  categoryText: { color: COLORS.text, fontSize: 13 },
+  categoryTextActive: { color: COLORS.bg, fontWeight: '600' },
+  submitButton: { backgroundColor: COLORS.green, padding: 18, borderRadius: 14, alignItems: 'center' },
+  submitButtonText: { color: COLORS.bg, fontSize: 17, fontWeight: 'bold' },
+});
