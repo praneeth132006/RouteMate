@@ -28,9 +28,9 @@ export function TravelProvider({ children }) {
     startDate: '',
     endDate: '',
     name: '',
-    participants: [],
+    participants: [], // Array of { id, name, avatar }
     tripCode: '',
-    tripType: '',
+    tripType: '', // 'solo', 'couple', 'family', 'friends', 'business'
     isCompleted: false,
   });
 
@@ -39,11 +39,32 @@ export function TravelProvider({ children }) {
   const [packingItems, setPackingItems] = useState([]);
   const [itinerary, setItinerary] = useState([]);
   const [tripHistory, setTripHistory] = useState([]);
-  const [currency, setCurrency] = useState(CURRENCIES[0]); // INR default
+  const [currency, setCurrency] = useState(CURRENCIES[0]);
   const [customCategories, setCustomCategories] = useState(DEFAULT_CATEGORIES);
 
+  // Check if trip is multi-user (not solo)
+  const isMultiUserTrip = () => {
+    return tripInfo.tripType && tripInfo.tripType !== 'solo';
+  };
+
+  // Get all travelers (including the main user "You")
+  const getAllTravelers = () => {
+    const mainUser = { id: 'main_user', name: 'You', avatar: '👤' };
+    return [mainUser, ...(tripInfo.participants || [])];
+  };
+
+  // Add expense with split information for multi-user trips
   const addExpense = (expense) => {
-    setExpenses(prev => [...prev, { ...expense, id: Date.now().toString() }]);
+    const newExpense = {
+      ...expense,
+      id: Date.now().toString(),
+      // For multi-user trips, include split info
+      paidBy: expense.paidBy || 'main_user',
+      splitType: expense.splitType || 'equal', // 'equal', 'custom', 'full'
+      splitAmounts: expense.splitAmounts || {}, // { odredId: amount }
+      beneficiaries: expense.beneficiaries || [], // Array of user IDs who benefit from this expense
+    };
+    setExpenses(prev => [...prev, newExpense]);
   };
 
   const deleteExpense = (id) => {
@@ -66,12 +87,107 @@ export function TravelProvider({ children }) {
     return (budget.total || 0) - getTotalExpenses();
   };
 
+  // Get balance for each person (who owes whom)
+  const getBalances = () => {
+    if (!isMultiUserTrip()) return {};
+
+    const travelers = getAllTravelers();
+    const balances = {};
+
+    // Initialize balances
+    travelers.forEach(t => {
+      balances[t.id] = { paid: 0, owes: 0, balance: 0, name: t.name };
+    });
+
+    expenses.forEach(expense => {
+      const amount = parseFloat(expense.amount) || 0;
+      const paidBy = expense.paidBy || 'main_user';
+      const beneficiaries = expense.beneficiaries?.length > 0 
+        ? expense.beneficiaries 
+        : travelers.map(t => t.id);
+
+      // Add to payer's paid amount
+      if (balances[paidBy]) {
+        balances[paidBy].paid += amount;
+      }
+
+      // Calculate what each beneficiary owes
+      if (expense.splitType === 'equal') {
+        const splitAmount = amount / beneficiaries.length;
+        beneficiaries.forEach(id => {
+          if (balances[id]) {
+            balances[id].owes += splitAmount;
+          }
+        });
+      } else if (expense.splitType === 'custom' && expense.splitAmounts) {
+        Object.entries(expense.splitAmounts).forEach(([id, splitAmount]) => {
+          if (balances[id]) {
+            balances[id].owes += parseFloat(splitAmount) || 0;
+          }
+        });
+      } else if (expense.splitType === 'full') {
+        // Full amount to first beneficiary
+        if (beneficiaries[0] && balances[beneficiaries[0]]) {
+          balances[beneficiaries[0]].owes += amount;
+        }
+      }
+    });
+
+    // Calculate net balance (positive = owed money, negative = owes money)
+    Object.keys(balances).forEach(id => {
+      balances[id].balance = balances[id].paid - balances[id].owes;
+    });
+
+    return balances;
+  };
+
+  // Get simplified debts (who should pay whom)
+  const getSettlements = () => {
+    const balances = getBalances();
+    const settlements = [];
+
+    const debtors = Object.entries(balances)
+      .filter(([_, b]) => b.balance < -0.01)
+      .map(([id, b]) => ({ id, amount: Math.abs(b.balance), name: b.name }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const creditors = Object.entries(balances)
+      .filter(([_, b]) => b.balance > 0.01)
+      .map(([id, b]) => ({ id, amount: b.balance, name: b.name }))
+      .sort((a, b) => b.amount - a.amount);
+
+    let i = 0, j = 0;
+    while (i < debtors.length && j < creditors.length) {
+      const debtor = debtors[i];
+      const creditor = creditors[j];
+      const settleAmount = Math.min(debtor.amount, creditor.amount);
+
+      if (settleAmount > 0.01) {
+        settlements.push({
+          from: debtor.id,
+          fromName: debtor.name,
+          to: creditor.id,
+          toName: creditor.name,
+          amount: settleAmount,
+        });
+      }
+
+      debtor.amount -= settleAmount;
+      creditor.amount -= settleAmount;
+
+      if (debtor.amount < 0.01) i++;
+      if (creditor.amount < 0.01) j++;
+    }
+
+    return settlements;
+  };
+
   const addPackingItem = (item) => {
     setPackingItems(prev => [...prev, { ...item, id: Date.now().toString(), packed: false }]);
   };
 
   const togglePackingItem = (id) => {
-    setPackingItems(prev => prev.map(item => 
+    setPackingItems(prev => prev.map(item =>
       item.id === id ? { ...item, packed: !item.packed } : item
     ));
   };
@@ -89,7 +205,7 @@ export function TravelProvider({ children }) {
   };
 
   const updateItineraryItem = (id, updates) => {
-    setItinerary(prev => prev.map(item => 
+    setItinerary(prev => prev.map(item =>
       item.id === id ? { ...item, ...updates } : item
     ));
   };
@@ -155,6 +271,11 @@ export function TravelProvider({ children }) {
       currency, setCurrency, currencies: CURRENCIES,
       formatCurrency,
       customCategories, setCustomCategories,
+      // Multi-user functions
+      isMultiUserTrip,
+      getAllTravelers,
+      getBalances,
+      getSettlements,
     }}>
       {children}
     </TravelContext.Provider>
