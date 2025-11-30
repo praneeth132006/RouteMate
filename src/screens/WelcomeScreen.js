@@ -16,11 +16,12 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
   const [tripCode, setTripCode] = useState('');
   
   const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(50))[0];
   const scaleAnim1 = useState(new Animated.Value(0.8))[0];
   const scaleAnim2 = useState(new Animated.Value(0.8))[0];
   const scaleAnim3 = useState(new Animated.Value(0.8))[0];
   const floatAnim = useState(new Animated.Value(0))[0];
+  const rotateAnim = useState(new Animated.Value(0))[0];
+  const pulseAnim = useState(new Animated.Value(1))[0];
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -33,21 +34,35 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
       Animated.spring(scaleAnim1, { toValue: 1, tension: 50, friction: 7, delay: 200, useNativeDriver: true }),
       Animated.spring(scaleAnim2, { toValue: 1, tension: 50, friction: 7, delay: 400, useNativeDriver: true }),
       Animated.spring(scaleAnim3, { toValue: 1, tension: 50, friction: 7, delay: 600, useNativeDriver: true }),
     ]).start();
 
+    // Float animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
         Animated.timing(floatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
       ])
     ).start();
+
+    // Rotate animation for orbit
+    Animated.loop(
+      Animated.timing(rotateAnim, { toValue: 1, duration: 10000, useNativeDriver: true })
+    ).start();
+
+    // Pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.15, duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+      ])
+    ).start();
   }, []);
 
-  const floatTranslate = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -15] });
+  const floatTranslate = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] });
+  const rotate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   const handleJoinTrip = () => {
     if (tripCode.trim()) {
@@ -83,120 +98,109 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section */}
-        <Animated.View style={[styles.heroSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <Text style={styles.greeting}>Welcome back! 👋</Text>
-          <Text style={styles.headline}>Where to next?</Text>
-          <Text style={styles.subheadline}>Plan, organize, and enjoy your perfect trip</Text>
-        </Animated.View>
-
-        {/* Current Trip Card - Always show if there's an active trip */}
-        {hasActiveTrip && (
-          <Animated.View style={[styles.currentTripSection, { transform: [{ scale: scaleAnim1 }] }]}>
-            <TouchableOpacity style={styles.currentTripCard} onPress={onMyTrip} activeOpacity={0.9}>
-              <View style={styles.currentTripGlow} />
-              
-              {/* Trip Header */}
-              <View style={styles.currentTripHeader}>
-                <View style={styles.currentTripIconBg}>
-                  <Text style={styles.currentTripIcon}>🧳</Text>
-                </View>
-                <View style={styles.currentTripInfo}>
-                  <Text style={styles.currentTripLabel}>CURRENT TRIP</Text>
-                  <Text style={styles.currentTripName}>{tripInfo.destination || tripInfo.name || 'My Trip'}</Text>
-                </View>
-                <View style={styles.currentTripArrow}>
-                  <Text style={styles.arrowText}>→</Text>
-                </View>
-              </View>
-
-              {/* Trip Dates */}
-              {tripInfo.startDate && tripInfo.endDate && (
-                <View style={styles.currentTripDates}>
-                  <Text style={styles.currentTripDateIcon}>📅</Text>
-                  <Text style={styles.currentTripDateText}>
-                    {tripInfo.startDate} - {tripInfo.endDate}
-                  </Text>
-                </View>
-              )}
-
-              {/* Trip Stats */}
-              <View style={styles.currentTripStats}>
-                <View style={styles.tripStatItem}>
-                  <Text style={styles.tripStatEmoji}>💰</Text>
-                  <View>
-                    <Text style={styles.tripStatValue}>${totalExpenses}</Text>
-                    <Text style={styles.tripStatLabel}>Spent</Text>
-                  </View>
-                </View>
-                <View style={styles.tripStatDivider} />
-                <View style={styles.tripStatItem}>
-                  <Text style={styles.tripStatEmoji}>🎒</Text>
-                  <View>
-                    <Text style={styles.tripStatValue}>{packedCount}/{totalItems}</Text>
-                    <Text style={styles.tripStatLabel}>Packed</Text>
-                  </View>
-                </View>
-                <View style={styles.tripStatDivider} />
-                <View style={styles.tripStatItem}>
-                  <Text style={styles.tripStatEmoji}>🗺️</Text>
-                  <View>
-                    <Text style={styles.tripStatValue}>{activitiesCount}</Text>
-                    <Text style={styles.tripStatLabel}>Activities</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Continue Button */}
-              <View style={styles.continueButton}>
-                <Text style={styles.continueButtonText}>Continue Planning</Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {/* Globe Illustration - Only show if no active trip */}
-        {!hasActiveTrip && (
-          <Animated.View style={[styles.illustrationContainer, { transform: [{ translateY: floatTranslate }] }]}>
+        {/* 3D Globe Animation - Always visible */}
+        <Animated.View style={[styles.globeSection, { opacity: fadeAnim }]}>
+          <Animated.View style={[styles.globeContainer, { transform: [{ translateY: floatTranslate }] }]}>
+            {/* Outer rings */}
+            <Animated.View style={[styles.orbitRing, styles.orbitRing1, { transform: [{ scale: pulseAnim }] }]} />
+            <Animated.View style={[styles.orbitRing, styles.orbitRing2]} />
+            <Animated.View style={[styles.orbitRing, styles.orbitRing3]} />
+            
+            {/* Main globe */}
             <View style={styles.globe}>
-              <View style={styles.globeInner}>
-                <Text style={styles.globeEmoji}>🌍</Text>
-              </View>
-              <View style={styles.globeRing} />
-              <View style={styles.globeRing2} />
+              <Text style={styles.globeEmoji}>🌍</Text>
             </View>
-            <Animated.View style={[styles.floatingIcon, styles.floatingIcon1, { opacity: fadeAnim }]}>
-              <Text style={styles.floatingEmoji}>✈️</Text>
-            </Animated.View>
-            <Animated.View style={[styles.floatingIcon, styles.floatingIcon2, { opacity: fadeAnim }]}>
-              <Text style={styles.floatingEmoji}>🏝️</Text>
-            </Animated.View>
-            <Animated.View style={[styles.floatingIcon, styles.floatingIcon3, { opacity: fadeAnim }]}>
-              <Text style={styles.floatingEmoji}>🗺️</Text>
-            </Animated.View>
-            <Animated.View style={[styles.floatingIcon, styles.floatingIcon4, { opacity: fadeAnim }]}>
-              <Text style={styles.floatingEmoji}>🎒</Text>
+
+            {/* Orbiting icons */}
+            <Animated.View style={[styles.orbitContainer, { transform: [{ rotate }] }]}>
+              <View style={[styles.orbitIcon, styles.orbitIcon1]}>
+                <Text style={styles.orbitEmoji}>✈️</Text>
+              </View>
+              <View style={[styles.orbitIcon, styles.orbitIcon2]}>
+                <Text style={styles.orbitEmoji}>🏝️</Text>
+              </View>
+              <View style={[styles.orbitIcon, styles.orbitIcon3]}>
+                <Text style={styles.orbitEmoji}>🎒</Text>
+              </View>
+              <View style={[styles.orbitIcon, styles.orbitIcon4]}>
+                <Text style={styles.orbitEmoji}>🗺️</Text>
+              </View>
             </Animated.View>
           </Animated.View>
-        )}
+        </Animated.View>
 
         {/* Action Cards */}
         <View style={styles.actionsContainer}>
-          {/* Section Title */}
-          <Text style={styles.actionsTitle}>{hasActiveTrip ? 'More Options' : 'Get Started'}</Text>
+          {/* Current Trip Card - Always show if there's an active trip */}
+          {hasActiveTrip && (
+            <Animated.View style={{ transform: [{ scale: scaleAnim1 }] }}>
+              <TouchableOpacity style={styles.currentTripCard} onPress={onMyTrip} activeOpacity={0.9}>
+                <View style={styles.currentTripGlow} />
+                
+                {/* Trip Header */}
+                <View style={styles.currentTripHeader}>
+                  <View style={styles.currentTripIconBg}>
+                    <Text style={styles.currentTripIcon}>🧳</Text>
+                  </View>
+                  <View style={styles.currentTripInfo}>
+                    <Text style={styles.currentTripLabel}>CURRENT TRIP</Text>
+                    <Text style={styles.currentTripName}>{tripInfo.destination || tripInfo.name || 'My Trip'}</Text>
+                  </View>
+                  <View style={styles.currentTripArrow}>
+                    <Text style={styles.arrowText}>→</Text>
+                  </View>
+                </View>
+
+                {/* Trip Dates */}
+                {tripInfo.startDate && tripInfo.endDate && (
+                  <View style={styles.currentTripDates}>
+                    <Text style={styles.currentTripDateIcon}>📅</Text>
+                    <Text style={styles.currentTripDateText}>
+                      {tripInfo.startDate} - {tripInfo.endDate}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Trip Stats */}
+                <View style={styles.currentTripStats}>
+                  <View style={styles.tripStatItem}>
+                    <Text style={styles.tripStatEmoji}>💰</Text>
+                    <View>
+                      <Text style={styles.tripStatValue}>${totalExpenses}</Text>
+                      <Text style={styles.tripStatLabel}>Spent</Text>
+                    </View>
+                  </View>
+                  <View style={styles.tripStatDivider} />
+                  <View style={styles.tripStatItem}>
+                    <Text style={styles.tripStatEmoji}>🎒</Text>
+                    <View>
+                      <Text style={styles.tripStatValue}>{packedCount}/{totalItems}</Text>
+                      <Text style={styles.tripStatLabel}>Packed</Text>
+                    </View>
+                  </View>
+                  <View style={styles.tripStatDivider} />
+                  <View style={styles.tripStatItem}>
+                    <Text style={styles.tripStatEmoji}>🗺️</Text>
+                    <View>
+                      <Text style={styles.tripStatValue}>{activitiesCount}</Text>
+                      <Text style={styles.tripStatLabel}>Activities</Text>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
           {/* Plan a Trip */}
           <Animated.View style={{ transform: [{ scale: hasActiveTrip ? scaleAnim2 : scaleAnim1 }] }}>
             <TouchableOpacity style={styles.optionCard} onPress={onPlanTrip} activeOpacity={0.9}>
               <View style={styles.optionGlow} />
-              <View style={styles.optionIconContainer}>
-                <View style={styles.optionIconBg}>
-                  <Text style={styles.optionIcon}>🚀</Text>
-                </View>
+              <View style={styles.optionIconBg}>
+                <Text style={styles.optionIcon}>🚀</Text>
               </View>
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>{hasActiveTrip ? 'Plan New Trip' : 'Plan a Trip'}</Text>
-                <Text style={styles.optionDescription}>Create your perfect journey with budget, packing & itinerary</Text>
+                <Text style={styles.optionDescription}>Create your perfect journey</Text>
               </View>
               <View style={styles.optionArrow}>
                 <Text style={styles.arrowTextSecondary}>→</Text>
@@ -206,15 +210,13 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
 
           {/* Join a Trip */}
           <Animated.View style={{ transform: [{ scale: hasActiveTrip ? scaleAnim3 : scaleAnim2 }] }}>
-            <TouchableOpacity style={[styles.optionCard, styles.optionCardSecondary]} onPress={() => setShowJoinModal(true)} activeOpacity={0.9}>
-              <View style={styles.optionIconContainer}>
-                <View style={[styles.optionIconBg, styles.optionIconBgSecondary]}>
-                  <Text style={styles.optionIcon}>👥</Text>
-                </View>
+            <TouchableOpacity style={styles.optionCard} onPress={() => setShowJoinModal(true)} activeOpacity={0.9}>
+              <View style={styles.optionIconBg}>
+                <Text style={styles.optionIcon}>👥</Text>
               </View>
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>Join a Trip</Text>
-                <Text style={styles.optionDescription}>Enter a code to join your friends' adventure</Text>
+                <Text style={styles.optionDescription}>Enter code to join friends</Text>
               </View>
               <View style={styles.optionArrow}>
                 <Text style={styles.arrowTextSecondary}>→</Text>
@@ -222,26 +224,6 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
             </TouchableOpacity>
           </Animated.View>
         </View>
-
-        {/* Features */}
-        <Animated.View style={[styles.featuresContainer, { opacity: fadeAnim }]}>
-          <Text style={styles.featuresTitle}>Everything you need</Text>
-          <View style={styles.featuresGrid}>
-            {[
-              { icon: '💰', label: 'Budget' },
-              { icon: '💳', label: 'Expenses' },
-              { icon: '🎒', label: 'Packing' },
-              { icon: '🗺️', label: 'Itinerary' },
-            ].map((feature, index) => (
-              <View key={index} style={styles.featureItem}>
-                <View style={styles.featureIconBg}>
-                  <Text style={styles.featureIcon}>{feature.icon}</Text>
-                </View>
-                <Text style={styles.featureLabel}>{feature.label}</Text>
-              </View>
-            ))}
-          </View>
-        </Animated.View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -298,15 +280,31 @@ const createStyles = (colors) => StyleSheet.create({
   bgCircle1: { width: 400, height: 400, top: -100, right: -150 },
   bgCircle2: { width: 300, height: 300, bottom: 100, left: -150 },
   bgCircle3: { width: 200, height: 200, bottom: -50, right: -50 },
-  
-  // Hero Section
-  heroSection: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 },
-  greeting: { fontSize: 16, color: colors.textMuted },
-  headline: { fontSize: 34, fontWeight: 'bold', color: colors.text, marginTop: 8 },
-  subheadline: { fontSize: 15, color: colors.textMuted, marginTop: 8 },
 
-  // Current Trip Section
-  currentTripSection: { paddingHorizontal: 20, marginTop: 20 },
+  // Globe Section
+  globeSection: { alignItems: 'center', paddingVertical: 30 },
+  globeContainer: { width: 220, height: 220, alignItems: 'center', justifyContent: 'center' },
+  
+  orbitRing: { position: 'absolute', borderWidth: 1, borderStyle: 'dashed' },
+  orbitRing1: { width: 180, height: 180, borderRadius: 90, borderColor: colors.primary, opacity: 0.4 },
+  orbitRing2: { width: 140, height: 140, borderRadius: 70, borderColor: colors.primaryBorder, opacity: 0.3 },
+  orbitRing3: { width: 220, height: 220, borderRadius: 110, borderColor: colors.primaryBorder, opacity: 0.2 },
+  
+  globe: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: colors.primaryBorder, shadowColor: colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
+  globeEmoji: { fontSize: 56 },
+
+  orbitContainer: { position: 'absolute', width: 180, height: 180 },
+  orbitIcon: { position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  orbitIcon1: { top: -10, left: '50%', marginLeft: -20 },
+  orbitIcon2: { right: -10, top: '50%', marginTop: -20 },
+  orbitIcon3: { bottom: -10, left: '50%', marginLeft: -20 },
+  orbitIcon4: { left: -10, top: '50%', marginTop: -20 },
+  orbitEmoji: { fontSize: 18 },
+
+  // Actions Container
+  actionsContainer: { paddingHorizontal: 20, gap: 14 },
+
+  // Current Trip Card
   currentTripCard: { 
     backgroundColor: colors.primary, 
     borderRadius: 24, 
@@ -339,49 +337,16 @@ const createStyles = (colors) => StyleSheet.create({
   tripStatLabel: { fontSize: 10, color: 'rgba(0,0,0,0.5)' },
   tripStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 8 },
 
-  continueButton: { marginTop: 16, backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 12, padding: 14, alignItems: 'center' },
-  continueButtonText: { color: colors.bg, fontSize: 15, fontWeight: 'bold' },
-
-  // Illustration
-  illustrationContainer: { alignItems: 'center', justifyContent: 'center', height: 180, marginVertical: 20 },
-  globe: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
-  globeInner: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.primaryBorder },
-  globeEmoji: { fontSize: 54 },
-  globeRing: { position: 'absolute', width: 140, height: 140, borderRadius: 70, borderWidth: 1, borderColor: colors.primaryBorder, opacity: 0.5 },
-  globeRing2: { position: 'absolute', width: 170, height: 170, borderRadius: 85, borderWidth: 1, borderColor: colors.primaryBorder, opacity: 0.3 },
-  floatingIcon: { position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  floatingIcon1: { top: 5, left: width * 0.15 },
-  floatingIcon2: { top: 20, right: width * 0.15 },
-  floatingIcon3: { bottom: 15, left: width * 0.2 },
-  floatingIcon4: { bottom: 5, right: width * 0.2 },
-  floatingEmoji: { fontSize: 20 },
-
-  // Actions Container
-  actionsContainer: { paddingHorizontal: 20, marginTop: 20 },
-  actionsTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text, marginBottom: 14 },
-
   // Option Cards
-  optionCard: { backgroundColor: colors.card, borderRadius: 20, padding: 18, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder, overflow: 'hidden', marginBottom: 12 },
-  optionCardSecondary: { borderColor: colors.primaryBorder },
+  optionCard: { backgroundColor: colors.card, borderRadius: 20, padding: 18, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder, overflow: 'hidden' },
   optionGlow: { position: 'absolute', top: -50, right: -50, width: 150, height: 150, backgroundColor: colors.primary, opacity: 0.08, borderRadius: 75 },
-  optionIconContainer: { marginRight: 14 },
-  optionIconBg: { width: 48, height: 48, borderRadius: 14, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  optionIconBgSecondary: { backgroundColor: colors.cardLight },
+  optionIconBg: { width: 50, height: 50, borderRadius: 16, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
   optionIcon: { fontSize: 24 },
-  optionContent: { flex: 1 },
-  optionTitle: { fontSize: 16, fontWeight: 'bold', color: colors.text },
-  optionDescription: { fontSize: 12, color: colors.textMuted, marginTop: 4, lineHeight: 16 },
-  optionArrow: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
-  arrowTextSecondary: { fontSize: 16, color: colors.primary, fontWeight: 'bold' },
-
-  // Features
-  featuresContainer: { marginTop: 30, paddingHorizontal: 20 },
-  featuresTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text, textAlign: 'center', marginBottom: 20 },
-  featuresGrid: { flexDirection: 'row', justifyContent: 'space-around' },
-  featureItem: { alignItems: 'center' },
-  featureIconBg: { width: 56, height: 56, borderRadius: 16, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: 8 },
-  featureIcon: { fontSize: 26 },
-  featureLabel: { fontSize: 12, color: colors.textMuted },
+  optionContent: { flex: 1, marginLeft: 14 },
+  optionTitle: { fontSize: 17, fontWeight: 'bold', color: colors.text },
+  optionDescription: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  optionArrow: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
+  arrowTextSecondary: { fontSize: 18, color: colors.primary, fontWeight: 'bold' },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.8)' },
