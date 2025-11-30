@@ -183,12 +183,19 @@ export default function TripSetupScreen({ onComplete, onBack }) {
       case 'business':
         participants = tripData.colleagues.map(name => ({ name, type: 'colleague' }));
         break;
+      default:
+        participants = [];
     }
+
+    // Log to verify data
+    console.log('TripSetupScreen - completing with tripType:', tripData.tripType);
+    console.log('TripSetupScreen - participants:', participants);
 
     onComplete({ 
       ...tripData, 
       tripCode,
       participants,
+      tripType: tripData.tripType, // MAKE SURE THIS IS INCLUDED
       name: tripData.name || `${tripData.destination} Trip`,
     });
   };
