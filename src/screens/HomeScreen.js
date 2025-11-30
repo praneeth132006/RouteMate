@@ -66,6 +66,24 @@ export default function HomeScreen({ onBackToHome }) {
     }
   };
 
+  // Calculate trip days
+  const getTripDays = () => {
+    if (!tripInfo.startDate || !tripInfo.endDate) return 0;
+    try {
+      const parts1 = tripInfo.startDate.split(' ');
+      const parts2 = tripInfo.endDate.split(' ');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const startDate = new Date(parseInt(parts1[2]), months.indexOf(parts1[1]), parseInt(parts1[0]));
+      const endDate = new Date(parseInt(parts2[2]), months.indexOf(parts2[1]), parseInt(parts2[0]));
+      const diffTime = endDate - startDate;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return diffDays > 0 ? diffDays : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const tripDays = getTripDays();
   const daysUntil = getDaysUntilTrip();
 
   // Navigate to Itinerary tab
@@ -136,8 +154,8 @@ export default function HomeScreen({ onBackToHome }) {
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStatValue}>{itinerary.length}</Text>
-              <Text style={styles.heroStatLabel}>Activities</Text>
+              <Text style={styles.heroStatValue}>{tripDays}</Text>
+              <Text style={styles.heroStatLabel}>Days</Text>
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStatItem}>
