@@ -11,7 +11,7 @@ export const useTravelContext = () => {
   return context;
 };
 
-export const TravelProvider = ({ children }) => {
+export function TravelProvider({ children }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [budget, setBudget] = useState({
     total: 0,
@@ -115,6 +115,12 @@ export const TravelProvider = ({ children }) => {
     setItinerary(prev => prev.filter(item => item.id !== id));
   };
 
+  const updateItineraryItem = (id, updates) => {
+    setItinerary(prev => prev.map(item => 
+      item.id === id ? { ...item, ...updates } : item
+    ));
+  };
+
   const getTotalExpenses = () => {
     return expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
   };
@@ -130,14 +136,30 @@ export const TravelProvider = ({ children }) => {
     }, {});
   };
 
+  const clearTrip = () => {
+    setTripInfo({
+      destination: '',
+      startDate: '',
+      endDate: '',
+      name: '',
+      participants: [],
+      tripCode: '',
+    });
+    setBudget({ total: 0, categories: {} });
+    setExpenses([]);
+    setPackingItems([]);
+    setItinerary([]);
+  };
+
   const value = {
     budget, setBudget,
     expenses, addExpense, deleteExpense,
     packingItems, addPackingItem, togglePackingItem, deletePackingItem,
-    itinerary, addItineraryItem, deleteItineraryItem,
+    itinerary, addItineraryItem, deleteItineraryItem, updateItineraryItem,
     tripInfo, setTripInfo,
     getTotalExpenses, getRemainingBudget, getExpensesByCategory,
-    isLoaded
+    isLoaded,
+    clearTrip,
   };
 
   return (

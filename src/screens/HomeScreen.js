@@ -1,15 +1,29 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Animated, Pressable } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Animated, Pressable, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function HomeScreen({ onBackToHome }) {
-  const { tripInfo, setTripInfo, budget, getTotalExpenses, getRemainingBudget, packingItems, itinerary, expenses } = useTravelContext();
+  const { 
+    tripInfo, setTripInfo, budget, setBudget, getTotalExpenses, getRemainingBudget, 
+    packingItems, itinerary, expenses, clearTrip 
+  } = useTravelContext();
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const [isEditing, setIsEditing] = useState(false);
+  
+  // Modal states
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [showTravelersModal, setShowTravelersModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEndTripModal, setShowEndTripModal] = useState(false);
+  
+  // Edit states
+  const [newBudget, setNewBudget] = useState(budget.total.toString());
+  const [newTravelerName, setNewTravelerName] = useState('');
+  const [travelers, setTravelers] = useState(tripInfo.participants || []);
 
   const fadeAnim = useState(new Animated.Value(0))[0];
   const scaleAnim = useState(new Animated.Value(0.9))[0];
@@ -29,11 +43,7 @@ export default function HomeScreen({ onBackToHome }) {
   const spentPercentage = budget.total > 0 ? (getTotalExpenses() / budget.total) * 100 : 0;
   const participantCount = (tripInfo.participants?.length || 0) + 1;
   const remainingBudget = getRemainingBudget();
-
-  // Get last expense
   const lastExpense = expenses.length > 0 ? expenses[expenses.length - 1] : null;
-
-  // Get recent expenses
   const recentExpenses = expenses.slice(-4).reverse();
 
   // Get category info for expenses
@@ -96,6 +106,54 @@ export default function HomeScreen({ onBackToHome }) {
     navigation.navigate('Expenses');
   };
 
+  // Trip management functions
+  const handleUpdateBudget = () => {
+    const amount = parseFloat(newBudget);
+    if (amount > 0) {
+      setBudget(prev => ({ ...prev, total: amount }));
+      setShowBudgetModal(false);
+    }
+  };
+
+  const handleAddTraveler = () => {
+    if (newTravelerName.trim()) {
+      const updatedTravelers = [...travelers, { name: newTravelerName.trim(), type: 'member' }];
+      setTravelers(updatedTravelers);
+      setTripInfo(prev => ({ ...prev, participants: updatedTravelers }));
+      setNewTravelerName('');
+    }
+  };
+
+  const handleRemoveTraveler = (index) => {
+    const updatedTravelers = travelers.filter((_, i) => i !== index);
+    setTravelers(updatedTravelers);
+    setTripInfo(prev => ({ ...prev, participants: updatedTravelers }));
+  };
+
+  const handleEndTrip = () => {
+    // Mark trip as completed and go back
+    setShowEndTripModal(false);
+    onBackToHome();
+  };
+
+  const handleDeleteTrip = () => {
+    if (clearTrip) {
+      clearTrip();
+    } else {
+      // Manual clear if clearTrip not available
+      setTripInfo({
+        destination: '',
+        startDate: '',
+        endDate: '',
+        name: '',
+        participants: [],
+      });
+      setBudget({ total: 0 });
+    }
+    setShowDeleteModal(false);
+    onBackToHome();
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView 
@@ -110,9 +168,17 @@ export default function HomeScreen({ onBackToHome }) {
               <Text style={styles.headerLabel}>YOUR TRIP</Text>
               <Text style={styles.headerTitle}>{tripInfo.destination || 'My Adventure'}</Text>
             </View>
-            <Pressable style={styles.backButton} onPress={onBackToHome}>
-              <Text style={styles.backButtonText}>✕</Text>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable 
+                style={styles.settingsButton} 
+                onPress={() => setShowSettingsModal(true)}
+              >
+                <Text style={styles.settingsButtonText}>⚙️</Text>
+              </Pressable>
+              <Pressable style={styles.backButton} onPress={onBackToHome}>
+                <Text style={styles.backButtonText}>✕</Text>
+              </Pressable>
+            </View>
           </View>
           
           {/* Trip Status Badge */}
@@ -122,11 +188,7 @@ export default function HomeScreen({ onBackToHome }) {
                 {daysUntil < 0 ? '✈️' : daysUntil === 0 ? '🎉' : '📅'}
               </Text>
               <Text style={styles.statusText}>
-                {daysUntil < 0 
-                  ? 'Trip in progress!' 
-                  : daysUntil === 0 
-                    ? 'Trip starts today!' 
-                    : `${daysUntil} days to go`}
+                {daysUntil < 0 ? 'Trip in progress!' : daysUntil === 0 ? 'Trip starts today!' : `${daysUntil} days to go`}
               </Text>
             </View>
           )}
@@ -159,17 +221,8 @@ export default function HomeScreen({ onBackToHome }) {
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStatItem}>
-              {lastExpense ? (
-                <>
-                  <Text style={styles.heroStatValue}>${lastExpense.amount}</Text>
-                  <Text style={styles.heroStatLabel}>Last Spent</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.heroStatValue}>$0</Text>
-                  <Text style={styles.heroStatLabel}>Last Spent</Text>
-                </>
-              )}
+              <Text style={styles.heroStatValue}>${lastExpense ? lastExpense.amount : 0}</Text>
+              <Text style={styles.heroStatLabel}>Last Spent</Text>
             </View>
           </View>
 
@@ -185,9 +238,54 @@ export default function HomeScreen({ onBackToHome }) {
           </View>
         </Animated.View>
 
-        {/* Quick Stats Grid */}
+        {/* Quick Actions */}
+        <Animated.View style={[styles.quickActionsSection, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
+            <Pressable 
+              style={({ pressed }) => [styles.quickActionCard, pressed && { opacity: 0.8 }]}
+              onPress={() => setShowBudgetModal(true)}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#10B98120' }]}>
+                <Text style={styles.quickActionEmoji}>💰</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Edit Budget</Text>
+            </Pressable>
+
+            <Pressable 
+              style={({ pressed }) => [styles.quickActionCard, pressed && { opacity: 0.8 }]}
+              onPress={() => setShowTravelersModal(true)}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#3B82F620' }]}>
+                <Text style={styles.quickActionEmoji}>👥</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Travelers</Text>
+            </Pressable>
+
+            <Pressable 
+              style={({ pressed }) => [styles.quickActionCard, pressed && { opacity: 0.8 }]}
+              onPress={() => setShowEndTripModal(true)}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#F59E0B20' }]}>
+                <Text style={styles.quickActionEmoji}>🏁</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>End Trip</Text>
+            </Pressable>
+
+            <Pressable 
+              style={({ pressed }) => [styles.quickActionCard, pressed && { opacity: 0.8 }]}
+              onPress={() => setShowDeleteModal(true)}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#EF444420' }]}>
+                <Text style={styles.quickActionEmoji}>🗑️</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Delete</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+
+        {/* Stats Grid */}
         <View style={styles.statsGrid}>
-          {/* Budget Card */}
           <Animated.View style={[styles.statCard, styles.statCardBudget, { opacity: fadeAnim }]}>
             <View style={styles.statCardHeader}>
               <View style={styles.statCardIconBg}>
@@ -214,7 +312,6 @@ export default function HomeScreen({ onBackToHome }) {
             </View>
           </Animated.View>
 
-          {/* Packing Card */}
           <Animated.View style={[styles.statCard, styles.statCardPacking, { opacity: fadeAnim }]}>
             <View style={styles.statCardHeader}>
               <View style={styles.statCardIconBg}>
@@ -322,9 +419,14 @@ export default function HomeScreen({ onBackToHome }) {
         </Animated.View>
 
         {/* Participants */}
-        {tripInfo.participants && tripInfo.participants.length > 0 && (
+        {travelers.length > 0 && (
           <Animated.View style={[styles.participantsSection, { opacity: fadeAnim }]}>
-            <Text style={styles.sectionTitle}>👥 Travel Buddies</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>👥 Travel Buddies</Text>
+              <TouchableOpacity onPress={() => setShowTravelersModal(true)}>
+                <Text style={styles.viewMoreText}>Edit →</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.participantsCard}>
               <View style={styles.participantsList}>
                 <View style={styles.participantItem}>
@@ -333,7 +435,7 @@ export default function HomeScreen({ onBackToHome }) {
                   </View>
                   <Text style={styles.participantName}>You (Organizer)</Text>
                 </View>
-                {tripInfo.participants.map((p, index) => (
+                {travelers.map((p, index) => (
                   <View key={index} style={styles.participantItem}>
                     <View style={styles.participantAvatar}>
                       <Text style={styles.participantInitial}>{p.name?.charAt(0) || '?'}</Text>
@@ -348,6 +450,230 @@ export default function HomeScreen({ onBackToHome }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Settings Modal */}
+      <Modal visible={showSettingsModal} transparent animationType="slide" onRequestClose={() => setShowSettingsModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>⚙️ Trip Settings</Text>
+              <Pressable onPress={() => setShowSettingsModal(false)} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseBtnText}>×</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.settingsList}>
+              <Pressable 
+                style={styles.settingsItem}
+                onPress={() => { setShowSettingsModal(false); setShowBudgetModal(true); }}
+              >
+                <View style={[styles.settingsIconBg, { backgroundColor: '#10B98120' }]}>
+                  <Text style={styles.settingsIcon}>💰</Text>
+                </View>
+                <View style={styles.settingsInfo}>
+                  <Text style={styles.settingsLabel}>Edit Budget</Text>
+                  <Text style={styles.settingsDesc}>Current: ${budget.total.toLocaleString()}</Text>
+                </View>
+                <Text style={styles.settingsArrow}>→</Text>
+              </Pressable>
+
+              <Pressable 
+                style={styles.settingsItem}
+                onPress={() => { setShowSettingsModal(false); setShowTravelersModal(true); }}
+              >
+                <View style={[styles.settingsIconBg, { backgroundColor: '#3B82F620' }]}>
+                  <Text style={styles.settingsIcon}>👥</Text>
+                </View>
+                <View style={styles.settingsInfo}>
+                  <Text style={styles.settingsLabel}>Manage Travelers</Text>
+                  <Text style={styles.settingsDesc}>{participantCount} travelers</Text>
+                </View>
+                <Text style={styles.settingsArrow}>→</Text>
+              </Pressable>
+
+              <Pressable 
+                style={styles.settingsItem}
+                onPress={() => { setShowSettingsModal(false); setShowEndTripModal(true); }}
+              >
+                <View style={[styles.settingsIconBg, { backgroundColor: '#F59E0B20' }]}>
+                  <Text style={styles.settingsIcon}>🏁</Text>
+                </View>
+                <View style={styles.settingsInfo}>
+                  <Text style={styles.settingsLabel}>End Trip</Text>
+                  <Text style={styles.settingsDesc}>Mark trip as completed</Text>
+                </View>
+                <Text style={styles.settingsArrow}>→</Text>
+              </Pressable>
+
+              <Pressable 
+                style={[styles.settingsItem, styles.settingsItemDanger]}
+                onPress={() => { setShowSettingsModal(false); setShowDeleteModal(true); }}
+              >
+                <View style={[styles.settingsIconBg, { backgroundColor: '#EF444420' }]}>
+                  <Text style={styles.settingsIcon}>🗑️</Text>
+                </View>
+                <View style={styles.settingsInfo}>
+                  <Text style={[styles.settingsLabel, { color: '#EF4444' }]}>Delete Trip</Text>
+                  <Text style={styles.settingsDesc}>Remove trip permanently</Text>
+                </View>
+                <Text style={[styles.settingsArrow, { color: '#EF4444' }]}>→</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Budget Modal */}
+      <Modal visible={showBudgetModal} transparent animationType="slide" onRequestClose={() => setShowBudgetModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>💰 Edit Budget</Text>
+              <Pressable onPress={() => setShowBudgetModal(false)} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseBtnText}>×</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.budgetEditSection}>
+              <Text style={styles.budgetEditLabel}>Total Trip Budget</Text>
+              <View style={styles.budgetInputRow}>
+                <Text style={styles.budgetCurrency}>$</Text>
+                <TextInput
+                  style={styles.budgetInputField}
+                  value={newBudget}
+                  onChangeText={(text) => setNewBudget(text.replace(/[^0-9]/g, ''))}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+              <View style={styles.budgetInfo}>
+                <Text style={styles.budgetInfoText}>💳 Spent: ${getTotalExpenses()}</Text>
+                <Text style={styles.budgetInfoText}>📊 Remaining: ${parseFloat(newBudget || 0) - getTotalExpenses()}</Text>
+              </View>
+            </View>
+
+            <Pressable style={styles.saveButton} onPress={handleUpdateBudget}>
+              <Text style={styles.saveButtonText}>Save Budget</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Travelers Modal */}
+      <Modal visible={showTravelersModal} transparent animationType="slide" onRequestClose={() => setShowTravelersModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>👥 Manage Travelers</Text>
+              <Pressable onPress={() => setShowTravelersModal(false)} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseBtnText}>×</Text>
+              </Pressable>
+            </View>
+
+            {/* Add Traveler */}
+            <View style={styles.addTravelerSection}>
+              <View style={styles.addTravelerInput}>
+                <TextInput
+                  style={styles.travelerInput}
+                  placeholder="Add traveler name..."
+                  placeholderTextColor={colors.textMuted}
+                  value={newTravelerName}
+                  onChangeText={setNewTravelerName}
+                />
+                <Pressable 
+                  style={[styles.addTravelerBtn, !newTravelerName.trim() && { opacity: 0.5 }]}
+                  onPress={handleAddTraveler}
+                  disabled={!newTravelerName.trim()}
+                >
+                  <Text style={styles.addTravelerBtnText}>Add</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Travelers List */}
+            <ScrollView style={styles.travelersList}>
+              <View style={styles.travelerCard}>
+                <View style={[styles.travelerAvatar, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.travelerAvatarText}>You</Text>
+                </View>
+                <View style={styles.travelerInfo}>
+                  <Text style={styles.travelerName}>You</Text>
+                  <Text style={styles.travelerRole}>Organizer</Text>
+                </View>
+              </View>
+
+              {travelers.map((traveler, index) => (
+                <View key={index} style={styles.travelerCard}>
+                  <View style={styles.travelerAvatar}>
+                    <Text style={styles.travelerAvatarText}>{traveler.name?.charAt(0)?.toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.travelerInfo}>
+                    <Text style={styles.travelerName}>{traveler.name}</Text>
+                    <Text style={styles.travelerRole}>{traveler.relation || traveler.type || 'Member'}</Text>
+                  </View>
+                  <Pressable style={styles.removeTravelerBtn} onPress={() => handleRemoveTraveler(index)}>
+                    <Text style={styles.removeTravelerBtnText}>✕</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+
+            <Pressable style={styles.saveButton} onPress={() => setShowTravelersModal(false)}>
+              <Text style={styles.saveButtonText}>Done</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Trip Modal */}
+      <Modal visible={showEndTripModal} transparent animationType="fade" onRequestClose={() => setShowEndTripModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmModal}>
+            <View style={styles.confirmIconBg}>
+              <Text style={styles.confirmIcon}>🏁</Text>
+            </View>
+            <Text style={styles.confirmTitle}>End Trip?</Text>
+            <Text style={styles.confirmText}>
+              This will mark your trip as completed. You can view it in your trip history.
+            </Text>
+            <View style={styles.confirmButtons}>
+              <Pressable style={styles.confirmCancelBtn} onPress={() => setShowEndTripModal(false)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.confirmActionBtn} onPress={handleEndTrip}>
+                <Text style={styles.confirmActionText}>End Trip</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Trip Modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmModal}>
+            <View style={[styles.confirmIconBg, { backgroundColor: '#EF444420' }]}>
+              <Text style={styles.confirmIcon}>🗑️</Text>
+            </View>
+            <Text style={styles.confirmTitle}>Delete Trip?</Text>
+            <Text style={styles.confirmText}>
+              This action cannot be undone. All trip data including expenses, itinerary, and packing lists will be permanently deleted.
+            </Text>
+            <View style={styles.confirmButtons}>
+              <Pressable style={styles.confirmCancelBtn} onPress={() => setShowDeleteModal(false)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={[styles.confirmActionBtn, { backgroundColor: '#EF4444' }]} onPress={handleDeleteTrip}>
+                <Text style={styles.confirmActionText}>Delete</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -361,6 +687,9 @@ const createStyles = (colors) => StyleSheet.create({
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerLabel: { color: colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
   headerTitle: { color: colors.text, fontSize: 28, fontWeight: 'bold', marginTop: 4 },
+  headerActions: { flexDirection: 'row', gap: 10 },
+  settingsButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  settingsButtonText: { fontSize: 18 },
   backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
   backButtonText: { color: colors.textMuted, fontSize: 18 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primaryMuted, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, alignSelf: 'flex-start', marginTop: 12, borderWidth: 1, borderColor: colors.primaryBorder },
@@ -397,6 +726,14 @@ const createStyles = (colors) => StyleSheet.create({
   copyButton: { padding: 4 },
   copyButtonText: { fontSize: 18 },
 
+  // Quick Actions
+  quickActionsSection: { paddingHorizontal: 20, marginBottom: 20 },
+  quickActionsGrid: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  quickActionCard: { flex: 1, backgroundColor: colors.card, borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  quickActionIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  quickActionEmoji: { fontSize: 20 },
+  quickActionLabel: { color: colors.text, fontSize: 11, fontWeight: '500', textAlign: 'center' },
+
   // Stats Grid
   statsGrid: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 20 },
   statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder },
@@ -419,7 +756,7 @@ const createStyles = (colors) => StyleSheet.create({
   packingPercent: { color: colors.primary, fontSize: 22, fontWeight: 'bold' },
   packingStatus: { color: colors.textMuted, fontSize: 12, marginTop: 8 },
 
-  // Section Header
+  // Section
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { color: colors.text, fontSize: 18, fontWeight: 'bold' },
   viewMoreText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
@@ -458,4 +795,65 @@ const createStyles = (colors) => StyleSheet.create({
   participantAvatar: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.cardLight, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   participantInitial: { color: colors.text, fontSize: 14, fontWeight: '600' },
   participantName: { color: colors.text, fontSize: 15 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
+  modalHandle: { width: 40, height: 4, backgroundColor: colors.textMuted, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { color: colors.text, fontSize: 22, fontWeight: 'bold' },
+  modalCloseBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.cardLight, alignItems: 'center', justifyContent: 'center' },
+  modalCloseBtnText: { color: colors.textMuted, fontSize: 22 },
+
+  // Settings List
+  settingsList: { gap: 12 },
+  settingsItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, borderRadius: 14, padding: 14 },
+  settingsItemDanger: { backgroundColor: '#EF444410' },
+  settingsIconBg: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  settingsIcon: { fontSize: 20 },
+  settingsInfo: { flex: 1, marginLeft: 12 },
+  settingsLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  settingsDesc: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  settingsArrow: { color: colors.textMuted, fontSize: 18 },
+
+  // Budget Edit
+  budgetEditSection: { backgroundColor: colors.cardLight, borderRadius: 16, padding: 20, marginBottom: 20 },
+  budgetEditLabel: { color: colors.textMuted, fontSize: 13, marginBottom: 12, textAlign: 'center' },
+  budgetInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  budgetCurrency: { color: colors.text, fontSize: 36, fontWeight: 'bold' },
+  budgetInputField: { color: colors.text, fontSize: 48, fontWeight: 'bold', minWidth: 120, textAlign: 'center' },
+  budgetInfo: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.primaryBorder },
+  budgetInfoText: { color: colors.textMuted, fontSize: 13 },
+
+  // Travelers
+  addTravelerSection: { marginBottom: 16 },
+  addTravelerInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, borderRadius: 12, padding: 4 },
+  travelerInput: { flex: 1, color: colors.text, fontSize: 15, padding: 12 },
+  addTravelerBtn: { backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  addTravelerBtnText: { color: colors.bg, fontSize: 14, fontWeight: 'bold' },
+  travelersList: { maxHeight: 300 },
+  travelerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, borderRadius: 12, padding: 12, marginBottom: 10 },
+  travelerAvatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
+  travelerAvatarText: { color: colors.primary, fontSize: 16, fontWeight: 'bold' },
+  travelerInfo: { flex: 1, marginLeft: 12 },
+  travelerName: { color: colors.text, fontSize: 15, fontWeight: '500' },
+  travelerRole: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  removeTravelerBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  removeTravelerBtnText: { color: colors.textMuted, fontSize: 14 },
+
+  // Save Button
+  saveButton: { backgroundColor: colors.primary, borderRadius: 14, padding: 16, alignItems: 'center' },
+  saveButtonText: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
+
+  // Confirm Modal
+  confirmModal: { backgroundColor: colors.card, borderRadius: 24, padding: 24, marginHorizontal: 20, alignItems: 'center' },
+  confirmIconBg: { width: 72, height: 72, borderRadius: 24, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  confirmIcon: { fontSize: 36 },
+  confirmTitle: { color: colors.text, fontSize: 22, fontWeight: 'bold', marginBottom: 12 },
+  confirmText: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  confirmButtons: { flexDirection: 'row', gap: 12, width: '100%' },
+  confirmCancelBtn: { flex: 1, backgroundColor: colors.cardLight, borderRadius: 12, padding: 14, alignItems: 'center' },
+  confirmCancelText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  confirmActionBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 12, padding: 14, alignItems: 'center' },
+  confirmActionText: { color: colors.bg, fontSize: 15, fontWeight: 'bold' },
 });
