@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch, Modal } f
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ onBack }) {
   const { colors, isDark, toggleTheme } = useTheme();
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -24,15 +24,18 @@ export default function ProfileScreen() {
     { icon: '🔔', label: 'Notifications', value: true, type: 'toggle' },
     { icon: '📤', label: 'Export Data', type: 'action' },
     { icon: '❓', label: 'Help & Support', type: 'action' },
-    { icon: '📋', label: 'Terms of Service', type: 'action' },
   ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
+        {/* Header with Back Button */}
         <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
           <Text style={styles.title}>Profile</Text>
+          <View style={styles.placeholder} />
         </View>
 
         {/* Profile Card */}
@@ -80,18 +83,12 @@ export default function ProfileScreen() {
             </View>
             <Text style={styles.historyArrow}>→</Text>
           </View>
-          {/* Mini Trip Preview */}
           <View style={styles.tripPreview}>
             {pastTrips.slice(0, 3).map((trip, index) => (
               <View key={trip.id} style={[styles.tripPreviewItem, index > 0 && { marginLeft: -12 }]}>
                 <Text style={styles.tripPreviewEmoji}>{trip.emoji}</Text>
               </View>
             ))}
-            {totalTrips > 3 && (
-              <View style={[styles.tripPreviewItem, styles.tripPreviewMore, { marginLeft: -12 }]}>
-                <Text style={styles.tripPreviewMoreText}>+{totalTrips - 3}</Text>
-              </View>
-            )}
           </View>
         </TouchableOpacity>
 
@@ -107,7 +104,7 @@ export default function ProfileScreen() {
             <View style={styles.themeInfo}>
               <Text style={styles.themeLabel}>Dark Mode</Text>
               <Text style={styles.themeDescription}>
-                {isDark ? 'Midnight theme active' : 'Light theme active'}
+                {isDark ? 'Night theme active' : 'Sunrise theme active'}
               </Text>
             </View>
             <Switch
@@ -115,7 +112,6 @@ export default function ProfileScreen() {
               onValueChange={toggleTheme}
               trackColor={{ false: colors.cardLight, true: colors.primary }}
               thumbColor={'#FFFFFF'}
-              ios_backgroundColor={colors.cardLight}
             />
           </View>
         </View>
@@ -134,27 +130,16 @@ export default function ProfileScreen() {
                 <Text style={styles.menuIcon}>{item.icon}</Text>
               </View>
               <Text style={styles.menuLabel}>{item.label}</Text>
-              {item.type === 'value' && (
-                <Text style={styles.menuValue}>{item.value}</Text>
-              )}
+              {item.type === 'value' && <Text style={styles.menuValue}>{item.value}</Text>}
               {item.type === 'toggle' && (
-                <Switch
-                  value={item.value}
-                  trackColor={{ false: colors.cardLight, true: colors.primary }}
-                  thumbColor={'#FFFFFF'}
-                />
+                <Switch value={item.value} trackColor={{ false: colors.cardLight, true: colors.primary }} thumbColor={'#FFFFFF'} />
               )}
-              {item.type === 'action' && (
-                <Text style={styles.menuArrow}>→</Text>
-              )}
+              {item.type === 'action' && <Text style={styles.menuArrow}>→</Text>}
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Danger Zone */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Danger Zone</Text>
-        </View>
         <TouchableOpacity style={styles.dangerCard}>
           <View style={styles.dangerIcon}>
             <Text style={styles.dangerIconEmoji}>🗑️</Text>
@@ -180,42 +165,32 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
-            
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Trip History 📜</Text>
               <TouchableOpacity onPress={() => setShowHistoryModal(false)} style={styles.modalClose}>
                 <Text style={styles.modalCloseText}>×</Text>
               </TouchableOpacity>
             </View>
-
             <ScrollView showsVerticalScrollIndicator={false}>
-              {pastTrips.length === 0 ? (
-                <View style={styles.emptyHistory}>
-                  <Text style={styles.emptyEmoji}>🗺️</Text>
-                  <Text style={styles.emptyTitle}>No past trips yet</Text>
-                  <Text style={styles.emptyText}>Complete your first trip to see it here</Text>
-                </View>
-              ) : (
-                pastTrips.map((trip) => (
-                  <View key={trip.id} style={styles.historyItem}>
-                    <View style={styles.historyItemIcon}>
-                      <Text style={styles.historyItemEmoji}>{trip.emoji}</Text>
-                    </View>
-                    <View style={styles.historyItemInfo}>
-                      <Text style={styles.historyItemName}>{trip.name}</Text>
-                      <Text style={styles.historyItemDestination}>{trip.destination}</Text>
-                      <View style={styles.historyItemMeta}>
-                        <Text style={styles.historyItemDate}>📅 {trip.date}</Text>
-                        <Text style={styles.historyItemDays}>• {trip.days} days</Text>
-                      </View>
-                    </View>
-                    <View style={styles.historyItemSpent}>
-                      <Text style={styles.historyItemSpentValue}>${trip.spent}</Text>
-                      <Text style={styles.historyItemSpentLabel}>spent</Text>
+              {pastTrips.map((trip) => (
+                <View key={trip.id} style={styles.historyItem}>
+                  <View style={styles.historyItemIcon}>
+                    <Text style={styles.historyItemEmoji}>{trip.emoji}</Text>
+                  </View>
+                  <View style={styles.historyItemInfo}>
+                    <Text style={styles.historyItemName}>{trip.name}</Text>
+                    <Text style={styles.historyItemDestination}>{trip.destination}</Text>
+                    <View style={styles.historyItemMeta}>
+                      <Text style={styles.historyItemDate}>📅 {trip.date}</Text>
+                      <Text style={styles.historyItemDays}>• {trip.days} days</Text>
                     </View>
                   </View>
-                ))
-              )}
+                  <View style={styles.historyItemSpent}>
+                    <Text style={styles.historyItemSpentValue}>${trip.spent}</Text>
+                    <Text style={styles.historyItemSpentLabel}>spent</Text>
+                  </View>
+                </View>
+              ))}
             </ScrollView>
           </View>
         </View>
@@ -228,9 +203,12 @@ const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
   
-  // Header
-  header: { paddingTop: 20, marginBottom: 24 },
-  title: { color: colors.text, fontSize: 32, fontWeight: 'bold' },
+  // Header with Back
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, marginBottom: 20 },
+  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  backArrow: { fontSize: 22, color: colors.text },
+  title: { color: colors.text, fontSize: 24, fontWeight: 'bold' },
+  placeholder: { width: 44 },
 
   // Profile Card
   profileCard: { backgroundColor: colors.card, borderRadius: 24, padding: 24, alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: colors.primaryBorder },
@@ -262,8 +240,6 @@ const createStyles = (colors) => StyleSheet.create({
   tripPreview: { flexDirection: 'row', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.primaryBorder },
   tripPreviewItem: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.cardLight, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.card },
   tripPreviewEmoji: { fontSize: 20 },
-  tripPreviewMore: { backgroundColor: colors.primary },
-  tripPreviewMoreText: { color: colors.bg, fontSize: 12, fontWeight: 'bold' },
 
   // Sections
   sectionHeader: { marginBottom: 12, marginTop: 8 },

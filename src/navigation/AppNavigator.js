@@ -11,7 +11,6 @@ import ExpenseScreen from '../screens/ExpenseScreen';
 import PackingScreen from '../screens/PackingScreen';
 import MapScreen from '../screens/MapScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import FloatingFooter from '../components/FloatingFooter';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -66,16 +65,16 @@ function TripTabs({ onBackToHome }) {
 
 export default function AppNavigator() {
   const [screen, setScreen] = useState('welcome');
-  const [activeTab, setActiveTab] = useState('home');
-  const { setTripInfo, setBudget } = useTravelContext();
+  const [hasActiveTrip, setHasActiveTrip] = useState(false);
+  const { setTripInfo, setBudget, tripInfo } = useTravelContext();
   const { colors } = useTheme();
 
   const handlePlanTrip = () => setScreen('setup');
 
   const handleJoinTrip = (code) => {
     console.log('Joining trip with code:', code);
+    setHasActiveTrip(true);
     setScreen('trip');
-    setActiveTab('trip');
   };
 
   const handleSetupComplete = (tripData) => {
@@ -87,20 +86,20 @@ export default function AppNavigator() {
       participants: tripData.participants,
     });
     setBudget(prev => ({ ...prev, total: parseFloat(tripData.budget) || 0 }));
+    setHasActiveTrip(true);
     setScreen('trip');
-    setActiveTab('trip');
   };
 
   const handleBackToWelcome = () => {
     setScreen('welcome');
-    setActiveTab('home');
   };
 
-  const handleTabPress = (tab) => {
-    setActiveTab(tab);
-    if (tab === 'home') setScreen('welcome');
-    else if (tab === 'trip') setScreen('trip');
-    else if (tab === 'profile') setScreen('profile');
+  const handleMyTrip = () => {
+    setScreen('trip');
+  };
+
+  const handleProfile = () => {
+    setScreen('profile');
   };
 
   // Setup screen - no footer
@@ -113,40 +112,27 @@ export default function AppNavigator() {
     );
   }
 
-  // Trip tabs - uses bottom tab navigator (no main footer)
+  // Profile screen
+  if (screen === 'profile') {
+    return (
+      <ProfileScreen onBack={handleBackToWelcome} />
+    );
+  }
+
+  // Trip tabs
   if (screen === 'trip') {
     return <TripTabs onBackToHome={handleBackToWelcome} />;
   }
 
-  // Screens with main footer
-  const renderScreen = () => {
-    switch (screen) {
-      case 'welcome':
-        return (
-          <WelcomeScreen 
-            onPlanTrip={handlePlanTrip}
-            onJoinTrip={handleJoinTrip}
-          />
-        );
-      case 'profile':
-        return <ProfileScreen />;
-      default:
-        return (
-          <WelcomeScreen 
-            onPlanTrip={handlePlanTrip}
-            onJoinTrip={handleJoinTrip}
-          />
-        );
-    }
-  };
-
+  // Welcome screen - no footer anymore
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={{ flex: 1 }}>
-        {renderScreen()}
-      </View>
-      <FloatingFooter activeTab={activeTab} onTabPress={handleTabPress} />
-    </View>
+    <WelcomeScreen 
+      onPlanTrip={handlePlanTrip}
+      onJoinTrip={handleJoinTrip}
+      onMyTrip={handleMyTrip}
+      onProfile={handleProfile}
+      hasActiveTrip={hasActiveTrip}
+    />
   );
 }
 
