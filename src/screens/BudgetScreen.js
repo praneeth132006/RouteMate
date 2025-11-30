@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { key: 'accommodation', label: 'Stay', emoji: '🏨', color: '#8B5CF6', tip: '30-40%' },
   { key: 'transport', label: 'Transport', emoji: '🚗', color: '#3B82F6', tip: '15-25%' },
   { key: 'food', label: 'Food', emoji: '🍽️', color: '#F59E0B', tip: '20-30%' },
@@ -15,6 +15,9 @@ const CATEGORIES = [
   { key: 'other', label: 'Other', emoji: '📦', color: '#6B7280', tip: '5-10%' },
 ];
 
+const EMOJI_OPTIONS = ['🏨', '🚗', '🍽️', '🎭', '🛍️', '📦', '✈️', '🚆', '🏖️', '⛷️', '🎫', '💊', '📱', '🎁', '🍺', '☕', '🎮', '📸', '💇', '🏥'];
+const COLOR_OPTIONS = ['#8B5CF6', '#3B82F6', '#F59E0B', '#10B981', '#EC4899', '#6B7280', '#EF4444', '#06B6D4', '#84CC16', '#F97316'];
+
 export default function BudgetScreen() {
   const { 
     budget = { total: 0, categories: {} }, 
@@ -22,13 +25,21 @@ export default function BudgetScreen() {
     getExpensesByCategory,
     formatCurrency,
     currency = { symbol: '₹', code: 'INR' },
-    tripInfo = {}
+    tripInfo = {},
+    customCategories,
+    setCustomCategories
   } = useTravelContext();
   const { colors } = useTheme();
   
   const [totalBudget, setTotalBudget] = useState((budget.total || 0).toString());
   const [categoryInputs, setCategoryInputs] = useState({});
   const [focusedCategory, setFocusedCategory] = useState(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [newCategory, setNewCategory] = useState({ key: '', label: '', emoji: '📦', color: '#6B7280', tip: '5-10%' });
+  
+  // Use custom categories if available, otherwise default
+  const CATEGORIES = customCategories?.length > 0 ? customCategories : DEFAULT_CATEGORIES;
   
   // Sync totalBudget with budget.total when it changes externally
   useEffect(() => {
@@ -42,7 +53,7 @@ export default function BudgetScreen() {
       inputs[cat.key] = (budget.categories?.[cat.key] || 0).toString();
     });
     setCategoryInputs(inputs);
-  }, [budget.categories]);
+  }, [budget.categories, CATEGORIES]);
   
   const expensesByCategory = getExpensesByCategory ? getExpensesByCategory() : {};
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -53,7 +64,6 @@ export default function BudgetScreen() {
   };
 
   const handleCategoryChange = (category, value) => {
-    // Update local state immediately for responsive UI
     setCategoryInputs(prev => ({ ...prev, [category]: value }));
   };
 
@@ -68,7 +78,6 @@ export default function BudgetScreen() {
 
   const handleCategoryFocus = (category) => {
     setFocusedCategory(category);
-    // Select all text when focused (clear if 0)
     if (categoryInputs[category] === '0') {
       setCategoryInputs(prev => ({ ...prev, [category]: '' }));
     }
@@ -78,6 +87,62 @@ export default function BudgetScreen() {
     if (formatCurrency) return formatCurrency(amount);
     const num = parseFloat(amount) || 0;
     return `${currency.symbol}${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  };
+
+  // Category management functions
+  const handleAddCategory = () => {
+    if (!newCategory.label.trim()) return;
+    
+    const key = newCategory.label.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
+    const categoryToAdd = { ...newCategory, key };
+    
+    const updatedCategories = [...CATEGORIES, categoryToAdd];
+    if (setCustomCategories) {
+      setCustomCategories(updatedCategories);
+    }
+    
+    setNewCategory({ key: '', label: '', emoji: '📦', color: '#6B7280', tip: '5-10%' });
+    setShowCategoryModal(false);
+  };
+
+  const handleEditCategory = (category) => {
+    setEditingCategory(category);
+    setNewCategory({ ...category });
+    setShowCategoryModal(true);
+  };
+
+  const handleUpdateCategory = () => {
+    if (!editingCategory || !newCategory.label.trim()) return;
+    
+    const updatedCategories = CATEGORIES.map(cat => 
+      cat.key === editingCategory.key ? { ...newCategory, key: editingCategory.key } : cat
+    );
+    
+    if (setCustomCategories) {
+      setCustomCategories(updatedCategories);
+    }
+    
+    setEditingCategory(null);
+    setNewCategory({ key: '', label: '', emoji: '📦', color: '#6B7280', tip: '5-10%' });
+    setShowCategoryModal(false);
+  };
+
+  const handleDeleteCategory = (categoryKey) => {
+    const updatedCategories = CATEGORIES.filter(cat => cat.key !== categoryKey);
+    if (setCustomCategories) {
+      setCustomCategories(updatedCategories);
+    }
+    
+    // Also remove from budget categories
+    const newBudgetCategories = { ...budget.categories };
+    delete newBudgetCategories[categoryKey];
+    setBudget({ ...budget, categories: newBudgetCategories });
+  };
+
+  const resetToDefaults = () => {
+    if (setCustomCategories) {
+      setCustomCategories(DEFAULT_CATEGORIES);
+    }
   };
 
   const allocatedTotal = Object.values(budget.categories || {}).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
@@ -93,22 +158,18 @@ export default function BudgetScreen() {
     return '#10B981';
   };
 
-  // Quick allocate function
   const quickAllocate = () => {
     if (budget.total <= 0) return;
     
-    const allocations = {
-      accommodation: 0.35,
-      transport: 0.20,
-      food: 0.25,
-      activities: 0.10,
-      shopping: 0.05,
-      other: 0.05,
-    };
-    
+    const perCategory = Math.round(budget.total / CATEGORIES.length);
     const newCategories = {};
-    CATEGORIES.forEach(cat => {
-      newCategories[cat.key] = Math.round(budget.total * allocations[cat.key]);
+    CATEGORIES.forEach((cat, index) => {
+      // Give first category remainder to balance
+      if (index === 0) {
+        newCategories[cat.key] = budget.total - (perCategory * (CATEGORIES.length - 1));
+      } else {
+        newCategories[cat.key] = perCategory;
+      }
     });
     
     setBudget({ ...budget, categories: newCategories });
@@ -209,15 +270,20 @@ export default function BudgetScreen() {
           </View>
         </View>
 
-        {/* Category Breakdown */}
+        {/* Category Breakdown with Customize Option */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>📊 Category Budgets</Text>
-            {budget.total > 0 && (
-              <TouchableOpacity style={styles.quickAllocateBtn} onPress={quickAllocate}>
-                <Text style={styles.quickAllocateText}>⚡ Auto</Text>
+            <View style={styles.sectionActions}>
+              {budget.total > 0 && (
+                <TouchableOpacity style={styles.quickAllocateBtn} onPress={quickAllocate}>
+                  <Text style={styles.quickAllocateText}>⚡ Auto</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.customizeBtn} onPress={() => { setEditingCategory(null); setShowCategoryModal(true); }}>
+                <Text style={styles.customizeText}>✏️ Edit</Text>
               </TouchableOpacity>
-            )}
+            </View>
           </View>
           
           {CATEGORIES.map((category) => {
@@ -229,7 +295,12 @@ export default function BudgetScreen() {
             const isFocused = focusedCategory === category.key;
             
             return (
-              <View key={category.key} style={[styles.categoryCard, isFocused && styles.categoryCardFocused]}>
+              <TouchableOpacity 
+                key={category.key} 
+                style={[styles.categoryCard, isFocused && styles.categoryCardFocused]}
+                onLongPress={() => handleEditCategory(category)}
+                delayLongPress={500}
+              >
                 <View style={styles.categoryTop}>
                   <View style={[styles.categoryColorBar, { backgroundColor: category.color }]} />
                   <View style={styles.categoryMain}>
@@ -257,29 +328,15 @@ export default function BudgetScreen() {
                       </View>
                     </View>
                     
-                    {/* Progress */}
                     <View style={styles.categoryProgressRow}>
                       <View style={styles.categoryProgressBar}>
-                        <View 
-                          style={[
-                            styles.categoryProgressFill, 
-                            { 
-                              width: `${percentage}%`, 
-                              backgroundColor: getStatusColor(percentage)
-                            }
-                          ]} 
-                        />
+                        <View style={[styles.categoryProgressFill, { width: `${percentage}%`, backgroundColor: getStatusColor(percentage) }]} />
                       </View>
-                      <Text style={[styles.categoryPercent, { color: getStatusColor(percentage) }]}>
-                        {percentage.toFixed(0)}%
-                      </Text>
+                      <Text style={[styles.categoryPercent, { color: getStatusColor(percentage) }]}>{percentage.toFixed(0)}%</Text>
                     </View>
 
-                    {/* Footer Stats */}
                     <View style={styles.categoryFooter}>
-                      <Text style={styles.categorySpentText}>
-                        {safeFormat(spent)} spent
-                      </Text>
+                      <Text style={styles.categorySpentText}>{safeFormat(spent)} spent</Text>
                       {allocated > 0 && (
                         <Text style={[styles.categoryRemainingText, { color: remaining >= 0 ? '#10B981' : '#EF4444' }]}>
                           {remaining >= 0 ? `${safeFormat(remaining)} left` : `${safeFormat(Math.abs(remaining))} over`}
@@ -288,9 +345,15 @@ export default function BudgetScreen() {
                     </View>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
+          
+          {/* Add Category Button */}
+          <TouchableOpacity style={styles.addCategoryBtn} onPress={() => { setEditingCategory(null); setNewCategory({ key: '', label: '', emoji: '📦', color: '#6B7280', tip: '5-10%' }); setShowCategoryModal(true); }}>
+            <Text style={styles.addCategoryIcon}>+</Text>
+            <Text style={styles.addCategoryText}>Add Custom Category</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Smart Insights */}
@@ -309,64 +372,125 @@ export default function BudgetScreen() {
                 <Text style={styles.insightText}>{safeFormat(unallocated)} is unallocated. Tap "Auto" to distribute it.</Text>
               </View>
             )}
-            {unallocated < 0 && (
-              <View style={styles.insightItem}>
-                <Text style={styles.insightIcon}>📊</Text>
-                <Text style={styles.insightText}>You've over-allocated by {safeFormat(Math.abs(unallocated))}. Adjust category budgets.</Text>
-              </View>
-            )}
             {budget.total === 0 && (
               <View style={styles.insightItem}>
                 <Text style={styles.insightIcon}>🎯</Text>
                 <Text style={styles.insightText}>Set a total budget above to start planning your trip expenses.</Text>
               </View>
             )}
-            {spentPercentage <= 50 && budget.total > 0 && spentPercentage > 0 && (
-              <View style={styles.insightItem}>
-                <Text style={styles.insightIcon}>✅</Text>
-                <Text style={styles.insightText}>Great job! You're spending wisely with {(100 - spentPercentage).toFixed(0)}% still available.</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Tips */}
-        <View style={styles.tipsCard}>
-          <Text style={styles.tipsTitle}>📝 Budgeting Tips</Text>
-          <View style={styles.tipsList}>
-            <View style={styles.tipItem}>
-              <Text style={styles.tipEmoji}>🏨</Text>
-              <View style={styles.tipContent}>
-                <Text style={styles.tipTitle}>Accommodation</Text>
-                <Text style={styles.tipDesc}>Book early for better rates. Consider hostels or Airbnb.</Text>
-              </View>
-            </View>
-            <View style={styles.tipItem}>
-              <Text style={styles.tipEmoji}>🚗</Text>
-              <View style={styles.tipContent}>
-                <Text style={styles.tipTitle}>Transport</Text>
-                <Text style={styles.tipDesc}>Use local transport. Book flights in advance.</Text>
-              </View>
-            </View>
-            <View style={styles.tipItem}>
-              <Text style={styles.tipEmoji}>🍽️</Text>
-              <View style={styles.tipContent}>
-                <Text style={styles.tipTitle}>Food</Text>
-                <Text style={styles.tipDesc}>Eat local. Mix street food with restaurants.</Text>
-              </View>
-            </View>
-            <View style={styles.tipItem}>
-              <Text style={styles.tipEmoji}>💡</Text>
-              <View style={styles.tipContent}>
-                <Text style={styles.tipTitle}>Emergency Fund</Text>
-                <Text style={styles.tipDesc}>Keep 10-15% aside for unexpected expenses.</Text>
-              </View>
-            </View>
           </View>
         </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Category Edit Modal */}
+      <Modal visible={showCategoryModal} animationType="slide" transparent onRequestClose={() => setShowCategoryModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{editingCategory ? 'Edit Category' : 'Add Category'}</Text>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)} style={styles.modalClose}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Category Name */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Category Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Medical, Entertainment"
+                  placeholderTextColor={colors.textMuted}
+                  value={newCategory.label}
+                  onChangeText={(t) => setNewCategory({ ...newCategory, label: t })}
+                />
+              </View>
+
+              {/* Emoji Picker */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Icon</Text>
+                <View style={styles.emojiGrid}>
+                  {EMOJI_OPTIONS.map((emoji) => (
+                    <TouchableOpacity
+                      key={emoji}
+                      style={[styles.emojiOption, newCategory.emoji === emoji && styles.emojiOptionSelected]}
+                      onPress={() => setNewCategory({ ...newCategory, emoji })}
+                    >
+                      <Text style={styles.emojiText}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Color Picker */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Color</Text>
+                <View style={styles.colorGrid}>
+                  {COLOR_OPTIONS.map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      style={[styles.colorOption, { backgroundColor: color }, newCategory.color === color && styles.colorOptionSelected]}
+                      onPress={() => setNewCategory({ ...newCategory, color })}
+                    >
+                      {newCategory.color === color && <Text style={styles.colorCheck}>✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Suggested % */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Suggested Budget %</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 10-15%"
+                  placeholderTextColor={colors.textMuted}
+                  value={newCategory.tip}
+                  onChangeText={(t) => setNewCategory({ ...newCategory, tip: t })}
+                />
+              </View>
+
+              {/* Preview */}
+              <View style={styles.previewCard}>
+                <Text style={styles.previewLabel}>Preview</Text>
+                <View style={[styles.previewCategory, { borderLeftColor: newCategory.color }]}>
+                  <View style={[styles.previewIcon, { backgroundColor: newCategory.color + '20' }]}>
+                    <Text style={styles.previewEmoji}>{newCategory.emoji}</Text>
+                  </View>
+                  <View style={styles.previewInfo}>
+                    <Text style={styles.previewName}>{newCategory.label || 'Category Name'}</Text>
+                    <Text style={styles.previewTip}>Suggested: {newCategory.tip || '0%'}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Actions */}
+              <TouchableOpacity
+                style={[styles.submitBtn, !newCategory.label.trim() && { opacity: 0.5 }]}
+                onPress={editingCategory ? handleUpdateCategory : handleAddCategory}
+                disabled={!newCategory.label.trim()}
+              >
+                <Text style={styles.submitBtnText}>{editingCategory ? '✓ Update Category' : '+ Add Category'}</Text>
+              </TouchableOpacity>
+
+              {editingCategory && (
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => { handleDeleteCategory(editingCategory.key); setShowCategoryModal(false); }}>
+                  <Text style={styles.deleteBtnText}>🗑️ Delete Category</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity style={styles.resetBtn} onPress={resetToDefaults}>
+                <Text style={styles.resetBtnText}>↺ Reset to Defaults</Text>
+              </TouchableOpacity>
+
+              <View style={{ height: 30 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -448,8 +572,11 @@ const createStyles = (colors) => StyleSheet.create({
   section: { paddingHorizontal: 20, marginBottom: 20 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   sectionTitle: { color: colors.text, fontSize: 17, fontWeight: 'bold' },
+  sectionActions: { flexDirection: 'row', gap: 8 },
   quickAllocateBtn: { backgroundColor: colors.primaryMuted, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   quickAllocateText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
+  customizeBtn: { backgroundColor: colors.cardLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.primaryBorder },
+  customizeText: { color: colors.text, fontSize: 12, fontWeight: '600' },
   
   // Category Card
   categoryCard: { backgroundColor: colors.card, borderRadius: 16, marginBottom: 10, overflow: 'hidden', borderWidth: 1, borderColor: colors.primaryBorder },
@@ -477,6 +604,10 @@ const createStyles = (colors) => StyleSheet.create({
   categorySpentText: { color: colors.textMuted, fontSize: 12 },
   categoryRemainingText: { fontSize: 12, fontWeight: '600' },
 
+  addCategoryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cardLight, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.primaryBorder, borderStyle: 'dashed', marginTop: 4 },
+  addCategoryIcon: { color: colors.primary, fontSize: 20, marginRight: 8 },
+  addCategoryText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+
   // Insights
   insightsCard: { marginHorizontal: 20, backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
   insightsTitle: { color: colors.text, fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
@@ -485,13 +616,42 @@ const createStyles = (colors) => StyleSheet.create({
   insightIcon: { fontSize: 16, marginRight: 10, marginTop: 1 },
   insightText: { color: colors.text, fontSize: 13, flex: 1, lineHeight: 18 },
 
-  // Tips
-  tipsCard: { marginHorizontal: 20, backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  tipsTitle: { color: colors.text, fontSize: 16, fontWeight: 'bold', marginBottom: 14 },
-  tipsList: { gap: 12 },
-  tipItem: { flexDirection: 'row', alignItems: 'flex-start' },
-  tipEmoji: { fontSize: 20, marginRight: 12, marginTop: 2 },
-  tipContent: { flex: 1 },
-  tipTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  tipDesc: { color: colors.textMuted, fontSize: 12, marginTop: 2, lineHeight: 18 },
+  // Modal styles
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
+  modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, maxHeight: '85%' },
+  modalHandle: { width: 40, height: 4, backgroundColor: colors.textMuted, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { color: colors.text, fontSize: 22, fontWeight: 'bold' },
+  modalClose: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.cardLight, justifyContent: 'center', alignItems: 'center' },
+  modalCloseText: { color: colors.textMuted, fontSize: 18 },
+
+  inputGroup: { marginBottom: 16 },
+  inputLabel: { color: colors.textMuted, fontSize: 13, marginBottom: 8 },
+  input: { backgroundColor: colors.cardLight, color: colors.text, padding: 14, borderRadius: 12, fontSize: 15, borderWidth: 1, borderColor: colors.primaryBorder },
+
+  emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  emojiOption: { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.cardLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  emojiOptionSelected: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primaryMuted },
+  emojiText: { fontSize: 22 },
+
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  colorOption: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  colorOptionSelected: { borderWidth: 3, borderColor: '#FFF' },
+  colorCheck: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
+
+  previewCard: { backgroundColor: colors.cardLight, borderRadius: 14, padding: 14, marginBottom: 16 },
+  previewLabel: { color: colors.textMuted, fontSize: 12, marginBottom: 10 },
+  previewCategory: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, padding: 12, borderLeftWidth: 4 },
+  previewIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  previewEmoji: { fontSize: 20 },
+  previewInfo: { marginLeft: 12 },
+  previewName: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  previewTip: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+
+  submitBtn: { backgroundColor: colors.primary, padding: 16, borderRadius: 14, alignItems: 'center' },
+  submitBtnText: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
+  deleteBtn: { backgroundColor: '#EF444420', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 12 },
+  deleteBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '600' },
+  resetBtn: { padding: 14, alignItems: 'center', marginTop: 8 },
+  resetBtnText: { color: colors.textMuted, fontSize: 14 },
 });

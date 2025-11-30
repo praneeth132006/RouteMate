@@ -13,6 +13,15 @@ const CURRENCIES = [
   { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', flag: '🇸🇬' },
 ];
 
+const DEFAULT_CATEGORIES = [
+  { key: 'accommodation', label: 'Stay', emoji: '🏨', color: '#8B5CF6', tip: '30-40%' },
+  { key: 'transport', label: 'Transport', emoji: '🚗', color: '#3B82F6', tip: '15-25%' },
+  { key: 'food', label: 'Food', emoji: '🍽️', color: '#F59E0B', tip: '20-30%' },
+  { key: 'activities', label: 'Activities', emoji: '🎭', color: '#10B981', tip: '10-15%' },
+  { key: 'shopping', label: 'Shopping', emoji: '🛍️', color: '#EC4899', tip: '5-10%' },
+  { key: 'other', label: 'Other', emoji: '📦', color: '#6B7280', tip: '5-10%' },
+];
+
 export function TravelProvider({ children }) {
   const [tripInfo, setTripInfo] = useState({
     destination: '',
@@ -31,6 +40,7 @@ export function TravelProvider({ children }) {
   const [itinerary, setItinerary] = useState([]);
   const [tripHistory, setTripHistory] = useState([]);
   const [currency, setCurrency] = useState(CURRENCIES[0]); // INR default
+  const [customCategories, setCustomCategories] = useState(DEFAULT_CATEGORIES);
 
   const addExpense = (expense) => {
     setExpenses(prev => [...prev, { ...expense, id: Date.now().toString() }]);
@@ -140,14 +150,11 @@ export function TravelProvider({ children }) {
       packingItems, addPackingItem, togglePackingItem, deletePackingItem,
       itinerary, addItineraryItem, deleteItineraryItem, updateItineraryItem,
       getRemainingBudget,
-      clearTrip,
-      endTrip,
-      tripHistory,
-      deleteTripFromHistory,
-      currency,
-      setCurrency,
-      currencies: CURRENCIES,
+      clearTrip, endTrip,
+      tripHistory, deleteTripFromHistory,
+      currency, setCurrency, currencies: CURRENCIES,
       formatCurrency,
+      customCategories, setCustomCategories,
     }}>
       {children}
     </TravelContext.Provider>
