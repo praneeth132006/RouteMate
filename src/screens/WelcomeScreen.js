@@ -11,15 +11,15 @@ const { width } = Dimensions.get('window');
 
 const TRIP_TYPES = [
   { key: 'solo', label: 'Solo Trip', emoji: '🧑', description: 'Just me, exploring the world', color: '#3B82F6' },
-  { key: 'couple', label: 'Couple Trip', emoji: '💑', description: 'Romantic getaway for two', color: '#EC4899' },
-  { key: 'friends', label: 'Friends Trip', emoji: '👥', description: 'Adventure with friends', color: '#10B981' },
+  { key: 'friends', label: 'With Friends', emoji: '👥', description: 'Adventure with my buddies', color: '#10B981' },
   { key: 'family', label: 'Family Trip', emoji: '👨‍👩‍👧‍👦', description: 'Quality time with family', color: '#F59E0B' },
-  { key: 'group', label: 'Group Trip', emoji: '🎉', description: 'Large group adventure', color: '#8B5CF6' },
+  { key: 'couple', label: 'Couple Trip', emoji: '💑', description: 'Romantic getaway for two', color: '#EC4899' },
+  { key: 'business', label: 'Business Trip', emoji: '💼', description: 'Work travel with leisure', color: '#8B5CF6' },
 ];
 
 export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProfile, hasActiveTrip }) {
   const { colors } = useTheme();
-  const { tripInfo, getTotalExpenses, packingItems, itinerary, expenses } = useTravelContext();
+  const { tripInfo, getTotalExpenses, packingItems, itinerary, expenses, formatCurrency, currency } = useTravelContext();
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showTripTypeModal, setShowTripTypeModal] = useState(false);
   const [tripCode, setTripCode] = useState('');
@@ -106,6 +106,14 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
     onPlanTrip(tripType);
   };
 
+  // Get trip type info
+  const getTripTypeInfo = () => {
+    const type = TRIP_TYPES.find(t => t.key === tripInfo.tripType);
+    return type || { key: 'solo', label: 'Solo', emoji: '🧑', color: '#3B82F6' };
+  };
+
+  const tripTypeInfo = getTripTypeInfo();
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header with Profile */}
@@ -154,7 +162,7 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
 
         {/* Action Cards */}
         <View style={styles.actionsContainer}>
-          {/* Current Trip Card - SOFTER COLORS */}
+          {/* Current Trip Card - Updated Stats */}
           {hasActiveTrip && (
             <Animated.View style={{ transform: [{ scale: scaleAnim1 }] }}>
               <Pressable style={({ pressed }) => [styles.currentTripCard, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]} onPress={onMyTrip}>
@@ -190,18 +198,20 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
                   </View>
                 )}
 
-                {/* Stats */}
+                {/* Stats - Updated */}
                 <View style={styles.currentTripStats}>
+                  {/* Trip Type instead of Travelers */}
                   <View style={styles.tripStatItem}>
                     <View style={styles.tripStatIconBg}>
-                      <Text style={styles.tripStatEmoji}>👥</Text>
+                      <Text style={styles.tripStatEmoji}>{tripTypeInfo.emoji}</Text>
                     </View>
                     <View>
-                      <Text style={styles.tripStatValue}>{participantCount}</Text>
-                      <Text style={styles.tripStatLabel}>Travelers</Text>
+                      <Text style={styles.tripStatValue}>{tripTypeInfo.label.split(' ')[0]}</Text>
+                      <Text style={styles.tripStatLabel}>Trip Type</Text>
                     </View>
                   </View>
                   <View style={styles.tripStatDivider} />
+                  {/* Days */}
                   <View style={styles.tripStatItem}>
                     <View style={styles.tripStatIconBg}>
                       <Text style={styles.tripStatEmoji}>📆</Text>
@@ -212,13 +222,14 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
                     </View>
                   </View>
                   <View style={styles.tripStatDivider} />
+                  {/* Total Spent instead of Last Spent */}
                   <View style={styles.tripStatItem}>
                     <View style={styles.tripStatIconBg}>
                       <Text style={styles.tripStatEmoji}>💳</Text>
                     </View>
                     <View>
-                      <Text style={styles.tripStatValue}>${lastExpense ? lastExpense.amount : 0}</Text>
-                      <Text style={styles.tripStatLabel}>Last Spent</Text>
+                      <Text style={styles.tripStatValue}>{currency.symbol}{totalExpenses}</Text>
+                      <Text style={styles.tripStatLabel}>Total Spent</Text>
                     </View>
                   </View>
                 </View>
