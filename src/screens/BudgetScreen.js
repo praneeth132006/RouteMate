@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
@@ -28,6 +28,21 @@ export default function BudgetScreen() {
   
   const [totalBudget, setTotalBudget] = useState((budget.total || 0).toString());
   const [categoryInputs, setCategoryInputs] = useState({});
+  const [focusedCategory, setFocusedCategory] = useState(null);
+  
+  // Sync totalBudget with budget.total when it changes externally
+  useEffect(() => {
+    setTotalBudget((budget.total || 0).toString());
+  }, [budget.total]);
+
+  // Initialize category inputs from budget
+  useEffect(() => {
+    const inputs = {};
+    CATEGORIES.forEach(cat => {
+      inputs[cat.key] = (budget.categories?.[cat.key] || 0).toString();
+    });
+    setCategoryInputs(inputs);
+  }, [budget.categories]);
   
   const expensesByCategory = getExpensesByCategory ? getExpensesByCategory() : {};
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -37,13 +52,26 @@ export default function BudgetScreen() {
     setBudget({ ...budget, total: newTotal });
   };
 
-  const updateCategoryBudget = (category, value) => {
-    setCategoryInputs({ ...categoryInputs, [category]: value });
-    const newValue = parseFloat(value) || 0;
+  const handleCategoryChange = (category, value) => {
+    // Update local state immediately for responsive UI
+    setCategoryInputs(prev => ({ ...prev, [category]: value }));
+  };
+
+  const handleCategoryBlur = (category) => {
+    const newValue = parseFloat(categoryInputs[category]) || 0;
     setBudget({
       ...budget,
       categories: { ...budget.categories, [category]: newValue }
     });
+    setFocusedCategory(null);
+  };
+
+  const handleCategoryFocus = (category) => {
+    setFocusedCategory(category);
+    // Select all text when focused (clear if 0)
+    if (categoryInputs[category] === '0') {
+      setCategoryInputs(prev => ({ ...prev, [category]: '' }));
+    }
   };
 
   const safeFormat = (amount) => {
@@ -65,6 +93,27 @@ export default function BudgetScreen() {
     return '#10B981';
   };
 
+  // Quick allocate function
+  const quickAllocate = () => {
+    if (budget.total <= 0) return;
+    
+    const allocations = {
+      accommodation: 0.35,
+      transport: 0.20,
+      food: 0.25,
+      activities: 0.10,
+      shopping: 0.05,
+      other: 0.05,
+    };
+    
+    const newCategories = {};
+    CATEGORIES.forEach(cat => {
+      newCategories[cat.key] = Math.round(budget.total * allocations[cat.key]);
+    });
+    
+    setBudget({ ...budget, categories: newCategories });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -82,8 +131,8 @@ export default function BudgetScreen() {
         )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Total Budget Card - Now uses softer colors */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Total Budget Card */}
         <View style={styles.totalCard}>
           <View style={styles.totalCardInner}>
             <View style={styles.totalCardLeft}>
@@ -98,6 +147,7 @@ export default function BudgetScreen() {
                   onBlur={handleSaveBudget}
                   placeholderTextColor={colors.textMuted}
                   placeholder="0"
+                  selectTextOnFocus
                 />
               </View>
             </View>
@@ -163,7 +213,11 @@ export default function BudgetScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>📊 Category Budgets</Text>
-            <Text style={styles.sectionHint}>Tap to edit</Text>
+            {budget.total > 0 && (
+              <TouchableOpacity style={styles.quickAllocateBtn} onPress={quickAllocate}>
+                <Text style={styles.quickAllocateText}>⚡ Auto</Text>
+              </TouchableOpacity>
+            )}
           </View>
           
           {CATEGORIES.map((category) => {
@@ -171,12 +225,11 @@ export default function BudgetScreen() {
             const spent = parseFloat(expensesByCategory[category.key]) || 0;
             const percentage = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
             const remaining = allocated - spent;
-            const inputValue = categoryInputs[category.key] !== undefined 
-              ? categoryInputs[category.key] 
-              : allocated.toString();
+            const inputValue = categoryInputs[category.key] || '';
+            const isFocused = focusedCategory === category.key;
             
             return (
-              <View key={category.key} style={styles.categoryCard}>
+              <View key={category.key} style={[styles.categoryCard, isFocused && styles.categoryCardFocused]}>
                 <View style={styles.categoryTop}>
                   <View style={[styles.categoryColorBar, { backgroundColor: category.color }]} />
                   <View style={styles.categoryMain}>
@@ -188,15 +241,18 @@ export default function BudgetScreen() {
                         <Text style={styles.categoryLabel}>{category.label}</Text>
                         <Text style={styles.categoryHint}>Suggested: {category.tip}</Text>
                       </View>
-                      <View style={styles.categoryInputBox}>
+                      <View style={[styles.categoryInputBox, isFocused && styles.categoryInputBoxFocused]}>
                         <Text style={styles.categoryInputSymbol}>{currency.symbol}</Text>
                         <TextInput
                           style={styles.categoryInput}
                           keyboardType="decimal-pad"
                           value={inputValue}
-                          onChangeText={(text) => updateCategoryBudget(category.key, text)}
+                          onChangeText={(text) => handleCategoryChange(category.key, text.replace(/[^0-9.]/g, ''))}
+                          onFocus={() => handleCategoryFocus(category.key)}
+                          onBlur={() => handleCategoryBlur(category.key)}
                           placeholder="0"
                           placeholderTextColor={colors.textMuted}
+                          selectTextOnFocus
                         />
                       </View>
                     </View>
@@ -250,7 +306,7 @@ export default function BudgetScreen() {
             {unallocated > 0 && budget.total > 0 && (
               <View style={styles.insightItem}>
                 <Text style={styles.insightIcon}>💰</Text>
-                <Text style={styles.insightText}>{safeFormat(unallocated)} is unallocated. Assign it to categories for better tracking.</Text>
+                <Text style={styles.insightText}>{safeFormat(unallocated)} is unallocated. Tap "Auto" to distribute it.</Text>
               </View>
             )}
             {unallocated < 0 && (
@@ -392,10 +448,12 @@ const createStyles = (colors) => StyleSheet.create({
   section: { paddingHorizontal: 20, marginBottom: 20 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   sectionTitle: { color: colors.text, fontSize: 17, fontWeight: 'bold' },
-  sectionHint: { color: colors.textMuted, fontSize: 12 },
+  quickAllocateBtn: { backgroundColor: colors.primaryMuted, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  quickAllocateText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
   
   // Category Card
   categoryCard: { backgroundColor: colors.card, borderRadius: 16, marginBottom: 10, overflow: 'hidden', borderWidth: 1, borderColor: colors.primaryBorder },
+  categoryCardFocused: { borderColor: colors.primary, borderWidth: 2 },
   categoryTop: { flexDirection: 'row' },
   categoryColorBar: { width: 4 },
   categoryMain: { flex: 1, padding: 14 },
@@ -406,6 +464,7 @@ const createStyles = (colors) => StyleSheet.create({
   categoryLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
   categoryHint: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
   categoryInputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: colors.primaryBorder },
+  categoryInputBoxFocused: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
   categoryInputSymbol: { color: colors.textMuted, fontSize: 14 },
   categoryInput: { color: colors.text, fontSize: 15, fontWeight: '600', width: 70, textAlign: 'right', padding: 0 },
   

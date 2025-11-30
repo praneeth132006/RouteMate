@@ -34,6 +34,7 @@ export default function ExpenseScreen() {
   
   const [modalVisible, setModalVisible] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'category'
   const [newExpense, setNewExpense] = useState({
     title: '', 
     amount: '', 
@@ -63,14 +64,10 @@ export default function ExpenseScreen() {
   };
 
   const handleDeleteExpense = (id, title) => {
-    Alert.alert(
-      'Delete Expense',
-      `Delete "${title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(id) }
-      ]
-    );
+    Alert.alert('Delete Expense', `Delete "${title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(id) }
+    ]);
   };
 
   const getCategoryInfo = (key) => CATEGORIES.find(c => c.key === key) || CATEGORIES[5];
@@ -104,6 +101,13 @@ export default function ExpenseScreen() {
     return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
   };
 
+  // Calculate pie chart data
+  const pieData = CATEGORIES.map(cat => ({
+    ...cat,
+    value: expensesByCategory[cat.key] || 0,
+    percentage: totalExpenses > 0 ? ((expensesByCategory[cat.key] || 0) / totalExpenses) * 100 : 0
+  })).filter(item => item.value > 0);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -131,7 +135,6 @@ export default function ExpenseScreen() {
             </View>
           </View>
 
-          {/* Progress Bar */}
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { 
               width: `${Math.min(spentPercentage, 100)}%`,
@@ -139,7 +142,6 @@ export default function ExpenseScreen() {
             }]} />
           </View>
 
-          {/* Stats Row */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statEmoji}>💵</Text>
@@ -161,32 +163,65 @@ export default function ExpenseScreen() {
           </View>
         </View>
 
-        {/* Categories */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 By Category</Text>
-          <View style={styles.categoryGrid}>
-            {CATEGORIES.map((cat) => {
-              const spent = expensesByCategory[cat.key] || 0;
-              const pct = totalExpenses > 0 ? Math.round((spent / totalExpenses) * 100) : 0;
-              const isActive = filterCategory === cat.key;
-              return (
+        {/* Category Breakdown - New Visual Design */}
+        {totalExpenses > 0 && (
+          <View style={styles.categoryBreakdown}>
+            <Text style={styles.sectionTitle}>📊 Spending Breakdown</Text>
+            
+            {/* Horizontal Bar Chart */}
+            <View style={styles.barChart}>
+              {pieData.map((item, index) => (
+                <View key={item.key} style={styles.barChartRow}>
+                  <View style={styles.barChartLabel}>
+                    <Text style={styles.barChartEmoji}>{item.emoji}</Text>
+                    <Text style={styles.barChartName}>{item.label}</Text>
+                  </View>
+                  <View style={styles.barChartBarContainer}>
+                    <View style={[styles.barChartBar, { width: `${item.percentage}%`, backgroundColor: item.color }]} />
+                  </View>
+                  <View style={styles.barChartValue}>
+                    <Text style={[styles.barChartAmount, { color: item.color }]}>{safeFormatCurrency(item.value)}</Text>
+                    <Text style={styles.barChartPercent}>{item.percentage.toFixed(0)}%</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Category Pills */}
+            <View style={styles.categoryPills}>
+              {pieData.map((item) => (
                 <TouchableOpacity 
-                  key={cat.key} 
-                  style={[styles.categoryCard, isActive && { borderColor: cat.color, borderWidth: 2 }]}
-                  onPress={() => setFilterCategory(isActive ? 'all' : cat.key)}
+                  key={item.key}
+                  style={[
+                    styles.categoryPill,
+                    filterCategory === item.key && { backgroundColor: item.color }
+                  ]}
+                  onPress={() => setFilterCategory(filterCategory === item.key ? 'all' : item.key)}
                 >
-                  <View style={[styles.categoryIcon, { backgroundColor: cat.color + '20' }]}>
-                    <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
-                  </View>
-                  <Text style={styles.categoryName}>{cat.label}</Text>
-                  <Text style={[styles.categoryAmount, { color: cat.color }]}>{safeFormatCurrency(spent)}</Text>
-                  <View style={styles.categoryBar}>
-                    <View style={[styles.categoryBarFill, { width: `${pct}%`, backgroundColor: cat.color }]} />
-                  </View>
+                  <View style={[styles.categoryPillDot, { backgroundColor: filterCategory === item.key ? '#FFF' : item.color }]} />
+                  <Text style={[styles.categoryPillText, filterCategory === item.key && { color: '#FFF' }]}>
+                    {item.emoji} {safeFormatCurrency(item.value)}
+                  </Text>
                 </TouchableOpacity>
-              );
-            })}
+              ))}
+            </View>
           </View>
+        )}
+
+        {/* View Toggle */}
+        <View style={styles.viewToggle}>
+          <TouchableOpacity 
+            style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
+            onPress={() => setViewMode('list')}
+          >
+            <Text style={[styles.toggleBtnText, viewMode === 'list' && styles.toggleBtnTextActive]}>📋 List</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.toggleBtn, viewMode === 'category' && styles.toggleBtnActive]}
+            onPress={() => setViewMode('category')}
+          >
+            <Text style={[styles.toggleBtnText, viewMode === 'category' && styles.toggleBtnTextActive]}>📊 By Category</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Filter Chips */}
@@ -228,7 +263,8 @@ export default function ExpenseScreen() {
                 <Text style={styles.emptyBtnText}>+ Add Expense</Text>
               </TouchableOpacity>
             </View>
-          ) : (
+          ) : viewMode === 'list' ? (
+            // List View - Grouped by Date
             <View style={styles.transactionsList}>
               {dateGroups.map((date) => (
                 <View key={date} style={styles.dateGroup}>
@@ -253,10 +289,7 @@ export default function ExpenseScreen() {
                         </View>
                         <View style={styles.expenseRight}>
                           <Text style={styles.expenseAmount}>-{safeFormatCurrency(expense.amount)}</Text>
-                          <TouchableOpacity 
-                            onPress={() => handleDeleteExpense(expense.id, expense.title)} 
-                            style={styles.deleteBtn}
-                          >
+                          <TouchableOpacity onPress={() => handleDeleteExpense(expense.id, expense.title)} style={styles.deleteBtn}>
                             <Text style={styles.deleteBtnText}>🗑️</Text>
                           </TouchableOpacity>
                         </View>
@@ -265,6 +298,48 @@ export default function ExpenseScreen() {
                   })}
                 </View>
               ))}
+            </View>
+          ) : (
+            // Category View - Grouped by Category
+            <View style={styles.categoryView}>
+              {CATEGORIES.map((cat) => {
+                const categoryExpenses = expenses.filter(e => e.category === cat.key);
+                if (categoryExpenses.length === 0) return null;
+                const categoryTotal = categoryExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+                
+                return (
+                  <View key={cat.key} style={styles.categorySection}>
+                    <View style={[styles.categorySectionHeader, { backgroundColor: cat.color + '15' }]}>
+                      <View style={styles.categorySectionLeft}>
+                        <Text style={styles.categorySectionEmoji}>{cat.emoji}</Text>
+                        <View>
+                          <Text style={styles.categorySectionTitle}>{cat.label}</Text>
+                          <Text style={styles.categorySectionCount}>{categoryExpenses.length} expenses</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.categorySectionTotal, { color: cat.color }]}>{safeFormatCurrency(categoryTotal)}</Text>
+                    </View>
+                    
+                    {categoryExpenses.slice(0, 3).map((expense) => (
+                      <View key={expense.id} style={styles.categoryExpenseItem}>
+                        <Text style={styles.categoryExpenseTitle}>{expense.title}</Text>
+                        <Text style={styles.categoryExpenseAmount}>-{safeFormatCurrency(expense.amount)}</Text>
+                      </View>
+                    ))}
+                    
+                    {categoryExpenses.length > 3 && (
+                      <TouchableOpacity 
+                        style={styles.categoryShowMore}
+                        onPress={() => setFilterCategory(cat.key)}
+                      >
+                        <Text style={[styles.categoryShowMoreText, { color: cat.color }]}>
+                          +{categoryExpenses.length - 3} more →
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
@@ -326,10 +401,7 @@ export default function ExpenseScreen() {
                   {CATEGORIES.map((cat) => (
                     <TouchableOpacity
                       key={cat.key}
-                      style={[
-                        styles.catItem, 
-                        newExpense.category === cat.key && { backgroundColor: cat.color, borderColor: cat.color }
-                      ]}
+                      style={[styles.catItem, newExpense.category === cat.key && { backgroundColor: cat.color, borderColor: cat.color }]}
                       onPress={() => setNewExpense({...newExpense, category: cat.key})}
                     >
                       <Text style={styles.catEmoji}>{cat.emoji}</Text>
@@ -401,23 +473,38 @@ const createStyles = (colors) => StyleSheet.create({
   statLabel: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
   statDivider: { width: 1, backgroundColor: colors.primaryBorder },
 
+  // Category Breakdown
+  categoryBreakdown: { marginHorizontal: 20, marginBottom: 16 },
+  
+  barChart: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: 12 },
+  barChartRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  barChartLabel: { width: 80, flexDirection: 'row', alignItems: 'center' },
+  barChartEmoji: { fontSize: 16, marginRight: 6 },
+  barChartName: { color: colors.textMuted, fontSize: 11 },
+  barChartBarContainer: { flex: 1, height: 8, backgroundColor: colors.cardLight, borderRadius: 4, marginHorizontal: 10, overflow: 'hidden' },
+  barChartBar: { height: '100%', borderRadius: 4 },
+  barChartValue: { width: 70, alignItems: 'flex-end' },
+  barChartAmount: { fontSize: 12, fontWeight: 'bold' },
+  barChartPercent: { color: colors.textMuted, fontSize: 10 },
+
+  categoryPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.primaryBorder },
+  categoryPillDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  categoryPillText: { color: colors.text, fontSize: 12, fontWeight: '500' },
+
+  // View Toggle
+  viewToggle: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.primaryBorder },
+  toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  toggleBtnActive: { backgroundColor: colors.primary },
+  toggleBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: '500' },
+  toggleBtnTextActive: { color: colors.bg, fontWeight: '600' },
+
   // Section
   section: { paddingHorizontal: 20, marginBottom: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { color: colors.text, fontSize: 17, fontWeight: 'bold', marginBottom: 12 },
   sectionCount: { color: colors.textMuted, fontSize: 13 },
 
-  // Category Grid
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  categoryCard: { width: (width - 60) / 3, backgroundColor: colors.card, borderRadius: 14, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  categoryIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-  categoryEmoji: { fontSize: 20 },
-  categoryName: { color: colors.textMuted, fontSize: 10, marginBottom: 4 },
-  categoryAmount: { fontSize: 13, fontWeight: 'bold', marginBottom: 6 },
-  categoryBar: { width: '100%', height: 3, backgroundColor: colors.cardLight, borderRadius: 2, overflow: 'hidden' },
-  categoryBarFill: { height: '100%' },
-
-  // Filter
   filterScroll: { marginBottom: 16 },
   filterContent: { paddingHorizontal: 20, gap: 8 },
   filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primaryBorder },
@@ -425,7 +512,6 @@ const createStyles = (colors) => StyleSheet.create({
   filterText: { color: colors.text, fontSize: 12, fontWeight: '500' },
   filterTextActive: { color: colors.bg },
 
-  // Empty State
   emptyState: { alignItems: 'center', paddingVertical: 40 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '600' },
@@ -433,7 +519,6 @@ const createStyles = (colors) => StyleSheet.create({
   emptyBtn: { marginTop: 20, backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
   emptyBtnText: { color: colors.bg, fontWeight: 'bold' },
 
-  // Transactions
   transactionsList: { gap: 16 },
   dateGroup: {},
   dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
@@ -452,6 +537,21 @@ const createStyles = (colors) => StyleSheet.create({
   expenseAmount: { color: '#EF4444', fontSize: 16, fontWeight: 'bold' },
   deleteBtn: { marginTop: 6, padding: 4 },
   deleteBtnText: { fontSize: 14 },
+
+  // Category View
+  categoryView: { gap: 12 },
+  categorySection: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: colors.primaryBorder },
+  categorySectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
+  categorySectionLeft: { flexDirection: 'row', alignItems: 'center' },
+  categorySectionEmoji: { fontSize: 24, marginRight: 12 },
+  categorySectionTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  categorySectionCount: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  categorySectionTotal: { fontSize: 18, fontWeight: 'bold' },
+  categoryExpenseItem: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.primaryBorder },
+  categoryExpenseTitle: { color: colors.text, fontSize: 14 },
+  categoryExpenseAmount: { color: '#EF4444', fontSize: 14, fontWeight: '600' },
+  categoryShowMore: { paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.primaryBorder },
+  categoryShowMoreText: { fontSize: 13, fontWeight: '600' },
 
   // FAB
   fab: { position: 'absolute', bottom: 20, right: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 16, elevation: 5 },
