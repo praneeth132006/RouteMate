@@ -154,7 +154,7 @@ export default function MapScreen() {
     : STOP_TYPES.filter(t => t.category === selectedCategory);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Itinerary</Text>
@@ -221,7 +221,13 @@ export default function MapScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} style={styles.mainScroll}>
+      <ScrollView 
+        ref={scrollViewRef} 
+        showsVerticalScrollIndicator={false} 
+        style={styles.mainScroll}
+        contentContainerStyle={styles.mainScrollContent}
+        bounces={true}
+      >
         {/* Empty Hero */}
         {totalStops === 0 && (
           <View style={styles.emptyHero}>
@@ -364,7 +370,7 @@ export default function MapScreen() {
           })}
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* FAB */}
@@ -482,7 +488,10 @@ export default function MapScreen() {
 }
 
 const createStyles = (colors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.bg,
+  },
   
   // Header
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
@@ -514,7 +523,13 @@ const createStyles = (colors) => StyleSheet.create({
   dayPillBadgeText: { color: colors.bg, fontSize: 10, fontWeight: 'bold' },
   dayPillBadgeTextActive: { color: colors.primary },
 
-  mainScroll: { flex: 1 },
+  mainScroll: { 
+    flex: 1,
+  },
+  mainScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
 
   // Empty Hero
   emptyHero: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },

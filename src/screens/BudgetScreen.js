@@ -5,12 +5,12 @@ import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
 
 const CATEGORIES = [
-  { key: 'accommodation', label: 'Accommodation', icon: '🏨' },
-  { key: 'transport', label: 'Transport', icon: '✈️' },
-  { key: 'food', label: 'Food & Drinks', icon: '🍽️' },
-  { key: 'activities', label: 'Activities', icon: '🎭' },
-  { key: 'shopping', label: 'Shopping', icon: '🛍️' },
-  { key: 'other', label: 'Other', icon: '📦' },
+  { key: 'accommodation', label: 'Accommodation', emoji: '🏨' },
+  { key: 'transport', label: 'Transport', emoji: '🚗' },
+  { key: 'food', label: 'Food & Drinks', emoji: '🍽️' },
+  { key: 'activities', label: 'Activities', emoji: '🎭' },
+  { key: 'shopping', label: 'Shopping', emoji: '🛍️' },
+  { key: 'other', label: 'Other', emoji: '📦' },
 ];
 
 export default function BudgetScreen() {
@@ -33,74 +33,81 @@ export default function BudgetScreen() {
   };
 
   const allocatedTotal = Object.values(budget.categories).reduce((sum, val) => sum + val, 0);
+  const unallocated = budget.total - allocatedTotal;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.title}>Budget</Text>
-          <Text style={styles.subtitle}>Plan your expenses</Text>
+          <Text style={styles.title}>Budget Planner 💰</Text>
+          <Text style={styles.subtitle}>Plan your travel budget wisely</Text>
         </View>
 
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>TOTAL BUDGET</Text>
-          <View style={styles.totalInputContainer}>
-            <Text style={styles.currency}>$</Text>
+          <Text style={styles.totalLabel}>Total Trip Budget</Text>
+          <View style={styles.totalInputRow}>
+            <Text style={styles.currencySymbol}>$</Text>
             <TextInput
               style={styles.totalInput}
               keyboardType="numeric"
               value={totalBudget}
               onChangeText={setTotalBudget}
               onBlur={handleSaveBudget}
-              placeholder="0"
               placeholderTextColor={colors.textMuted}
+              placeholder="0"
             />
-          </View>
-          <View style={styles.totalStats}>
-            <View style={styles.totalStatItem}>
-              <Text style={styles.totalStatValue}>${allocatedTotal}</Text>
-              <Text style={styles.totalStatLabel}>Allocated</Text>
-            </View>
-            <View style={styles.totalStatDivider} />
-            <View style={styles.totalStatItem}>
-              <Text style={[styles.totalStatValue, { color: colors.primary }]}>${budget.total - allocatedTotal}</Text>
-              <Text style={styles.totalStatLabel}>Remaining</Text>
-            </View>
           </View>
         </View>
 
-        <View style={styles.categoriesSection}>
-          <Text style={styles.sectionTitle}>Categories</Text>
-          {CATEGORIES.map((category) => {
-            const spent = expensesByCategory[category.key] || 0;
-            const allocated = budget.categories[category.key] || 0;
-            const percentage = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
-            return (
-              <View key={category.key} style={styles.categoryCard}>
-                <View style={styles.categoryHeader}>
-                  <View style={styles.categoryIcon}><Text style={styles.categoryEmoji}>{category.icon}</Text></View>
-                  <View style={styles.categoryInfo}>
-                    <Text style={styles.categoryName}>{category.label}</Text>
-                    <Text style={styles.categorySpent}>${spent} spent of ${allocated}</Text>
-                  </View>
-                  <View style={styles.categoryInputWrapper}>
-                    <Text style={styles.categoryDollar}>$</Text>
-                    <TextInput
-                      style={styles.categoryInput}
-                      keyboardType="numeric"
-                      value={allocated.toString()}
-                      onChangeText={(text) => updateCategoryBudget(category.key, text)}
-                      placeholder="0"
-                      placeholderTextColor={colors.textMuted}
-                    />
+        <View style={styles.summaryRow}>
+          <View style={[styles.summaryCard, { borderColor: colors.primary + '50' }]}>
+            <Text style={styles.summaryLabel}>Allocated</Text>
+            <Text style={[styles.summaryValue, { color: colors.primary }]}>${allocatedTotal}</Text>
+          </View>
+          <View style={[styles.summaryCard, { borderColor: colors.secondary + '50' }]}>
+            <Text style={styles.summaryLabel}>Unallocated</Text>
+            <Text style={[styles.summaryValue, { color: unallocated >= 0 ? colors.secondary : '#EF4444' }]}>
+              ${unallocated}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>Budget by Category</Text>
+        {CATEGORIES.map((category) => {
+          const spent = expensesByCategory[category.key] || 0;
+          const allocated = budget.categories[category.key] || 0;
+          const percentage = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
+          
+          return (
+            <View key={category.key} style={styles.categoryCard}>
+              <View style={styles.categoryHeader}>
+                <View style={styles.categoryInfo}>
+                  <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                  <View>
+                    <Text style={styles.categoryLabel}>{category.label}</Text>
+                    <Text style={styles.categorySpent}>Spent: ${spent} / ${allocated}</Text>
                   </View>
                 </View>
-                <View style={styles.categoryProgress}><View style={[styles.categoryProgressFill, { width: `${percentage}%` }]} /></View>
+                <View style={styles.categoryInputWrap}>
+                  <Text style={styles.categoryDollar}>$</Text>
+                  <TextInput
+                    style={styles.categoryInput}
+                    keyboardType="numeric"
+                    value={allocated.toString()}
+                    onChangeText={(text) => updateCategoryBudget(category.key, text)}
+                    placeholder="0"
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </View>
               </View>
-            );
-          })}
-        </View>
-        <View style={{ height: 100 }} />
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${percentage}%`, backgroundColor: percentage > 90 ? '#EF4444' : colors.primary }]} />
+              </View>
+            </View>
+          );
+        })}
+
+        <View style={{ height: 120 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -108,31 +115,30 @@ export default function BudgetScreen() {
 
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: 20, paddingTop: 20 },
-  title: { color: colors.text, fontSize: 32, fontWeight: 'bold' },
-  subtitle: { color: colors.textMuted, fontSize: 16, marginTop: 4 },
-  totalCard: { marginHorizontal: 20, marginTop: 24, backgroundColor: colors.card, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: colors.primaryBorder },
-  totalLabel: { color: colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 2 },
-  totalInputContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  currency: { color: colors.primary, fontSize: 40, fontWeight: 'bold', marginRight: 4 },
-  totalInput: { flex: 1, color: colors.text, fontSize: 48, fontWeight: 'bold' },
-  totalStats: { flexDirection: 'row', marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.primaryBorder },
-  totalStatItem: { flex: 1 },
-  totalStatValue: { color: colors.text, fontSize: 20, fontWeight: 'bold' },
-  totalStatLabel: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
-  totalStatDivider: { width: 1, backgroundColor: colors.primaryBorder, marginHorizontal: 20 },
-  categoriesSection: { marginTop: 30, paddingHorizontal: 20 },
-  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 20 },
+  header: { marginTop: 16, marginBottom: 24 },
+  title: { color: colors.text, fontSize: 28, fontWeight: 'bold' },
+  subtitle: { color: colors.textMuted, marginTop: 4 },
+  totalCard: { backgroundColor: colors.card, borderRadius: 24, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: colors.primary + '50' },
+  totalLabel: { color: colors.textMuted, fontSize: 14, marginBottom: 8 },
+  totalInputRow: { flexDirection: 'row', alignItems: 'center' },
+  currencySymbol: { color: colors.text, fontSize: 24, marginRight: 8 },
+  totalInput: { flex: 1, backgroundColor: colors.cardLight, color: colors.text, fontSize: 28, fontWeight: 'bold', padding: 16, borderRadius: 12 },
+  summaryRow: { flexDirection: 'row', marginBottom: 24 },
+  summaryCard: { flex: 1, backgroundColor: colors.card + '50', borderRadius: 16, padding: 16, marginHorizontal: 4, borderWidth: 1 },
+  summaryLabel: { color: colors.textMuted, fontSize: 12 },
+  summaryValue: { fontSize: 20, fontWeight: 'bold' },
+  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '600', marginBottom: 12 },
   categoryCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.primaryBorder },
-  categoryHeader: { flexDirection: 'row', alignItems: 'center' },
-  categoryIcon: { width: 44, height: 44, backgroundColor: colors.primaryMuted, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  categoryEmoji: { fontSize: 20 },
-  categoryInfo: { flex: 1, marginLeft: 14 },
-  categoryName: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  categorySpent: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  categoryInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.primaryBorder },
-  categoryDollar: { color: colors.primary, fontSize: 14 },
-  categoryInput: { color: colors.text, fontSize: 16, fontWeight: '600', padding: 10, width: 60, textAlign: 'right' },
-  categoryProgress: { height: 4, backgroundColor: colors.cardLight, borderRadius: 2, marginTop: 14, overflow: 'hidden' },
-  categoryProgressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
+  categoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  categoryInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  categoryEmoji: { fontSize: 24, marginRight: 12 },
+  categoryLabel: { color: colors.text, fontWeight: '500' },
+  categorySpent: { color: colors.textMuted, fontSize: 12 },
+  categoryInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, borderRadius: 12, paddingHorizontal: 12 },
+  categoryDollar: { color: colors.textMuted },
+  categoryInput: { color: colors.text, fontSize: 16, padding: 8, width: 70, textAlign: 'right' },
+  progressBar: { height: 8, backgroundColor: colors.cardLight, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
 });

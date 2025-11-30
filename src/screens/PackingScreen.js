@@ -1,18 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
-
-const COLORS = {
-  bg: '#000000',
-  card: '#0A0A0A',
-  cardLight: '#111111',
-  green: '#00FF7F',
-  greenMuted: 'rgba(0, 255, 127, 0.1)',
-  greenBorder: 'rgba(0, 255, 127, 0.3)',
-  text: '#FFFFFF',
-  textMuted: '#666666',
-};
+import { useTheme } from '../context/ThemeContext';
 
 const CATEGORIES = [
   { key: 'clothing', label: 'Clothing', icon: '👕' },
@@ -26,8 +16,11 @@ const QUICK_ADD = ['Passport', 'Phone Charger', 'Toothbrush', 'Clothes', 'Wallet
 
 export default function PackingScreen() {
   const { packingItems, addPackingItem, togglePackingItem, deletePackingItem } = useTravelContext();
+  const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', category: 'clothing' });
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleAddItem = () => {
     if (newItem.name.trim()) {
@@ -44,8 +37,8 @@ export default function PackingScreen() {
   const getCategoryIcon = (key) => CATEGORIES.find(c => c.key === key)?.icon || '📦';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -99,16 +92,12 @@ export default function PackingScreen() {
             </View>
           ) : (
             <>
-              {/* Unpacked */}
               {packingItems.filter(i => !i.packed).length > 0 && (
                 <>
                   <Text style={styles.listLabel}>TO PACK</Text>
                   {packingItems.filter(i => !i.packed).map(item => (
                     <View key={item.id} style={styles.itemCard}>
-                      <TouchableOpacity 
-                        style={styles.checkbox}
-                        onPress={() => togglePackingItem(item.id)}
-                      />
+                      <TouchableOpacity style={styles.checkbox} onPress={() => togglePackingItem(item.id)} />
                       <Text style={styles.itemIcon}>{getCategoryIcon(item.category)}</Text>
                       <Text style={styles.itemName}>{item.name}</Text>
                       <TouchableOpacity onPress={() => deletePackingItem(item.id)}>
@@ -119,16 +108,12 @@ export default function PackingScreen() {
                 </>
               )}
 
-              {/* Packed */}
               {packingItems.filter(i => i.packed).length > 0 && (
                 <>
                   <Text style={[styles.listLabel, { marginTop: 24 }]}>PACKED ✓</Text>
                   {packingItems.filter(i => i.packed).map(item => (
                     <View key={item.id} style={[styles.itemCard, styles.itemCardPacked]}>
-                      <TouchableOpacity 
-                        style={[styles.checkbox, styles.checkboxChecked]}
-                        onPress={() => togglePackingItem(item.id)}
-                      >
+                      <TouchableOpacity style={[styles.checkbox, styles.checkboxChecked]} onPress={() => togglePackingItem(item.id)}>
                         <Text style={styles.checkmark}>✓</Text>
                       </TouchableOpacity>
                       <Text style={styles.itemIcon}>{getCategoryIcon(item.category)}</Text>
@@ -144,7 +129,7 @@ export default function PackingScreen() {
           )}
         </View>
 
-        <View style={{ height: 30 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Modal */}
@@ -157,7 +142,7 @@ export default function PackingScreen() {
             <TextInput
               style={styles.input}
               placeholder="Item name"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={newItem.name}
               onChangeText={(t) => setNewItem({...newItem, name: t})}
             />
@@ -188,126 +173,58 @@ export default function PackingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  title: { color: COLORS.text, fontSize: 32, fontWeight: 'bold' },
-  subtitle: { color: COLORS.textMuted, fontSize: 14, marginTop: 4 },
-  addButton: {
-    width: 48,
-    height: 48,
-    backgroundColor: COLORS.green,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: { color: COLORS.bg, fontSize: 28, fontWeight: 'bold', marginTop: -2 },
-  progressCard: {
-    marginHorizontal: 20,
-    marginTop: 24,
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-  },
+const createStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 20 },
+  title: { color: colors.text, fontSize: 32, fontWeight: 'bold' },
+  subtitle: { color: colors.textMuted, fontSize: 14, marginTop: 4 },
+  addButton: { width: 48, height: 48, backgroundColor: colors.primary, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  addButtonText: { color: colors.bg, fontSize: 28, fontWeight: 'bold', marginTop: -2 },
+  
+  progressCard: { marginTop: 24, backgroundColor: colors.card, borderRadius: 20, padding: 24, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
   progressCircleContainer: { marginRight: 20 },
-  progressCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 4,
-    borderColor: COLORS.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressPercent: { color: COLORS.green, fontSize: 20, fontWeight: 'bold' },
+  progressCircle: { width: 70, height: 70, borderRadius: 35, borderWidth: 4, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  progressPercent: { color: colors.primary, fontSize: 20, fontWeight: 'bold' },
   progressInfo: { flex: 1 },
-  progressTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  progressBar: { height: 8, backgroundColor: COLORS.cardLight, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: COLORS.green, borderRadius: 4 },
-  quickAddSection: { marginTop: 30, paddingHorizontal: 20 },
-  sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginBottom: 14 },
+  progressTitle: { color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  progressBar: { height: 8, backgroundColor: colors.cardLight, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 4 },
+  
+  quickAddSection: { marginTop: 30 },
+  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 14 },
   quickAddGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  quickAddChip: {
-    backgroundColor: COLORS.greenMuted,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-  },
-  quickAddText: { color: COLORS.green, fontSize: 13, fontWeight: '600' },
-  itemsSection: { marginTop: 30, paddingHorizontal: 20 },
-  listLabel: { color: COLORS.green, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 12 },
-  itemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.card,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-  },
+  quickAddChip: { backgroundColor: colors.primaryMuted, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.primaryBorder },
+  quickAddText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
+  
+  itemsSection: { marginTop: 30 },
+  listLabel: { color: colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 12 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.primaryBorder },
   itemCardPacked: { opacity: 0.6 },
-  checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: COLORS.green,
-    marginRight: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: { backgroundColor: COLORS.green },
-  checkmark: { color: COLORS.bg, fontSize: 14, fontWeight: 'bold' },
+  checkbox: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, borderColor: colors.primary, marginRight: 14, alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { backgroundColor: colors.primary },
+  checkmark: { color: colors.bg, fontSize: 14, fontWeight: 'bold' },
   itemIcon: { fontSize: 20, marginRight: 12 },
-  itemName: { flex: 1, color: COLORS.text, fontSize: 16, fontWeight: '500' },
-  itemNamePacked: { textDecorationLine: 'line-through', color: COLORS.textMuted },
-  deleteButton: { color: COLORS.textMuted, fontSize: 24, paddingLeft: 10 },
+  itemName: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '500' },
+  itemNamePacked: { textDecorationLine: 'line-through', color: colors.textMuted },
+  deleteButton: { color: colors.textMuted, fontSize: 24, paddingLeft: 10 },
+  
   emptyState: { alignItems: 'center', paddingVertical: 40 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: COLORS.textMuted, fontSize: 16 },
+  emptyText: { color: colors.textMuted, fontSize: 16 },
+  
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
-  modalContent: { backgroundColor: COLORS.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
-  modalHandle: { width: 40, height: 4, backgroundColor: COLORS.textMuted, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalTitle: { color: COLORS.text, fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  input: {
-    backgroundColor: COLORS.cardLight,
-    color: COLORS.text,
-    padding: 18,
-    borderRadius: 14,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-    marginBottom: 20,
-  },
-  inputLabel: { color: COLORS.textMuted, marginBottom: 12 },
+  modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
+  modalHandle: { width: 40, height: 4, backgroundColor: colors.textMuted, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalTitle: { color: colors.text, fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  input: { backgroundColor: colors.cardLight, color: colors.text, padding: 18, borderRadius: 14, fontSize: 16, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: 20 },
+  inputLabel: { color: colors.textMuted, marginBottom: 12 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.cardLight,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-  },
-  categoryChipActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
+  categoryChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.primaryBorder },
+  categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   categoryIcon: { fontSize: 16, marginRight: 6 },
-  categoryText: { color: COLORS.text, fontSize: 13 },
-  categoryTextActive: { color: COLORS.bg, fontWeight: '600' },
-  submitButton: { backgroundColor: COLORS.green, padding: 18, borderRadius: 14, alignItems: 'center' },
-  submitButtonText: { color: COLORS.bg, fontSize: 17, fontWeight: 'bold' },
+  categoryText: { color: colors.text, fontSize: 13 },
+  categoryTextActive: { color: colors.bg, fontWeight: '600' },
+  submitButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 14, alignItems: 'center' },
+  submitButtonText: { color: colors.bg, fontSize: 17, fontWeight: 'bold' },
 });
