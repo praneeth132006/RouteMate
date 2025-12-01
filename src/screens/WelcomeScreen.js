@@ -162,9 +162,35 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
 
         {/* Action Cards */}
         <View style={styles.actionsContainer}>
-          {/* Current Trip Card - Updated Stats */}
+          {/* Plan a Trip and Join a Trip - Side by Side (Always on top) */}
+          <View style={styles.optionCardsRow}>
+            <Animated.View style={[styles.optionCardHalf, { transform: [{ scale: scaleAnim1 }] }]}>
+              <Pressable 
+                style={({ pressed }) => [styles.optionCardSmall, pressed && styles.cardPressed]} 
+                onPress={onPlanTrip}
+              >
+                <View style={styles.optionGlowSmall} />
+                <View style={styles.optionIconBgSmall}><Text style={styles.optionIconSmall}>🚀</Text></View>
+                <Text style={styles.optionTitleSmall}>{hasActiveTrip ? 'Plan New Trip' : 'Plan a Trip'}</Text>
+                <Text style={styles.optionDescriptionSmall}>Create your journey</Text>
+              </Pressable>
+            </Animated.View>
+
+            <Animated.View style={[styles.optionCardHalf, { transform: [{ scale: scaleAnim2 }] }]}>
+              <Pressable 
+                style={({ pressed }) => [styles.optionCardSmall, pressed && styles.cardPressed]} 
+                onPress={() => setShowJoinModal(true)}
+              >
+                <View style={styles.optionIconBgSmall}><Text style={styles.optionIconSmall}>👥</Text></View>
+                <Text style={styles.optionTitleSmall}>Join a Trip</Text>
+                <Text style={styles.optionDescriptionSmall}>Enter code to join</Text>
+              </Pressable>
+            </Animated.View>
+          </View>
+
+          {/* Current Trip Card - Now below the options */}
           {hasActiveTrip && (
-            <Animated.View style={{ transform: [{ scale: scaleAnim1 }] }}>
+            <Animated.View style={{ transform: [{ scale: scaleAnim3 }] }}>
               <Pressable style={({ pressed }) => [styles.currentTripCard, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]} onPress={onMyTrip}>
                 <View style={styles.currentTripGlow} />
                 
@@ -242,32 +268,6 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
               </Pressable>
             </Animated.View>
           )}
-
-          {/* Plan a Trip and Join a Trip - Side by Side */}
-          <View style={styles.optionCardsRow}>
-            <Animated.View style={[styles.optionCardHalf, { transform: [{ scale: hasActiveTrip ? scaleAnim2 : scaleAnim1 }] }]}>
-              <Pressable 
-                style={({ pressed }) => [styles.optionCardSmall, pressed && styles.cardPressed]} 
-                onPress={onPlanTrip}
-              >
-                <View style={styles.optionGlowSmall} />
-                <View style={styles.optionIconBgSmall}><Text style={styles.optionIconSmall}>🚀</Text></View>
-                <Text style={styles.optionTitleSmall}>{hasActiveTrip ? 'Plan New Trip' : 'Plan a Trip'}</Text>
-                <Text style={styles.optionDescriptionSmall}>Create your journey</Text>
-              </Pressable>
-            </Animated.View>
-
-            <Animated.View style={[styles.optionCardHalf, { transform: [{ scale: hasActiveTrip ? scaleAnim3 : scaleAnim2 }] }]}>
-              <Pressable 
-                style={({ pressed }) => [styles.optionCardSmall, pressed && styles.cardPressed]} 
-                onPress={() => setShowJoinModal(true)}
-              >
-                <View style={styles.optionIconBgSmall}><Text style={styles.optionIconSmall}>👥</Text></View>
-                <Text style={styles.optionTitleSmall}>Join a Trip</Text>
-                <Text style={styles.optionDescriptionSmall}>Enter code to join</Text>
-              </Pressable>
-            </Animated.View>
-          </View>
         </View>
 
         {/* Features */}
