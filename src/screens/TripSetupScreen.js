@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   View, Text, TextInput, ScrollView, 
-  StyleSheet, Animated, Pressable, KeyboardAvoidingView, Platform 
+  StyleSheet, Animated, Pressable, KeyboardAvoidingView, Platform, Alert 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import DatePickerModal from '../components/DatePickerModal';
+import { generateUniqueTripCode } from '../utils/tripCodeGenerator';
 
 const TRIP_TYPES = [
   { key: 'solo', label: 'Solo Trip', emoji: '🧑', description: 'Just me, exploring the world', color: '#3B82F6' },

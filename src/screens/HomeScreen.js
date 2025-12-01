@@ -226,7 +226,7 @@ export default function HomeScreen({ onBackToHome }) {
           )}
         </Animated.View>
 
-        {/* Hero Card - Softer colors */}
+        {/* Hero Card - UPDATED: Removed Share Code section */}
         <Animated.View style={[styles.heroCard, { transform: [{ scale: scaleAnim }] }]}>
           <View style={styles.heroGlow} />
           <View style={styles.heroHeader}>
@@ -243,34 +243,23 @@ export default function HomeScreen({ onBackToHome }) {
           
           <View style={styles.heroStats}>
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStatValue}>{participantCount}</Text>
-              <Text style={styles.heroStatLabel}>Travelers</Text>
-            </View>
-            <View style={styles.heroStatDivider} />
-            <View style={styles.heroStatItem}>
               <Text style={styles.heroStatValue}>{tripDays}</Text>
               <Text style={styles.heroStatLabel}>Days</Text>
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStatValue}>{formatCurrency(lastExpense ? lastExpense.amount : 0)}</Text>
-              <Text style={styles.heroStatLabel}>Last Spent</Text>
+              <Text style={styles.heroStatValue}>{formatCurrency(getTotalExpenses())}</Text>
+              <Text style={styles.heroStatLabel}>Spent</Text>
             </View>
-          </View>
-
-          {/* Trip Code */}
-          <View style={styles.tripCodeSection}>
-            <Text style={styles.tripCodeLabel}>Share Code</Text>
-            <View style={styles.tripCodeBox}>
-              <Text style={styles.tripCode}>{tripInfo.tripCode || 'ABC123'}</Text>
-              <TouchableOpacity style={styles.copyButton}>
-                <Text style={styles.copyButtonText}>📋</Text>
-              </TouchableOpacity>
+            <View style={styles.heroStatDivider} />
+            <View style={styles.heroStatItem}>
+              <Text style={styles.heroStatValue}>{formatCurrency(remainingBudget)}</Text>
+              <Text style={styles.heroStatLabel}>Remaining</Text>
             </View>
           </View>
         </Animated.View>
 
-        {/* Quick Actions - Add Edit Dates */}
+        {/* Quick Actions */}
         <Animated.View style={[styles.quickActionsSection, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
@@ -450,7 +439,7 @@ export default function HomeScreen({ onBackToHome }) {
           </View>
         </Animated.View>
 
-        {/* Participants */}
+        {/* Participants - Keep this section */}
         {travelers.length > 0 && (
           <Animated.View style={[styles.participantsSection, { opacity: fadeAnim }]}>
             <View style={styles.sectionHeader}>

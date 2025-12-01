@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, Text, TouchableOpacity, StyleSheet, Dimensions, 
-  Animated, TextInput, Modal, ScrollView, Pressable
+  Animated, TextInput, Modal, ScrollView, Pressable, Share, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useTravelContext } from '../context/TravelContext';
+import { isValidTripCode } from '../utils/tripCodeGenerator';
 
 const { width } = Dimensions.get('window');
 
@@ -17,37 +18,18 @@ const TRIP_TYPES = [
   { key: 'business', label: 'Business Trip', emoji: '💼', description: 'Work travel with leisure', color: '#8B5CF6' },
 ];
 
-// MOCK TRIPS DATA - For testing multiple trips display
-const MOCK_TRIPS = [
-  {
-    id: '1',
-    destination: 'Paris, France',
-    tripType: 'couple',
-    startDate: '15 Jan 2025',
-    endDate: '22 Jan 2025',
-    totalExpenses: 1250,
-  },
-  {
-    id: '2',
-    destination: 'Tokyo, Japan',
-    tripType: 'solo',
-    startDate: '01 Mar 2025',
-    endDate: '10 Mar 2025',
-    totalExpenses: 2800,
-  },
-  {
-    id: '3',
-    destination: 'New York, USA',
-    tripType: 'friends',
-    startDate: '20 Apr 2025',
-    endDate: '28 Apr 2025',
-    totalExpenses: 3500,
-  },
-];
-
 export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProfile, hasActiveTrip }) {
   const { colors } = useTheme();
-  const { tripInfo, getTotalExpenses, packingItems, itinerary, expenses, formatCurrency, currency, allTrips = [] } = useTravelContext();
+  const { 
+    tripInfo, 
+    getTotalExpenses, 
+    packingItems, 
+    expenses, 
+    currency, 
+    allTrips = [],
+    saveCurrentTripToList 
+  } = useTravelContext();
+  
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showTripTypeModal, setShowTripTypeModal] = useState(false);
   const [tripCode, setTripCode] = useState('');
@@ -90,8 +72,86 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
     }
   };
 
-  // Use MOCK_TRIPS for testing
-  const allDisplayTrips = MOCK_TRIPS;
+  // Generate a simple test code for display - Move this BEFORE buildDisplayTrips
+  const generateTestCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  // Build the display trips list - FIXED VERSION
+  const buildDisplayTrips = () => {
+    // TEMPORARY TEST DATA - Shows when no real trips exist
+    const testTrips = [
+      {
+        id: 'test-1',
+        destination: 'Paris, France',
+        tripType: 'couple',
+        startDate: '15 Jan 2025',
+        endDate: '22 Jan 2025',
+        totalExpenses: 1250,
+        tripCode: 'AB1234CD',
+      },
+      {
+        id: 'test-2',
+        destination: 'Tokyo, Japan',
+        tripType: 'solo',
+        startDate: '01 Mar 2025',
+        endDate: '10 Mar 2025',
+        totalExpenses: 2800,
+        tripCode: 'XY5678ZW',
+      },
+      {
+        id: 'test-3',
+        destination: 'New York, USA',
+        tripType: 'friends',
+        startDate: '20 Apr 2025',
+        endDate: '28 Apr 2025',
+        totalExpenses: 3500,
+        tripCode: 'MN9012PQ',
+      },
+    ];
+    
+    let trips = [];
+    
+    // First, check if there's an active trip from context
+    if (hasActiveTrip && tripInfo && tripInfo.destination) {
+      const currentTripData = {
+        ...tripInfo,
+        id: tripInfo.id || 'current-' + Date.now(),
+        tripCode: tripInfo.tripCode || generateTestCode(),
+        totalExpenses: getTotalExpenses(),
+      };
+      trips.push(currentTripData);
+    }
+    
+    // Add trips from context if available
+    if (allTrips && allTrips.length > 0) {
+      allTrips.forEach(trip => {
+        // Don't add duplicates
+        const exists = trips.some(t => t.id === trip.id);
+        if (!exists) {
+          trips.push(trip);
+        }
+      });
+    }
+    
+    // If still no trips, use test data
+    if (trips.length === 0) {
+      trips = testTrips;
+    } else if (trips.length === 1) {
+      // If only current trip, add some test trips as upcoming
+      trips = [...trips, ...testTrips.slice(1)];
+    }
+    
+    return trips;
+  };
+
+  // Use useMemo to prevent recalculation on every render
+  const allDisplayTrips = useMemo(() => buildDisplayTrips(), [hasActiveTrip, tripInfo, allTrips]);
   
   // Separate current trip from upcoming trips
   const currentTrip = allDisplayTrips.length > 0 ? allDisplayTrips[0] : null;
@@ -124,30 +184,52 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
 
   const floatTranslate = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] });
 
-  const handleJoinTrip = () => {
-    if (tripCode.trim()) {
-      setShowJoinModal(false);
-      setTripCode('');
-      onJoinTrip(tripCode);
-    }
-  };
-
+  // Add missing handleProfilePress function
   const handleProfilePress = () => {
     if (onProfile) {
       onProfile();
     }
   };
 
-  const handlePlanTripPress = () => {
-    setShowTripTypeModal(true);
-  };
-
+  // Add missing handleTripTypeSelect function
   const handleTripTypeSelect = (tripType) => {
     setShowTripTypeModal(false);
     onPlanTrip(tripType);
   };
 
-  // Render Current Trip Card (standalone, always visible)
+  const handleJoinTrip = () => {
+    if (tripCode.trim()) {
+      if (!isValidTripCode(tripCode)) {
+        Alert.alert('Invalid Code', 'Please enter a valid trip code (6-8 characters)');
+        return;
+      }
+      setShowJoinModal(false);
+      setTripCode('');
+      onJoinTrip(tripCode.toUpperCase());
+    }
+  };
+
+  // Share trip code function
+  const handleShareTripCode = async (code, destination) => {
+    try {
+      await Share.share({
+        message: `Join my trip to ${destination}! 🌍✈️\n\nUse this code in TravelMate: ${code}`,
+        title: 'Share Trip Code',
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Could not share trip code');
+    }
+  };
+
+  // Copy trip code to clipboard
+  const handleCopyTripCode = (code) => {
+    // Note: You may need to import Clipboard from @react-native-clipboard/clipboard
+    Alert.alert('Trip Code', `Code: ${code}\n\nShare this code with friends to let them join your trip!`, [
+      { text: 'OK' }
+    ]);
+  };
+
+  // Render Current Trip Card - Updated with trip code
   const renderCurrentTripCard = (trip) => {
     const tripTypeData = getTripTypeInfo(trip.tripType);
     const tripDays = calculateTripDays(trip.startDate, trip.endDate);
@@ -179,6 +261,27 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
               <Text style={styles.arrowText}>→</Text>
             </View>
           </View>
+
+          {/* Trip Code Section - NEW */}
+          {trip.tripCode && (
+            <Pressable 
+              style={({ pressed }) => [styles.tripCodeSection, pressed && { opacity: 0.8 }]}
+              onPress={() => handleShareTripCode(trip.tripCode, trip.destination)}
+            >
+              <View style={styles.tripCodeLeft}>
+                <Text style={styles.tripCodeLabel}>Trip Code</Text>
+                <Text style={styles.tripCodeValue}>{trip.tripCode}</Text>
+              </View>
+              <View style={styles.tripCodeActions}>
+                <Pressable 
+                  style={styles.shareBtn}
+                  onPress={() => handleShareTripCode(trip.tripCode, trip.destination)}
+                >
+                  <Text style={styles.shareBtnText}>📤 Share</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          )}
 
           {/* Dates */}
           {trip.startDate && trip.endDate && (
@@ -237,7 +340,7 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
     );
   };
 
-  // Render Upcoming Trip Card (compact version)
+  // Render Upcoming Trip Card - Updated with trip code
   const renderUpcomingTripCard = (trip, index) => {
     const tripTypeData = getTripTypeInfo(trip.tripType);
     const tripDays = calculateTripDays(trip.startDate, trip.endDate);
@@ -260,10 +363,22 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
             <Text style={styles.upcomingTripDates}>
               {trip.startDate} • {tripDays} days
             </Text>
+            {/* Show trip code in compact view */}
+            {trip.tripCode && (
+              <Text style={styles.upcomingTripCode}>Code: {trip.tripCode}</Text>
+            )}
           </View>
         </View>
         <View style={styles.upcomingTripRight}>
-          <Text style={styles.upcomingTripExpense}>{currency.symbol}{trip.totalExpenses || 0}</Text>
+          <Pressable 
+            style={styles.miniShareBtn}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleShareTripCode(trip.tripCode, trip.destination);
+            }}
+          >
+            <Text style={styles.miniShareBtnText}>📤</Text>
+          </Pressable>
           <Text style={styles.upcomingTripArrow}>→</Text>
         </View>
       </Pressable>
@@ -1109,5 +1224,76 @@ const createStyles = (colors) => StyleSheet.create({
   noTripsSubtitle: {
     fontSize: 14,
     color: colors.textMuted,
+  },
+
+  // Trip Code Section Styles - NEW
+  tripCodeSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.primaryBorder,
+    backgroundColor: colors.primary + '08',
+    marginHorizontal: -20,
+    marginBottom: -4,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  tripCodeLeft: {
+    flex: 1,
+  },
+  tripCodeLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  tripCodeValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.primary,
+    letterSpacing: 3,
+  },
+  tripCodeActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  shareBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  shareBtnText: {
+    color: colors.bg,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Upcoming trip code style
+  upcomingTripCode: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: 1,
+  },
+
+  // Mini share button for upcoming trips
+  miniShareBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  miniShareBtnText: {
+    fontSize: 14,
   },
 });

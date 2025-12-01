@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext } from 'react';
+import { generateUniqueTripCode } from '../utils/tripCodeGenerator';
 
 const TravelContext = createContext();
 
@@ -266,9 +267,11 @@ export function TravelProvider({ children }) {
 
   // Add a new trip
   const addTrip = (newTripInfo) => {
+    const tripCode = generateUniqueTripCode();
     const tripWithId = {
       ...newTripInfo,
       id: Date.now().toString(),
+      tripCode: tripCode,
       totalExpenses: 0,
       createdAt: new Date().toISOString(),
     };
@@ -288,6 +291,65 @@ export function TravelProvider({ children }) {
   // Delete a trip
   const deleteTrip = (tripId) => {
     setAllTrips(prevTrips => prevTrips.filter(trip => trip.id !== tripId));
+  };
+
+  // Function to create a new trip with unique code
+  const createNewTrip = (tripData) => {
+    const tripCode = generateUniqueTripCode();
+    const newTrip = {
+      ...tripData,
+      id: Date.now().toString(),
+      tripCode: tripCode,
+      totalExpenses: 0,
+      createdAt: new Date().toISOString(),
+    };
+    
+    setTripInfo(newTrip);
+    setAllTrips(prevTrips => [newTrip, ...prevTrips]);
+    
+    return newTrip;
+  };
+
+  // Function to add trip to list (for when trip is saved/completed)
+  const saveCurrentTripToList = () => {
+    if (tripInfo && tripInfo.destination) {
+      const tripCode = tripInfo.tripCode || generateUniqueTripCode();
+      const tripToSave = {
+        ...tripInfo,
+        id: tripInfo.id || Date.now().toString(),
+        tripCode: tripCode,
+        totalExpenses: getTotalExpenses(),
+        savedAt: new Date().toISOString(),
+      };
+      
+      // Update tripInfo with the code
+      setTripInfo(prev => ({ ...prev, tripCode: tripCode, id: tripToSave.id }));
+      
+      setAllTrips(prevTrips => {
+        const existingIndex = prevTrips.findIndex(t => t.id === tripToSave.id);
+        if (existingIndex >= 0) {
+          const updated = [...prevTrips];
+          updated[existingIndex] = tripToSave;
+          return updated;
+        }
+        return [tripToSave, ...prevTrips];
+      });
+      
+      return tripToSave;
+    }
+    return null;
+  };
+
+  // Function to get trip by code
+  const getTripByCode = (code) => {
+    const normalized = code.toUpperCase().replace(/[-\s]/g, '');
+    return allTrips.find(trip => trip.tripCode === normalized);
+  };
+
+  // Function to switch to a different trip
+  const switchToTrip = (trip) => {
+    setTripInfo(trip);
+    // Also load that trip's expenses, packing items, etc.
   };
 
   // Make sure deleteExpense is included in the context value
@@ -315,6 +377,10 @@ export function TravelProvider({ children }) {
       getSettlements,
       // Manage multiple trips
       allTrips, addTrip, updateTrip, deleteTrip,
+      createNewTrip,
+      saveCurrentTripToList,
+      getTripByCode,
+      switchToTrip,
     }}>
       {children}
     </TravelContext.Provider>
