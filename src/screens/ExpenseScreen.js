@@ -291,83 +291,58 @@ export default function ExpenseScreen() {
       <View style={styles.balancesTabContent}>
         {/* Summary Header Card */}
         <View style={styles.balanceSummaryCard}>
-          <View style={styles.balanceSummaryHeader}>
-            <Text style={styles.balanceSummaryEmoji}>💰</Text>
-            <View>
-              <Text style={styles.balanceSummaryTitle}>Group Expenses</Text>
-              <Text style={styles.balanceSummarySubtitle}>{travelers.length} travelers</Text>
-            </View>
-          </View>
           <View style={styles.balanceSummaryStats}>
             <View style={styles.balanceSummaryStat}>
-              <Text style={styles.balanceSummaryStatValue}>{safeFormatCurrency(totalPaid)}</Text>
               <Text style={styles.balanceSummaryStatLabel}>Total Spent</Text>
+              <Text style={styles.balanceSummaryStatValue}>{safeFormatCurrency(totalPaid)}</Text>
             </View>
             <View style={styles.balanceSummaryDivider} />
             <View style={styles.balanceSummaryStat}>
-              <Text style={styles.balanceSummaryStatValue}>{safeFormatCurrency(totalPaid / travelers.length)}</Text>
               <Text style={styles.balanceSummaryStatLabel}>Per Person</Text>
+              <Text style={styles.balanceSummaryStatValue}>{safeFormatCurrency(totalPaid / travelers.length)}</Text>
             </View>
             <View style={styles.balanceSummaryDivider} />
             <View style={styles.balanceSummaryStat}>
-              <Text style={styles.balanceSummaryStatValue}>{expenses.length}</Text>
               <Text style={styles.balanceSummaryStatLabel}>Expenses</Text>
+              <Text style={styles.balanceSummaryStatValue}>{expenses.length}</Text>
             </View>
           </View>
         </View>
 
         {/* Individual Balances */}
-        <View style={styles.balanceSectionHeader}>
-          <Text style={styles.balanceSectionTitle}>Individual Balances</Text>
-        </View>
+        <Text style={styles.sectionTitle}>Who Owes Who?</Text>
         
         <View style={styles.balanceCardsContainer}>
           {Object.entries(balances).map(([id, data]) => {
             const isPositive = data.balance >= 0;
-            const percentage = totalPaid > 0 ? (data.paid / totalPaid) * 100 : 0;
+            const balanceAbs = Math.abs(data.balance);
             
             return (
-              <View key={id} style={styles.balanceUserCard}>
-                <View style={styles.balanceUserHeader}>
-                  <View style={styles.balanceUserInfo}>
-                    <View style={styles.balanceUserAvatarContainer}>
-                      <Text style={styles.balanceUserAvatar}>{getTravelerAvatar(id)}</Text>
-                    </View>
-                    <View>
-                      <Text style={styles.balanceUserName}>{data.name}</Text>
-                      <Text style={styles.balanceUserContribution}>
-                        {percentage.toFixed(0)}% of total
-                      </Text>
-                    </View>
+              <View key={id} style={styles.balanceCard}>
+                <View style={styles.balanceCardLeft}>
+                  <View style={styles.balanceAvatar}>
+                    <Text style={styles.balanceAvatarText}>{getTravelerAvatar(id)}</Text>
                   </View>
-                  <View style={[styles.balanceStatusBadge, { backgroundColor: isPositive ? '#10B98115' : '#EF444415' }]}>
-                    <Text style={[styles.balanceStatusText, { color: isPositive ? '#10B981' : '#EF4444' }]}>
-                      {isPositive ? 'Gets back' : 'Owes'}
+                  <View style={styles.balanceInfo}>
+                    <Text style={styles.balanceName}>{data.name}</Text>
+                    <Text style={styles.balanceDetail}>
+                      Paid {safeFormatCurrency(data.paid)} • Share {safeFormatCurrency(data.owes)}
                     </Text>
                   </View>
                 </View>
-                
-                <View style={styles.balanceUserStats}>
-                  <View style={styles.balanceUserStatItem}>
-                    <Text style={styles.balanceUserStatLabel}>Paid</Text>
-                    <Text style={styles.balanceUserStatValue}>{safeFormatCurrency(data.paid)}</Text>
-                  </View>
-                  <View style={styles.balanceUserStatItem}>
-                    <Text style={styles.balanceUserStatLabel}>Share</Text>
-                    <Text style={styles.balanceUserStatValue}>{safeFormatCurrency(data.owes)}</Text>
-                  </View>
-                  <View style={styles.balanceUserStatItem}>
-                    <Text style={styles.balanceUserStatLabel}>Balance</Text>
-                    <Text style={[styles.balanceUserStatValueHighlight, { color: isPositive ? '#10B981' : '#EF4444' }]}>
-                      {isPositive ? '+' : ''}{safeFormatCurrency(data.balance)}
-                    </Text>
-                  </View>
-                </View>
-                
-                <View style={styles.balanceProgressContainer}>
-                  <View style={styles.balanceProgressTrack}>
-                    <View style={[styles.balanceProgressFill, { width: `${Math.min(percentage, 100)}%` }]} />
-                  </View>
+                <View style={styles.balanceCardRight}>
+                  <Text style={[
+                    styles.balanceAmount,
+                    { color: isPositive ? '#059669' : '#DC2626' }
+                  ]}>
+                    {isPositive ? '+' : '-'}{safeFormatCurrency(balanceAbs)}
+                  </Text>
+                  <Text style={[
+                    styles.balanceStatus,
+                    { color: isPositive ? '#059669' : '#DC2626' }
+                  ]}>
+                    {balanceAbs < 1 ? 'Settled' : isPositive ? 'to receive' : 'to pay'}
+                  </Text>
                 </View>
               </View>
             );
@@ -375,65 +350,41 @@ export default function ExpenseScreen() {
         </View>
 
         {/* Settlements Section */}
-        <View style={styles.balanceSectionHeader}>
-          <Text style={styles.balanceSectionTitle}>Settlements</Text>
+        <View style={styles.settlementsHeader}>
+          <Text style={styles.sectionTitle}>Settle Up</Text>
           {settlements.length > 0 && (
-            <View style={styles.settlementCountBadge}>
-              <Text style={styles.settlementCountText}>{settlements.length} pending</Text>
-            </View>
+            <Text style={styles.settlementCount}>{settlements.length} payment{settlements.length > 1 ? 's' : ''}</Text>
           )}
         </View>
 
         {settlements.length === 0 ? (
-          <View style={styles.settledContainer}>
-            <View style={styles.settledIconContainer}>
-              <Text style={styles.settledIcon}>✅</Text>
-            </View>
-            <Text style={styles.settledTitle}>All Settled Up!</Text>
-            <Text style={styles.settledDescription}>
-              Everyone is square. No payments needed.
-            </Text>
+          <View style={styles.settledCard}>
+            <Text style={styles.settledEmoji}>✓</Text>
+            <Text style={styles.settledText}>All settled! No payments needed.</Text>
           </View>
         ) : (
           <View style={styles.settlementsContainer}>
             {settlements.map((s, idx) => (
-              <View key={idx} style={styles.settlementRow}>
-                <View style={styles.settlementFromSection}>
-                  <View style={styles.settlementAvatarCircle}>
-                    <Text style={styles.settlementAvatarText}>{getTravelerAvatar(s.from)}</Text>
-                  </View>
-                  <Text style={styles.settlementFromName}>{s.fromName}</Text>
+              <View key={idx} style={styles.settlementCard}>
+                <View style={styles.settlementPerson}>
+                  <Text style={styles.settlementAvatar}>{getTravelerAvatar(s.from)}</Text>
+                  <Text style={styles.settlementName}>{s.fromName}</Text>
                 </View>
                 
-                <View style={styles.settlementMiddle}>
-                  <View style={styles.settlementArrowLine}>
-                    <View style={styles.settlementDot} />
-                    <View style={styles.settlementLine} />
-                    <View style={styles.settlementArrowHead} />
-                  </View>
-                  <View style={styles.settlementAmountBubble}>
-                    <Text style={styles.settlementAmountText}>{safeFormatCurrency(s.amount)}</Text>
-                  </View>
+                <View style={styles.settlementArrow}>
+                  <Text style={styles.settlementArrowText}>pays</Text>
+                  <Text style={styles.settlementAmountText}>{safeFormatCurrency(s.amount)}</Text>
+                  <Text style={styles.settlementArrowIcon}>→</Text>
                 </View>
                 
-                <View style={styles.settlementToSection}>
-                  <View style={[styles.settlementAvatarCircle, styles.settlementAvatarCircleTo]}>
-                    <Text style={styles.settlementAvatarText}>{getTravelerAvatar(s.to)}</Text>
-                  </View>
-                  <Text style={styles.settlementToName}>{s.toName}</Text>
+                <View style={styles.settlementPerson}>
+                  <Text style={styles.settlementAvatar}>{getTravelerAvatar(s.to)}</Text>
+                  <Text style={styles.settlementName}>{s.toName}</Text>
                 </View>
               </View>
             ))}
           </View>
         )}
-
-        {/* Quick Tips */}
-        <View style={styles.balanceTipsCard}>
-          <Text style={styles.balanceTipsTitle}>💡 Quick Tip</Text>
-          <Text style={styles.balanceTipsText}>
-            Tap on expenses to see who paid and how it was split among the group.
-          </Text>
-        </View>
       </View>
     );
   };
@@ -731,12 +682,13 @@ export default function ExpenseScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.modalScrollContent}
             >
-              {/* Amount Section - Compact */}
-              <View style={styles.amountSection}>
-                <View style={styles.amountInputRow}>
-                  <Text style={styles.amountCurrency}>{currency.symbol}</Text>
+              {/* Amount Input - Inline */}
+              <View style={styles.amountRow}>
+                <Text style={styles.amountLabel}>Amount</Text>
+                <View style={styles.amountInputBox}>
+                  <Text style={styles.amountSymbol}>{currency.symbol}</Text>
                   <TextInput
-                    style={styles.amountInputField}
+                    style={styles.amountInput}
                     placeholder="0"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="decimal-pad"
@@ -744,11 +696,6 @@ export default function ExpenseScreen() {
                     onChangeText={(t) => setNewExpense({...newExpense, amount: t.replace(/[^0-9.]/g, '')})}
                   />
                 </View>
-                {isMultiUser && splitPreview && newExpense.splitType === 'equal' && (
-                  <Text style={styles.amountSplitHint}>
-                    ⚖️ {safeFormatCurrency(splitPreview.perPerson)} per person
-                  </Text>
-                )}
               </View>
 
               {/* Description Input */}
@@ -794,12 +741,12 @@ export default function ExpenseScreen() {
 
               {/* Split Options - Only for multi-user trips */}
               {isMultiUser && travelers.length > 1 && (
-                <View style={styles.splitOptionsSection}>
-                  <Text style={styles.splitSectionTitle}>👥 Split Options</Text>
+                <View style={styles.splitSection}>
+                  <Text style={styles.inputLabel}>👥 Split Options</Text>
 
                   {/* Paid By Selection */}
-                  <View style={styles.splitSubSection}>
-                    <Text style={styles.splitSubLabel}>Who paid?</Text>
+                  <View style={styles.splitRow}>
+                    <Text style={styles.splitLabel}>Paid by</Text>
                     <ScrollView 
                       horizontal 
                       showsHorizontalScrollIndicator={false}
@@ -824,13 +771,13 @@ export default function ExpenseScreen() {
                   </View>
 
                   {/* Split Type Selection */}
-                  <View style={styles.splitSubSection}>
-                    <Text style={styles.splitSubLabel}>Split type</Text>
+                  <View style={styles.splitRow}>
+                    <Text style={styles.splitLabel}>Split</Text>
                     <View style={styles.splitTypeRow}>
                       {[
-                        { key: 'equal', label: '⚖️ Equal' },
-                        { key: 'custom', label: '✏️ Custom' },
-                        { key: 'transfer', label: '💸 Transfer' },
+                        { key: 'equal', label: 'Equal' },
+                        { key: 'custom', label: 'Custom' },
+                        { key: 'transfer', label: 'Transfer' },
                       ].map((type) => {
                         const isSelected = newExpense.splitType === type.key;
                         return (
@@ -850,8 +797,8 @@ export default function ExpenseScreen() {
 
                   {/* Transfer Selection */}
                   {newExpense.splitType === 'transfer' && (
-                    <View style={styles.splitSubSection}>
-                      <Text style={styles.splitSubLabel}>Transfer to</Text>
+                    <View style={styles.splitRow}>
+                      <Text style={styles.splitLabel}>To</Text>
                       <View style={styles.transferToRow}>
                         {travelers.filter(t => t.id !== newExpense.paidBy).map((t) => {
                           const isSelected = newExpense.transferTo === t.id;
@@ -874,67 +821,52 @@ export default function ExpenseScreen() {
 
                   {/* Beneficiaries Selection - Equal & Custom */}
                   {(newExpense.splitType === 'equal' || newExpense.splitType === 'custom') && (
-                    <View style={styles.splitSubSection}>
-                      <View style={styles.splitSubLabelRow}>
-                        <Text style={styles.splitSubLabel}>Split among</Text>
+                    <View style={styles.beneficiarySection}>
+                      <View style={styles.beneficiaryHeader}>
+                        <Text style={styles.splitLabel}>Among</Text>
                         <TouchableOpacity onPress={selectAllBeneficiaries}>
-                          <Text style={styles.selectAllText}>Select All</Text>
+                          <Text style={styles.selectAllText}>All</Text>
                         </TouchableOpacity>
                       </View>
                       
-                      <View style={styles.beneficiaryList}>
-                        {travelers.map((t) => {
-                          const isSelected = newExpense.beneficiaries?.includes(t.id);
-                          const equalAmount = newExpense.splitType === 'equal' && newExpense.amount && isSelected
-                            ? (parseFloat(newExpense.amount) / (newExpense.beneficiaries?.length || 1))
-                            : 0;
-                          
-                          return (
-                            <View key={t.id} style={[styles.beneficiaryRow, isSelected && styles.beneficiaryRowActive]}>
-                              <TouchableOpacity 
-                                style={styles.beneficiaryLeft}
-                                onPress={() => toggleBeneficiary(t.id)}
-                              >
-                                <View style={[styles.checkbox, isSelected && styles.checkboxActive]}>
-                                  {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                                </View>
-                                <Text style={styles.beneficiaryAvatar}>{t.avatar || '👤'}</Text>
-                                <Text style={styles.beneficiaryName}>{t.name}</Text>
-                              </TouchableOpacity>
-                              
+                      {travelers.map((t) => {
+                        const isSelected = newExpense.beneficiaries?.includes(t.id);
+                        const equalAmount = newExpense.splitType === 'equal' && newExpense.amount && isSelected
+                          ? (parseFloat(newExpense.amount) / (newExpense.beneficiaries?.length || 1))
+                          : 0;
+                        
+                        return (
+                          <View key={t.id} style={styles.beneficiaryRow}>
+                            <TouchableOpacity 
+                              style={styles.beneficiaryLeft}
+                              onPress={() => toggleBeneficiary(t.id)}
+                            >
+                              <View style={[styles.checkbox, isSelected && styles.checkboxActive]}>
+                                {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                              </View>
+                              <Text style={styles.beneficiaryAvatar}>{t.avatar || '👤'}</Text>
+                              <Text style={styles.beneficiaryName}>{t.name}</Text>
+                            </TouchableOpacity>
+                            
+                            {isSelected && (
                               <View style={styles.beneficiaryRight}>
-                                {newExpense.splitType === 'equal' && isSelected && (
+                                {newExpense.splitType === 'equal' ? (
                                   <Text style={styles.equalAmount}>{safeFormatCurrency(equalAmount)}</Text>
-                                )}
-                                {newExpense.splitType === 'custom' && isSelected && (
-                                  <View style={styles.customInputWrapper}>
-                                    <Text style={styles.customCurrency}>{currency.symbol}</Text>
-                                    <TextInput
-                                      style={styles.customInput}
-                                      placeholder="0"
-                                      placeholderTextColor={colors.textMuted}
-                                      keyboardType="decimal-pad"
-                                      value={newExpense.splitAmounts?.[t.id]?.toString() || ''}
-                                      onChangeText={(val) => updateCustomSplit(t.id, val.replace(/[^0-9.]/g, ''))}
-                                    />
-                                  </View>
+                                ) : (
+                                  <TextInput
+                                    style={styles.customInput}
+                                    placeholder="0"
+                                    placeholderTextColor={colors.textMuted}
+                                    keyboardType="decimal-pad"
+                                    value={newExpense.splitAmounts?.[t.id]?.toString() || ''}
+                                    onChangeText={(val) => updateCustomSplit(t.id, val.replace(/[^0-9.]/g, ''))}
+                                  />
                                 )}
                               </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-
-                      {/* Custom Split Total */}
-                      {newExpense.splitType === 'custom' && newExpense.amount && (
-                        <View style={styles.customTotalRow}>
-                          <Text style={styles.customTotalLabel}>
-                            Total: {safeFormatCurrency(Object.values(newExpense.splitAmounts || {}).reduce((s, v) => s + (parseFloat(v) || 0), 0))}
-                            {' / '}
-                            {safeFormatCurrency(parseFloat(newExpense.amount) || 0)}
-                          </Text>
-                        </View>
-                      )}
+                            )}
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
                 </View>
@@ -942,10 +874,10 @@ export default function ExpenseScreen() {
 
               {/* Notes */}
               <View style={styles.formSection}>
-                <Text style={styles.inputLabel}>Notes (optional)</Text>
+                <Text style={styles.inputLabel}>Notes</Text>
                 <TextInput
                   style={styles.notesInput}
-                  placeholder="Add details..."
+                  placeholder="Optional details..."
                   placeholderTextColor={colors.textMuted}
                   value={newExpense.notes}
                   onChangeText={(t) => setNewExpense({...newExpense, notes: t})}
@@ -959,10 +891,10 @@ export default function ExpenseScreen() {
                 onPress={handleAddExpense}
                 disabled={!newExpense.title.trim() || !newExpense.amount}
               >
-                <Text style={styles.submitButtonText}>✓ Add Expense</Text>
+                <Text style={styles.submitButtonText}>Add Expense</Text>
               </TouchableOpacity>
 
-              <View style={{ height: 40 }} />
+              <View style={{ height: 30 }} />
             </ScrollView>
           </View>
         </View>
@@ -1001,67 +933,81 @@ const createStyles = (colors) => StyleSheet.create({
   tabIcon: { fontSize: 16, marginRight: 6 },
   tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '500' },
   tabTextActive: { color: colors.bg, fontWeight: '600' },
-  tabBadge: { backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
+  tabBadge: { backgroundColor: '#DC2626', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
   tabBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
 
-  // Balance Tab styles (keep existing)
+  // Balance Tab - Redesigned
   balancesTabContent: { paddingHorizontal: 20, paddingTop: 8 },
-  balanceSummaryCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: colors.primaryBorder },
-  balanceSummaryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  balanceSummaryEmoji: { fontSize: 32, marginRight: 14 },
-  balanceSummaryTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
-  balanceSummarySubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  balanceSummaryStats: { flexDirection: 'row', backgroundColor: colors.cardLight, borderRadius: 14, padding: 16 },
+  balanceSummaryCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.primaryBorder },
+  balanceSummaryStats: { flexDirection: 'row' },
   balanceSummaryStat: { flex: 1, alignItems: 'center' },
+  balanceSummaryStatLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 4 },
   balanceSummaryStatValue: { fontSize: 16, fontWeight: 'bold', color: colors.text },
-  balanceSummaryStatLabel: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
-  balanceSummaryDivider: { width: 1, backgroundColor: colors.primaryBorder, marginHorizontal: 8 },
-  balanceSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 8 },
-  balanceSectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
-  balanceCardsContainer: { gap: 12, marginBottom: 20 },
-  balanceUserCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  balanceUserHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  balanceUserInfo: { flexDirection: 'row', alignItems: 'center' },
-  balanceUserAvatarContainer: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.cardLight, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  balanceUserAvatar: { fontSize: 24 },
-  balanceUserName: { fontSize: 15, fontWeight: '600', color: colors.text },
-  balanceUserContribution: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  balanceStatusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  balanceStatusText: { fontSize: 11, fontWeight: '600' },
-  balanceUserStats: { flexDirection: 'row', backgroundColor: colors.cardLight, borderRadius: 12, padding: 12, marginBottom: 12 },
-  balanceUserStatItem: { flex: 1, alignItems: 'center' },
-  balanceUserStatLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 4 },
-  balanceUserStatValue: { fontSize: 14, fontWeight: '600', color: colors.text },
-  balanceUserStatValueHighlight: { fontSize: 15, fontWeight: 'bold' },
-  balanceProgressContainer: { marginTop: 4 },
-  balanceProgressTrack: { height: 4, backgroundColor: colors.cardLight, borderRadius: 2, overflow: 'hidden' },
-  balanceProgressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
-  settlementCountBadge: { backgroundColor: colors.primaryMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  settlementCountText: { fontSize: 11, fontWeight: '600', color: colors.primary },
-  settledContainer: { backgroundColor: colors.card, borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: 20 },
-  settledIconContainer: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#10B98115', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  settledIcon: { fontSize: 32 },
-  settledTitle: { fontSize: 18, fontWeight: 'bold', color: '#10B981', marginBottom: 8 },
-  settledDescription: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
-  settlementsContainer: { gap: 12, marginBottom: 20 },
-  settlementRow: { backgroundColor: colors.card, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  settlementFromSection: { flex: 1, alignItems: 'center' },
-  settlementToSection: { flex: 1, alignItems: 'center' },
-  settlementAvatarCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#EF444415', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  settlementAvatarCircleTo: { backgroundColor: '#10B98115' },
-  settlementAvatarText: { fontSize: 24 },
-  settlementFromName: { fontSize: 13, fontWeight: '600', color: '#EF4444' },
-  settlementToName: { fontSize: 13, fontWeight: '600', color: '#10B981' },
-  settlementMiddle: { flex: 1.2, alignItems: 'center', justifyContent: 'center' },
-  settlementArrowLine: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 8 },
-  settlementDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted },
-  settlementLine: { flex: 1, height: 2, backgroundColor: colors.textMuted },
-  settlementArrowHead: { width: 0, height: 0, borderLeftWidth: 8, borderTopWidth: 5, borderBottomWidth: 5, borderLeftColor: colors.textMuted, borderTopColor: 'transparent', borderBottomColor: 'transparent' },
-  settlementAmountBubble: { backgroundColor: colors.primary, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
-  settlementAmountText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-  balanceTipsCard: { backgroundColor: colors.cardLight, borderRadius: 14, padding: 16, marginBottom: 20, borderLeftWidth: 3, borderLeftColor: colors.primary },
-  balanceTipsTitle: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 },
-  balanceTipsText: { fontSize: 12, color: colors.textMuted, lineHeight: 18 },
+  balanceSummaryDivider: { width: 1, backgroundColor: colors.primaryBorder, marginHorizontal: 12 },
+  
+  sectionTitle: { fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 12 },
+  
+  // Balance Cards - Clean Design
+  balanceCardsContainer: { gap: 8, marginBottom: 24 },
+  balanceCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    backgroundColor: colors.card, 
+    borderRadius: 12, 
+    padding: 14, 
+    borderWidth: 1, 
+    borderColor: colors.primaryBorder 
+  },
+  balanceCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  balanceAvatar: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    backgroundColor: colors.cardLight, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginRight: 12 
+  },
+  balanceAvatarText: { fontSize: 20 },
+  balanceInfo: { flex: 1 },
+  balanceName: { fontSize: 14, fontWeight: '600', color: colors.text },
+  balanceDetail: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  balanceCardRight: { alignItems: 'flex-end' },
+  balanceAmount: { fontSize: 16, fontWeight: 'bold' },
+  balanceStatus: { fontSize: 10, marginTop: 2 },
+
+  // Settlements - Cleaner
+  settlementsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  settlementCount: { fontSize: 12, color: colors.textMuted },
+  settledCard: { 
+    backgroundColor: colors.card, 
+    borderRadius: 12, 
+    padding: 20, 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: colors.primaryBorder,
+    marginBottom: 20,
+  },
+  settledEmoji: { fontSize: 24, color: '#059669', marginBottom: 8 },
+  settledText: { fontSize: 14, color: colors.textMuted },
+  settlementsContainer: { gap: 10, marginBottom: 20 },
+  settlementCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: colors.card, 
+    borderRadius: 12, 
+    padding: 14, 
+    borderWidth: 1, 
+    borderColor: colors.primaryBorder 
+  },
+  settlementPerson: { flex: 1, alignItems: 'center' },
+  settlementAvatar: { fontSize: 24, marginBottom: 4 },
+  settlementName: { fontSize: 12, color: colors.text, fontWeight: '500' },
+  settlementArrow: { alignItems: 'center', paddingHorizontal: 8 },
+  settlementArrowText: { fontSize: 10, color: colors.textMuted },
+  settlementAmountText: { fontSize: 14, fontWeight: 'bold', color: colors.primary, marginVertical: 2 },
+  settlementArrowIcon: { fontSize: 16, color: colors.textMuted },
 
   // Transactions Tab styles
   filterScroll: { marginBottom: 12 },
@@ -1094,13 +1040,13 @@ const createStyles = (colors) => StyleSheet.create({
   expenseSplitType: { color: colors.textMuted, fontSize: 11 },
   expenseNotes: { color: colors.textMuted, fontSize: 11, marginTop: 6 },
   expenseRight: { alignItems: 'flex-end' },
-  expenseAmount: { color: '#EF4444', fontSize: 16, fontWeight: 'bold' },
+  expenseAmount: { color: '#DC2626', fontSize: 16, fontWeight: 'bold' },
   deleteBtn: { marginTop: 6, padding: 4 },
   deleteBtnText: { fontSize: 14 },
   transferInfoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },
   transferFromText: { fontSize: 12, color: colors.primary, fontWeight: '500' },
   transferArrowSmall: { fontSize: 14, color: colors.textMuted },
-  transferToText: { fontSize: 12, color: '#10B981', fontWeight: '500' },
+  transferToText: { fontSize: 12, color: '#059669', fontWeight: '500' },
 
   // FAB
   fab: { position: 'absolute', bottom: 20, right: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 16, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
@@ -1114,183 +1060,179 @@ const createStyles = (colors) => StyleSheet.create({
   debugBtn: { marginTop: 12, backgroundColor: '#F59E0B', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center' },
   debugBtnText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
 
-  // ========== SIMPLIFIED MODAL STYLES ==========
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%', paddingTop: 8 },
-  modalHandle: { width: 40, height: 4, backgroundColor: colors.textMuted + '40', borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
+  // ========== MODAL STYLES ==========
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalContent: { backgroundColor: colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', paddingTop: 8 },
+  modalHandle: { width: 36, height: 4, backgroundColor: colors.textMuted + '40', borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
   modalScrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12, marginBottom: 16 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12, marginBottom: 12 },
   modalHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
-  modalIconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryMuted, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  modalIconText: { fontSize: 20 },
-  modalTitle: { color: colors.text, fontSize: 18, fontWeight: 'bold' },
-  modalSubtitle: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  modalClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.cardLight, justifyContent: 'center', alignItems: 'center' },
-  modalCloseText: { color: colors.textMuted, fontSize: 18 },
+  modalIconCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primaryMuted, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  modalIconText: { fontSize: 18 },
+  modalTitle: { color: colors.text, fontSize: 17, fontWeight: 'bold' },
+  modalSubtitle: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
+  modalClose: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.cardLight, justifyContent: 'center', alignItems: 'center' },
+  modalCloseText: { color: colors.textMuted, fontSize: 16 },
 
-  // Amount Section - Compact
-  amountSection: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+  // Amount - Inline Row
+  amountRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  amountLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  amountInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
   },
-  amountInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  amountCurrency: {
-    fontSize: 28,
-    fontWeight: 'bold',
+  amountSymbol: {
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.primary,
+    marginRight: 4,
   },
-  amountInputField: {
-    fontSize: 36,
+  amountInput: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
     minWidth: 80,
-    textAlign: 'center',
     padding: 0,
-  },
-  amountSplitHint: {
-    fontSize: 12,
-    color: colors.primary,
-    marginTop: 8,
   },
 
   // Form Sections
-  formSection: { marginBottom: 16 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 8 },
+  formSection: { marginBottom: 14 },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
   descriptionInput: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
   },
   notesInput: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 14,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 13,
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
-    minHeight: 60,
+    minHeight: 50,
     textAlignVertical: 'top',
   },
 
   // Category
-  categoryScroll: { gap: 8 },
+  categoryScroll: { gap: 6 },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
     gap: 4,
   },
-  categoryChipEmoji: { fontSize: 14 },
-  categoryChipLabel: { fontSize: 12, fontWeight: '500', color: colors.text },
+  categoryChipEmoji: { fontSize: 13 },
+  categoryChipLabel: { fontSize: 11, fontWeight: '500', color: colors.text },
 
-  // Split Options Section
-  splitOptionsSection: {
+  // Split Section
+  splitSection: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: colors.primaryBorder,
   },
-  splitSectionTitle: { fontSize: 15, fontWeight: 'bold', color: colors.text, marginBottom: 16 },
-  splitSubSection: { marginBottom: 16 },
-  splitSubLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: 8 },
-  splitSubLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  selectAllText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
+  splitRow: { marginBottom: 12 },
+  splitLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
 
   // Paid By
-  paidByScroll: { gap: 8 },
+  paidByScroll: { gap: 6 },
   paidByChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.cardLight,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-    borderWidth: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+    borderWidth: 1,
     borderColor: 'transparent',
   },
   paidByChipActive: {
     backgroundColor: colors.primaryMuted,
     borderColor: colors.primary,
   },
-  paidByAvatar: { fontSize: 16 },
-  paidByName: { fontSize: 13, color: colors.text },
+  paidByAvatar: { fontSize: 14 },
+  paidByName: { fontSize: 12, color: colors.text },
   paidByNameActive: { color: colors.primary, fontWeight: '600' },
 
   // Split Type
-  splitTypeRow: { flexDirection: 'row', gap: 8 },
+  splitTypeRow: { flexDirection: 'row', gap: 6 },
   splitTypeChip: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: 'center',
     backgroundColor: colors.cardLight,
-    borderRadius: 10,
-    borderWidth: 2,
+    borderRadius: 8,
+    borderWidth: 1,
     borderColor: 'transparent',
   },
   splitTypeChipActive: {
     backgroundColor: colors.primaryMuted,
     borderColor: colors.primary,
   },
-  splitTypeText: { fontSize: 12, color: colors.text },
+  splitTypeText: { fontSize: 11, color: colors.text },
   splitTypeTextActive: { color: colors.primary, fontWeight: '600' },
 
   // Transfer To
-  transferToRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  transferToRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   transferToChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.cardLight,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
-    borderWidth: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 4,
+    borderWidth: 1,
     borderColor: 'transparent',
   },
   transferToChipActive: {
-    backgroundColor: '#10B98115',
-    borderColor: '#10B981',
+    backgroundColor: '#05966910',
+    borderColor: '#059669',
   },
-  transferToAvatar: { fontSize: 16 },
-  transferToName: { fontSize: 13, color: colors.text },
-  transferToNameActive: { color: '#10B981', fontWeight: '600' },
+  transferToAvatar: { fontSize: 14 },
+  transferToName: { fontSize: 12, color: colors.text },
+  transferToNameActive: { color: '#059669', fontWeight: '600' },
 
   // Beneficiaries
-  beneficiaryList: { gap: 8 },
+  beneficiarySection: { marginTop: 4 },
+  beneficiaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  selectAllText: { fontSize: 11, color: colors.primary, fontWeight: '600' },
   beneficiaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.cardLight,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  beneficiaryRowActive: {
-    backgroundColor: colors.bg,
-    borderColor: colors.primary,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primaryBorder,
   },
   beneficiaryLeft: {
     flexDirection: 'row',
@@ -1298,12 +1240,12 @@ const createStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     borderRadius: 4,
     borderWidth: 2,
     borderColor: colors.textMuted,
-    marginRight: 10,
+    marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1311,46 +1253,31 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  checkmark: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-  beneficiaryAvatar: { fontSize: 18, marginRight: 8 },
-  beneficiaryName: { fontSize: 14, color: colors.text },
+  checkmark: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  beneficiaryAvatar: { fontSize: 16, marginRight: 6 },
+  beneficiaryName: { fontSize: 13, color: colors.text },
   beneficiaryRight: { alignItems: 'flex-end' },
-  equalAmount: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-  customInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  customCurrency: { fontSize: 13, color: colors.primary, fontWeight: '600', marginRight: 2 },
+  equalAmount: { fontSize: 12, color: colors.primary, fontWeight: '600' },
   customInput: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
-    minWidth: 50,
+    backgroundColor: colors.cardLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    minWidth: 60,
     textAlign: 'right',
-    padding: 0,
   },
-  customTotalRow: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.primaryBorder,
-  },
-  customTotalLabel: { fontSize: 12, color: colors.textMuted, textAlign: 'right' },
 
   // Submit Button
   submitButton: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
   },
   submitButtonDisabled: { opacity: 0.5 },
-  submitButtonText: { fontSize: 16, fontWeight: 'bold', color: '#FFF' },
+  submitButtonText: { fontSize: 15, fontWeight: 'bold', color: '#FFF' },
 });
