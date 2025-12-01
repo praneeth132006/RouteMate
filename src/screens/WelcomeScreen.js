@@ -243,33 +243,31 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
             </Animated.View>
           )}
 
-          {/* Plan a Trip */}
-          <Animated.View style={{ transform: [{ scale: hasActiveTrip ? scaleAnim2 : scaleAnim1 }] }}>
-            <Pressable 
-              style={({ pressed }) => [styles.optionCard, pressed && styles.cardPressed]} 
-              onPress={onPlanTrip}
-            >
-              <View style={styles.optionGlow} />
-              <View style={styles.optionIconBg}><Text style={styles.optionIcon}>🚀</Text></View>
-              <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>{hasActiveTrip ? 'Plan New Trip' : 'Plan a Trip'}</Text>
-                <Text style={styles.optionDescription}>Create your perfect journey</Text>
-              </View>
-              <View style={styles.optionArrow}><Text style={styles.arrowTextSecondary}>→</Text></View>
-            </Pressable>
-          </Animated.View>
+          {/* Plan a Trip and Join a Trip - Side by Side */}
+          <View style={styles.optionCardsRow}>
+            <Animated.View style={[styles.optionCardHalf, { transform: [{ scale: hasActiveTrip ? scaleAnim2 : scaleAnim1 }] }]}>
+              <Pressable 
+                style={({ pressed }) => [styles.optionCardSmall, pressed && styles.cardPressed]} 
+                onPress={onPlanTrip}
+              >
+                <View style={styles.optionGlowSmall} />
+                <View style={styles.optionIconBgSmall}><Text style={styles.optionIconSmall}>🚀</Text></View>
+                <Text style={styles.optionTitleSmall}>{hasActiveTrip ? 'Plan New Trip' : 'Plan a Trip'}</Text>
+                <Text style={styles.optionDescriptionSmall}>Create your journey</Text>
+              </Pressable>
+            </Animated.View>
 
-          {/* Join a Trip */}
-          <Animated.View style={{ transform: [{ scale: hasActiveTrip ? scaleAnim3 : scaleAnim2 }] }}>
-            <Pressable style={({ pressed }) => [styles.optionCard, pressed && { opacity: 0.8 }]} onPress={() => setShowJoinModal(true)}>
-              <View style={styles.optionIconBg}><Text style={styles.optionIcon}>👥</Text></View>
-              <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>Join a Trip</Text>
-                <Text style={styles.optionDescription}>Enter code to join friends</Text>
-              </View>
-              <View style={styles.optionArrow}><Text style={styles.arrowTextSecondary}>→</Text></View>
-            </Pressable>
-          </Animated.View>
+            <Animated.View style={[styles.optionCardHalf, { transform: [{ scale: hasActiveTrip ? scaleAnim3 : scaleAnim2 }] }]}>
+              <Pressable 
+                style={({ pressed }) => [styles.optionCardSmall, pressed && styles.cardPressed]} 
+                onPress={() => setShowJoinModal(true)}
+              >
+                <View style={styles.optionIconBgSmall}><Text style={styles.optionIconSmall}>👥</Text></View>
+                <Text style={styles.optionTitleSmall}>Join a Trip</Text>
+                <Text style={styles.optionDescriptionSmall}>Enter code to join</Text>
+              </Pressable>
+            </Animated.View>
+          </View>
         </View>
 
         {/* Features */}
@@ -616,6 +614,25 @@ const createStyles = (colors) => StyleSheet.create({
   optionDescription: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   optionArrow: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
   arrowTextSecondary: { fontSize: 18, color: colors.primary, fontWeight: 'bold' },
+
+  // Option Cards Row (Side by Side)
+  optionCardsRow: { flexDirection: 'row', gap: 12 },
+  optionCardHalf: { flex: 1 },
+  optionCardSmall: { 
+    backgroundColor: colors.card, 
+    borderRadius: 20, 
+    padding: 18, 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: colors.primaryBorder, 
+    overflow: 'hidden',
+    minHeight: 140,
+  },
+  optionGlowSmall: { position: 'absolute', top: -30, right: -30, width: 80, height: 80, backgroundColor: colors.primary, opacity: 0.08, borderRadius: 40 },
+  optionIconBgSmall: { width: 50, height: 50, borderRadius: 16, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: 12 },
+  optionIconSmall: { fontSize: 24 },
+  optionTitleSmall: { fontSize: 15, fontWeight: 'bold', color: colors.text, textAlign: 'center' },
+  optionDescriptionSmall: { fontSize: 12, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
 
   // Features Section
   featuresSection: { 
