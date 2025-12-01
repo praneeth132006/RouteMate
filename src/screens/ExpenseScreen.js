@@ -30,6 +30,7 @@ export default function ExpenseScreen() {
     currency = { symbol: '₹', code: 'INR' },
     customCategories,
     tripInfo = {},
+    setTripInfo, // Add this to allow adding test participants
   } = useTravelContext();
   const { colors } = useTheme();
   
@@ -38,6 +39,7 @@ export default function ExpenseScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
   const [activeTab, setActiveTab] = useState('transactions');
+  const [showDebug, setShowDebug] = useState(false); // Debug toggle
 
   // Determine if multi-user trip
   const isMultiUser = useMemo(() => {
@@ -52,6 +54,21 @@ export default function ExpenseScreen() {
     const participants = tripInfo?.participants || [];
     return [mainUser, ...participants];
   }, [tripInfo?.participants]);
+
+  // Function to add test participants for debugging
+  const addTestParticipants = () => {
+    if (setTripInfo) {
+      setTripInfo(prev => ({
+        ...prev,
+        tripType: 'friends',
+        participants: [
+          { id: 'user_1', name: 'John', avatar: '👨' },
+          { id: 'user_2', name: 'Sarah', avatar: '👩' },
+          { id: 'user_3', name: 'Mike', avatar: '🧑' },
+        ]
+      }));
+    }
+  };
 
   // Initial expense state
   const getInitialExpenseState = () => ({
@@ -262,77 +279,159 @@ export default function ExpenseScreen() {
   }, [newExpense.amount, newExpense.beneficiaries, newExpense.splitType]);
 
   // Render Balances Tab
-  const renderBalancesTab = () => (
-    <View style={styles.balancesTabContent}>
-      {/* Travelers Overview */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionCardTitle}>👥 Travelers</Text>
-        <View style={styles.travelersList}>
-          {travelers.map((t) => (
-            <View key={t.id} style={styles.travelerChip}>
-              <Text style={styles.travelerAvatar}>{t.avatar || '👤'}</Text>
-              <Text style={styles.travelerName}>{t.name}</Text>
+  const renderBalancesTab = () => {
+    const totalPaid = Object.values(balances).reduce((sum, b) => sum + b.paid, 0);
+    
+    return (
+      <View style={styles.balancesTabContent}>
+        {/* Summary Header Card */}
+        <View style={styles.balanceSummaryCard}>
+          <View style={styles.balanceSummaryHeader}>
+            <Text style={styles.balanceSummaryEmoji}>💰</Text>
+            <View>
+              <Text style={styles.balanceSummaryTitle}>Group Expenses</Text>
+              <Text style={styles.balanceSummarySubtitle}>{travelers.length} travelers</Text>
             </View>
-          ))}
+          </View>
+          <View style={styles.balanceSummaryStats}>
+            <View style={styles.balanceSummaryStat}>
+              <Text style={styles.balanceSummaryStatValue}>{safeFormatCurrency(totalPaid)}</Text>
+              <Text style={styles.balanceSummaryStatLabel}>Total Spent</Text>
+            </View>
+            <View style={styles.balanceSummaryDivider} />
+            <View style={styles.balanceSummaryStat}>
+              <Text style={styles.balanceSummaryStatValue}>{safeFormatCurrency(totalPaid / travelers.length)}</Text>
+              <Text style={styles.balanceSummaryStatLabel}>Per Person</Text>
+            </View>
+            <View style={styles.balanceSummaryDivider} />
+            <View style={styles.balanceSummaryStat}>
+              <Text style={styles.balanceSummaryStatValue}>{expenses.length}</Text>
+              <Text style={styles.balanceSummaryStatLabel}>Expenses</Text>
+            </View>
+          </View>
         </View>
-      </View>
 
-      {/* Individual Balances */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionCardTitle}>💰 Balances</Text>
-        <View style={styles.balancesList}>
-          {Object.entries(balances).map(([id, data]) => (
-            <View key={id} style={styles.balanceCard}>
-              <View style={styles.balanceCardLeft}>
-                <Text style={styles.balanceAvatar}>{getTravelerAvatar(id)}</Text>
-                <View>
-                  <Text style={styles.balanceName}>{data.name}</Text>
-                  <Text style={styles.balancePaid}>Paid: {safeFormatCurrency(data.paid)}</Text>
+        {/* Individual Balances */}
+        <View style={styles.balanceSectionHeader}>
+          <Text style={styles.balanceSectionTitle}>Individual Balances</Text>
+        </View>
+        
+        <View style={styles.balanceCardsContainer}>
+          {Object.entries(balances).map(([id, data]) => {
+            const isPositive = data.balance >= 0;
+            const percentage = totalPaid > 0 ? (data.paid / totalPaid) * 100 : 0;
+            
+            return (
+              <View key={id} style={styles.balanceUserCard}>
+                <View style={styles.balanceUserHeader}>
+                  <View style={styles.balanceUserInfo}>
+                    <View style={styles.balanceUserAvatarContainer}>
+                      <Text style={styles.balanceUserAvatar}>{getTravelerAvatar(id)}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.balanceUserName}>{data.name}</Text>
+                      <Text style={styles.balanceUserContribution}>
+                        {percentage.toFixed(0)}% of total
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.balanceStatusBadge, { backgroundColor: isPositive ? '#10B98115' : '#EF444415' }]}>
+                    <Text style={[styles.balanceStatusText, { color: isPositive ? '#10B981' : '#EF4444' }]}>
+                      {isPositive ? 'Gets back' : 'Owes'}
+                    </Text>
+                  </View>
+                </View>
+                
+                <View style={styles.balanceUserStats}>
+                  <View style={styles.balanceUserStatItem}>
+                    <Text style={styles.balanceUserStatLabel}>Paid</Text>
+                    <Text style={styles.balanceUserStatValue}>{safeFormatCurrency(data.paid)}</Text>
+                  </View>
+                  <View style={styles.balanceUserStatItem}>
+                    <Text style={styles.balanceUserStatLabel}>Share</Text>
+                    <Text style={styles.balanceUserStatValue}>{safeFormatCurrency(data.owes)}</Text>
+                  </View>
+                  <View style={styles.balanceUserStatItem}>
+                    <Text style={styles.balanceUserStatLabel}>Balance</Text>
+                    <Text style={[styles.balanceUserStatValueHighlight, { color: isPositive ? '#10B981' : '#EF4444' }]}>
+                      {isPositive ? '+' : ''}{safeFormatCurrency(data.balance)}
+                    </Text>
+                  </View>
+                </View>
+                
+                <View style={styles.balanceProgressContainer}>
+                  <View style={styles.balanceProgressTrack}>
+                    <View style={[styles.balanceProgressFill, { width: `${Math.min(percentage, 100)}%` }]} />
+                  </View>
                 </View>
               </View>
-              <View style={styles.balanceCardRight}>
-                <Text style={[styles.balanceAmount, { color: data.balance >= 0 ? '#10B981' : '#EF4444' }]}>
-                  {data.balance >= 0 ? '+' : ''}{safeFormatCurrency(data.balance)}
-                </Text>
-                <Text style={styles.balanceStatus}>{data.balance >= 0 ? 'Gets back' : 'Owes'}</Text>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
-      </View>
 
-      {/* Settlements */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionCardTitle}>💸 Settle Up</Text>
+        {/* Settlements Section */}
+        <View style={styles.balanceSectionHeader}>
+          <Text style={styles.balanceSectionTitle}>Settlements</Text>
+          {settlements.length > 0 && (
+            <View style={styles.settlementCountBadge}>
+              <Text style={styles.settlementCountText}>{settlements.length} pending</Text>
+            </View>
+          )}
+        </View>
+
         {settlements.length === 0 ? (
-          <View style={styles.settledCard}>
-            <Text style={styles.settledEmoji}>✅</Text>
-            <Text style={styles.settledTitle}>All Settled!</Text>
-            <Text style={styles.settledText}>No pending payments</Text>
+          <View style={styles.settledContainer}>
+            <View style={styles.settledIconContainer}>
+              <Text style={styles.settledIcon}>✅</Text>
+            </View>
+            <Text style={styles.settledTitle}>All Settled Up!</Text>
+            <Text style={styles.settledDescription}>
+              Everyone is square. No payments needed.
+            </Text>
           </View>
         ) : (
-          <View style={styles.settlementsList}>
+          <View style={styles.settlementsContainer}>
             {settlements.map((s, idx) => (
-              <View key={idx} style={styles.settlementCard}>
-                <View style={styles.settlementUser}>
-                  <Text style={styles.settlementAvatar}>{getTravelerAvatar(s.from)}</Text>
+              <View key={idx} style={styles.settlementRow}>
+                <View style={styles.settlementFromSection}>
+                  <View style={styles.settlementAvatarCircle}>
+                    <Text style={styles.settlementAvatarText}>{getTravelerAvatar(s.from)}</Text>
+                  </View>
                   <Text style={styles.settlementFromName}>{s.fromName}</Text>
                 </View>
-                <View style={styles.settlementArrowBox}>
-                  <Text style={styles.settlementArrow}>→</Text>
-                  <Text style={styles.settlementAmount}>{safeFormatCurrency(s.amount)}</Text>
+                
+                <View style={styles.settlementMiddle}>
+                  <View style={styles.settlementArrowLine}>
+                    <View style={styles.settlementDot} />
+                    <View style={styles.settlementLine} />
+                    <View style={styles.settlementArrowHead} />
+                  </View>
+                  <View style={styles.settlementAmountBubble}>
+                    <Text style={styles.settlementAmountText}>{safeFormatCurrency(s.amount)}</Text>
+                  </View>
                 </View>
-                <View style={styles.settlementUser}>
-                  <Text style={styles.settlementAvatar}>{getTravelerAvatar(s.to)}</Text>
+                
+                <View style={styles.settlementToSection}>
+                  <View style={[styles.settlementAvatarCircle, styles.settlementAvatarCircleTo]}>
+                    <Text style={styles.settlementAvatarText}>{getTravelerAvatar(s.to)}</Text>
+                  </View>
                   <Text style={styles.settlementToName}>{s.toName}</Text>
                 </View>
               </View>
             ))}
           </View>
         )}
+
+        {/* Quick Tips */}
+        <View style={styles.balanceTipsCard}>
+          <Text style={styles.balanceTipsTitle}>💡 Quick Tip</Text>
+          <Text style={styles.balanceTipsText}>
+            Tap on expenses to see who paid and how it was split among the group.
+          </Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   // Render Transactions Tab
   const renderTransactionsTab = () => (
@@ -444,12 +543,39 @@ export default function ExpenseScreen() {
               : 'Track your spending'}
           </Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
-          <Text style={styles.addBtnText}>+ Add</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {/* Debug Button - Long press to add test participants */}
+          <TouchableOpacity 
+            style={[styles.addBtn, { backgroundColor: colors.cardLight }]} 
+            onLongPress={addTestParticipants}
+            onPress={() => setShowDebug(!showDebug)}
+          >
+            <Text style={[styles.addBtnText, { color: colors.text }]}>🔧</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+            <Text style={styles.addBtnText}>+ Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Debug Info Card */}
+        {showDebug && (
+          <View style={styles.debugCard}>
+            <Text style={styles.debugTitle}>🔧 Debug Info</Text>
+            <Text style={styles.debugText}>Trip Type: {tripInfo?.tripType || 'Not set'}</Text>
+            <Text style={styles.debugText}>Participants: {tripInfo?.participants?.length || 0}</Text>
+            <Text style={styles.debugText}>Is Multi-User: {isMultiUser ? 'YES ✅' : 'NO ❌'}</Text>
+            <Text style={styles.debugText}>Travelers: {travelers.map(t => t.name).join(', ')}</Text>
+            <TouchableOpacity 
+              style={styles.debugBtn} 
+              onPress={addTestParticipants}
+            >
+              <Text style={styles.debugBtnText}>+ Add Test Participants</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Budget Summary Card */}
         <View style={styles.budgetCard}>
           <View style={styles.budgetTop}>
@@ -536,7 +662,7 @@ export default function ExpenseScreen() {
         <Text style={styles.fabText}>Add</Text>
       </TouchableOpacity>
 
-      {/* Add Expense Modal */}
+      {/* Add Expense Modal - Redesigned */}
       <Modal 
         animationType="slide" 
         transparent 
@@ -549,11 +675,16 @@ export default function ExpenseScreen() {
             
             {/* Modal Header */}
             <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>New Expense</Text>
-                {isMultiUser && (
-                  <Text style={styles.modalSubtitle}>👥 {travelers.length} travelers</Text>
-                )}
+              <View style={styles.modalHeaderLeft}>
+                <View style={styles.modalIconCircle}>
+                  <Text style={styles.modalIconText}>💸</Text>
+                </View>
+                <View>
+                  <Text style={styles.modalTitle}>Add Expense</Text>
+                  <Text style={styles.modalSubtitle}>
+                    {isMultiUser ? `Split with ${travelers.length} travelers` : 'Track your spending'}
+                  </Text>
+                </View>
               </View>
               <TouchableOpacity 
                 onPress={() => { setModalVisible(false); resetNewExpense(); }} 
@@ -563,36 +694,65 @@ export default function ExpenseScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* Amount Input */}
-              <View style={styles.amountBox}>
-                <Text style={styles.amountLabel}>Amount</Text>
-                <View style={styles.amountRow}>
-                  <Text style={styles.currencySymbol}>{currency.symbol}</Text>
+            <ScrollView 
+              showsVerticalScrollIndicator={false} 
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              {/* Amount Section - Hero Style */}
+              <View style={styles.amountSection}>
+                <Text style={styles.amountSectionLabel}>How much?</Text>
+                <View style={styles.amountInputContainer}>
+                  <Text style={styles.amountCurrency}>{currency.symbol}</Text>
                   <TextInput
-                    style={styles.amountInput}
+                    style={styles.amountInputField}
                     placeholder="0"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="decimal-pad"
                     value={newExpense.amount}
                     onChangeText={(t) => setNewExpense({...newExpense, amount: t.replace(/[^0-9.]/g, '')})}
+                    autoFocus={false}
                   />
                 </View>
                 {isMultiUser && splitPreview && (
-                  <View style={styles.splitPreview}>
-                    <Text style={styles.splitPreviewText}>
-                      ⚖️ {safeFormatCurrency(splitPreview.perPerson)} per person
+                  <View style={styles.amountSplitBadge}>
+                    <Text style={styles.amountSplitText}>
+                      ⚖️ {safeFormatCurrency(splitPreview.perPerson)} × {splitPreview.selectedCount} people
                     </Text>
                   </View>
                 )}
               </View>
 
-              {/* Description */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description *</Text>
+              {/* Quick Info Cards */}
+              <View style={styles.quickInfoRow}>
+                <View style={styles.quickInfoCard}>
+                  <Text style={styles.quickInfoEmoji}>📅</Text>
+                  <Text style={styles.quickInfoValue}>{newExpense.date}</Text>
+                  <Text style={styles.quickInfoLabel}>Date</Text>
+                </View>
+                <View style={styles.quickInfoCard}>
+                  <Text style={styles.quickInfoEmoji}>{getCategoryInfo(newExpense.category).emoji}</Text>
+                  <Text style={styles.quickInfoValue}>{getCategoryInfo(newExpense.category).label}</Text>
+                  <Text style={styles.quickInfoLabel}>Category</Text>
+                </View>
+                {isMultiUser && (
+                  <View style={styles.quickInfoCard}>
+                    <Text style={styles.quickInfoEmoji}>{getTravelerAvatar(newExpense.paidBy)}</Text>
+                    <Text style={styles.quickInfoValue}>{getTravelerName(newExpense.paidBy)}</Text>
+                    <Text style={styles.quickInfoLabel}>Paid by</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Description Input */}
+              <View style={styles.formSection}>
+                <View style={styles.formSectionHeader}>
+                  <Text style={styles.formSectionIcon}>📝</Text>
+                  <Text style={styles.formSectionTitle}>Description</Text>
+                </View>
                 <TextInput
-                  style={styles.input}
-                  placeholder="What did you spend on?"
+                  style={styles.descriptionInput}
+                  placeholder="What was this expense for?"
                   placeholderTextColor={colors.textMuted}
                   value={newExpense.title}
                   onChangeText={(t) => setNewExpense({...newExpense, title: t})}
@@ -600,85 +760,128 @@ export default function ExpenseScreen() {
               </View>
 
               {/* Category Selection */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Category</Text>
-                <View style={styles.catGrid}>
-                  {CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat.key}
-                      style={[
-                        styles.catItem, 
-                        newExpense.category === cat.key && { backgroundColor: cat.color, borderColor: cat.color }
-                      ]}
-                      onPress={() => setNewExpense({...newExpense, category: cat.key})}
-                    >
-                      <Text style={styles.catEmoji}>{cat.emoji}</Text>
-                      <Text style={[styles.catText, newExpense.category === cat.key && { color: '#FFF' }]}>
-                        {cat.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+              <View style={styles.formSection}>
+                <View style={styles.formSectionHeader}>
+                  <Text style={styles.formSectionIcon}>🏷️</Text>
+                  <Text style={styles.formSectionTitle}>Category</Text>
+                </View>
+                <View style={styles.categoryGrid}>
+                  {CATEGORIES.map((cat) => {
+                    const isSelected = newExpense.category === cat.key;
+                    return (
+                      <TouchableOpacity
+                        key={cat.key}
+                        style={[
+                          styles.categoryCard,
+                          isSelected && { backgroundColor: cat.color, borderColor: cat.color }
+                        ]}
+                        onPress={() => setNewExpense({...newExpense, category: cat.key})}
+                      >
+                        <Text style={styles.categoryCardEmoji}>{cat.emoji}</Text>
+                        <Text style={[styles.categoryCardLabel, isSelected && { color: '#FFF' }]}>
+                          {cat.label}
+                        </Text>
+                        {isSelected && (
+                          <View style={styles.categoryCheckmark}>
+                            <Text style={styles.categoryCheckmarkText}>✓</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
               {/* Split Options - Only for multi-user trips */}
               {isMultiUser && travelers.length > 1 && (
-                <View style={styles.splitSection}>
-                  <Text style={styles.splitSectionTitle}>👥 Split Details</Text>
-
-                  {/* Paid By */}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Who Paid?</Text>
-                    <View style={styles.paidByGrid}>
-                      {travelers.map((t) => (
-                        <TouchableOpacity
-                          key={t.id}
-                          style={[styles.paidByItem, newExpense.paidBy === t.id && styles.paidByItemActive]}
-                          onPress={() => setNewExpense({...newExpense, paidBy: t.id})}
-                        >
-                          <Text style={styles.paidByAvatar}>{t.avatar || '👤'}</Text>
-                          <Text style={[styles.paidByName, newExpense.paidBy === t.id && styles.paidByNameActive]}>
-                            {t.name}
-                          </Text>
-                          {newExpense.paidBy === t.id && <Text style={styles.paidByCheck}>✓</Text>}
-                        </TouchableOpacity>
-                      ))}
+                <View style={styles.splitOptionsSection}>
+                  <View style={styles.splitOptionsHeader}>
+                    <View style={styles.splitOptionsHeaderLeft}>
+                      <Text style={styles.splitOptionsIcon}>👥</Text>
+                      <View>
+                        <Text style={styles.splitOptionsTitle}>Split Options</Text>
+                        <Text style={styles.splitOptionsSubtitle}>{travelers.length} people in this trip</Text>
+                      </View>
                     </View>
                   </View>
 
-                  {/* Split Type */}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>How to Split?</Text>
-                    <View style={styles.splitTypeRow}>
+                  {/* Paid By Selection */}
+                  <View style={styles.splitSubSection}>
+                    <Text style={styles.splitSubLabel}>Who paid?</Text>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.paidByScroll}
+                    >
+                      {travelers.map((t) => {
+                        const isSelected = newExpense.paidBy === t.id;
+                        return (
+                          <TouchableOpacity
+                            key={t.id}
+                            style={[styles.paidByCard, isSelected && styles.paidByCardActive]}
+                            onPress={() => setNewExpense({...newExpense, paidBy: t.id})}
+                          >
+                            <View style={[styles.paidByAvatarCircle, isSelected && styles.paidByAvatarCircleActive]}>
+                              <Text style={styles.paidByAvatarEmoji}>{t.avatar || '👤'}</Text>
+                            </View>
+                            <Text style={[styles.paidByCardName, isSelected && styles.paidByCardNameActive]}>
+                              {t.name}
+                            </Text>
+                            {isSelected && (
+                              <View style={styles.paidByCheckBadge}>
+                                <Text style={styles.paidByCheckText}>✓</Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {/* Split Type Selection */}
+                  <View style={styles.splitSubSection}>
+                    <Text style={styles.splitSubLabel}>How to split?</Text>
+                    <View style={styles.splitTypeCards}>
                       {[
-                        { key: 'equal', icon: '⚖️', label: 'Equal' },
-                        { key: 'custom', icon: '✏️', label: 'Custom' },
-                        { key: 'full', icon: '👤', label: 'No Split' },
-                      ].map((type) => (
-                        <TouchableOpacity
-                          key={type.key}
-                          style={[styles.splitTypeBtn, newExpense.splitType === type.key && styles.splitTypeBtnActive]}
-                          onPress={() => setNewExpense({...newExpense, splitType: type.key})}
-                        >
-                          <Text style={styles.splitTypeIcon}>{type.icon}</Text>
-                          <Text style={[styles.splitTypeLabel, newExpense.splitType === type.key && styles.splitTypeLabelActive]}>
-                            {type.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                        { key: 'equal', icon: '⚖️', label: 'Equal', desc: 'Split evenly' },
+                        { key: 'custom', icon: '✏️', label: 'Custom', desc: 'Set amounts' },
+                        { key: 'full', icon: '👤', label: 'Single', desc: 'One pays all' },
+                      ].map((type) => {
+                        const isSelected = newExpense.splitType === type.key;
+                        return (
+                          <TouchableOpacity
+                            key={type.key}
+                            style={[styles.splitTypeCard, isSelected && styles.splitTypeCardActive]}
+                            onPress={() => setNewExpense({...newExpense, splitType: type.key})}
+                          >
+                            <Text style={styles.splitTypeCardIcon}>{type.icon}</Text>
+                            <Text style={[styles.splitTypeCardLabel, isSelected && styles.splitTypeCardLabelActive]}>
+                              {type.label}
+                            </Text>
+                            <Text style={[styles.splitTypeCardDesc, isSelected && styles.splitTypeCardDescActive]}>
+                              {type.desc}
+                            </Text>
+                            {isSelected && (
+                              <View style={styles.splitTypeCheckCircle}>
+                                <Text style={styles.splitTypeCheckText}>✓</Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
 
                   {/* Beneficiaries Selection */}
                   {newExpense.splitType !== 'full' && (
-                    <View style={styles.inputGroup}>
-                      <View style={styles.beneficiariesHeader}>
-                        <Text style={styles.inputLabel}>Split Among</Text>
-                        <TouchableOpacity style={styles.selectAllBtn} onPress={selectAllBeneficiaries}>
-                          <Text style={styles.selectAllText}>Select All</Text>
+                    <View style={styles.splitSubSection}>
+                      <View style={styles.splitSubLabelRow}>
+                        <Text style={styles.splitSubLabel}>Split among</Text>
+                        <TouchableOpacity onPress={selectAllBeneficiaries} style={styles.selectAllChip}>
+                          <Text style={styles.selectAllChipText}>Select All</Text>
                         </TouchableOpacity>
                       </View>
-                      <View style={styles.beneficiariesGrid}>
+                      <View style={styles.beneficiariesCards}>
                         {travelers.map((t) => {
                           const isSelected = newExpense.beneficiaries?.includes(t.id);
                           const equalAmount = newExpense.splitType === 'equal' && newExpense.amount && isSelected
@@ -688,31 +891,38 @@ export default function ExpenseScreen() {
                           return (
                             <TouchableOpacity
                               key={t.id}
-                              style={[styles.beneficiaryItem, isSelected && styles.beneficiaryItemActive]}
+                              style={[styles.beneficiaryCard, isSelected && styles.beneficiaryCardActive]}
                               onPress={() => toggleBeneficiary(t.id)}
                             >
-                              <View style={[styles.beneficiaryCheck, isSelected && styles.beneficiaryCheckActive]}>
-                                {isSelected && <Text style={styles.beneficiaryCheckText}>✓</Text>}
-                              </View>
-                              <Text style={styles.beneficiaryAvatar}>{t.avatar || '👤'}</Text>
-                              <View style={styles.beneficiaryInfo}>
-                                <Text style={[styles.beneficiaryName, isSelected && styles.beneficiaryNameActive]}>
+                              <View style={styles.beneficiaryCardLeft}>
+                                <View style={[styles.beneficiaryCheckBox, isSelected && styles.beneficiaryCheckBoxActive]}>
+                                  {isSelected && <Text style={styles.beneficiaryCheckIcon}>✓</Text>}
+                                </View>
+                                <Text style={styles.beneficiaryCardAvatar}>{t.avatar || '👤'}</Text>
+                                <Text style={[styles.beneficiaryCardName, isSelected && styles.beneficiaryCardNameActive]}>
                                   {t.name}
                                 </Text>
+                              </View>
+                              <View style={styles.beneficiaryCardRight}>
                                 {newExpense.splitType === 'equal' && isSelected && equalAmount > 0 && (
-                                  <Text style={styles.beneficiaryAmount}>{safeFormatCurrency(equalAmount)}</Text>
+                                  <View style={styles.beneficiaryAmountBadge}>
+                                    <Text style={styles.beneficiaryAmountText}>{safeFormatCurrency(equalAmount)}</Text>
+                                  </View>
+                                )}
+                                {newExpense.splitType === 'custom' && isSelected && (
+                                  <View style={styles.customSplitInputBox}>
+                                    <Text style={styles.customSplitCurrency}>{currency.symbol}</Text>
+                                    <TextInput
+                                      style={styles.customSplitInput}
+                                      placeholder="0"
+                                      placeholderTextColor={colors.textMuted}
+                                      keyboardType="decimal-pad"
+                                      value={newExpense.splitAmounts?.[t.id]?.toString() || ''}
+                                      onChangeText={(val) => updateCustomSplit(t.id, val)}
+                                    />
+                                  </View>
                                 )}
                               </View>
-                              {newExpense.splitType === 'custom' && isSelected && (
-                                <TextInput
-                                  style={styles.beneficiaryInput}
-                                  placeholder="0"
-                                  placeholderTextColor={colors.textMuted}
-                                  keyboardType="decimal-pad"
-                                  value={newExpense.splitAmounts?.[t.id]?.toString() || ''}
-                                  onChangeText={(val) => updateCustomSplit(t.id, val)}
-                                />
-                              )}
                             </TouchableOpacity>
                           );
                         })}
@@ -722,29 +932,69 @@ export default function ExpenseScreen() {
                 </View>
               )}
 
-              {/* Notes */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Notes (optional)</Text>
+              {/* Notes Section */}
+              <View style={styles.formSection}>
+                <View style={styles.formSectionHeader}>
+                  <Text style={styles.formSectionIcon}>💬</Text>
+                  <Text style={styles.formSectionTitle}>Notes</Text>
+                  <Text style={styles.formSectionOptional}>(Optional)</Text>
+                </View>
                 <TextInput
-                  style={[styles.input, styles.notesInput]}
-                  placeholder="Add details..."
+                  style={styles.notesTextarea}
+                  placeholder="Add any additional details..."
                   placeholderTextColor={colors.textMuted}
                   value={newExpense.notes}
                   onChangeText={(t) => setNewExpense({...newExpense, notes: t})}
                   multiline
+                  numberOfLines={3}
                 />
               </View>
 
+              {/* Summary Card */}
+              {newExpense.amount && newExpense.title && (
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryCardTitle}>📋 Summary</Text>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Amount</Text>
+                    <Text style={styles.summaryValue}>{safeFormatCurrency(parseFloat(newExpense.amount) || 0)}</Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Description</Text>
+                    <Text style={styles.summaryValue} numberOfLines={1}>{newExpense.title}</Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Category</Text>
+                    <Text style={styles.summaryValue}>{getCategoryInfo(newExpense.category).emoji} {getCategoryInfo(newExpense.category).label}</Text>
+                  </View>
+                  {isMultiUser && (
+                    <>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Paid by</Text>
+                        <Text style={styles.summaryValue}>{getTravelerAvatar(newExpense.paidBy)} {getTravelerName(newExpense.paidBy)}</Text>
+                      </View>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Split</Text>
+                        <Text style={styles.summaryValue}>
+                          {newExpense.splitType === 'equal' ? `Equal (${newExpense.beneficiaries?.length || 0} people)` :
+                           newExpense.splitType === 'custom' ? 'Custom amounts' : 'Single payer'}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
+
               {/* Submit Button */}
               <TouchableOpacity
-                style={[styles.submitBtn, (!newExpense.title.trim() || !newExpense.amount) && styles.submitBtnDisabled]}
+                style={[styles.submitButton, (!newExpense.title.trim() || !newExpense.amount) && styles.submitButtonDisabled]}
                 onPress={handleAddExpense}
                 disabled={!newExpense.title.trim() || !newExpense.amount}
               >
-                <Text style={styles.submitBtnText}>✓ Add Expense</Text>
+                <Text style={styles.submitButtonIcon}>✓</Text>
+                <Text style={styles.submitButtonText}>Add Expense</Text>
               </TouchableOpacity>
 
-              <View style={{ height: 40 }} />
+              <View style={{ height: 50 }} />
             </ScrollView>
           </View>
         </View>
@@ -756,15 +1006,11 @@ export default function ExpenseScreen() {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { paddingBottom: 20 },
-
-  // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
   headerTitle: { color: colors.text, fontSize: 24, fontWeight: 'bold' },
   headerSubtitle: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   addBtn: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
   addBtnText: { color: colors.bg, fontSize: 14, fontWeight: 'bold' },
-
-  // Budget Card
   budgetCard: { marginHorizontal: 20, backgroundColor: colors.card, borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
   budgetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   budgetMain: {},
@@ -781,8 +1027,6 @@ const createStyles = (colors) => StyleSheet.create({
   statValue: { color: colors.text, fontSize: 14, fontWeight: 'bold' },
   statLabel: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
   statDivider: { width: 1, backgroundColor: colors.primaryBorder },
-
-  // Tab Switcher
   tabSwitcher: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, backgroundColor: colors.card, borderRadius: 14, padding: 4, borderWidth: 1, borderColor: colors.primaryBorder },
   tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10 },
   tabBtnActive: { backgroundColor: colors.primary },
@@ -792,38 +1036,65 @@ const createStyles = (colors) => StyleSheet.create({
   tabBadge: { backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
   tabBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
 
-  // Balances Tab
-  balancesTabContent: { paddingHorizontal: 20 },
-  sectionCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  sectionCardTitle: { color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: 12 },
-  travelersList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  travelerChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
-  travelerAvatar: { fontSize: 18, marginRight: 6 },
-  travelerName: { color: colors.text, fontSize: 13, fontWeight: '500' },
-  balancesList: { gap: 10 },
-  balanceCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.cardLight, padding: 14, borderRadius: 12 },
-  balanceCardLeft: { flexDirection: 'row', alignItems: 'center' },
-  balanceAvatar: { fontSize: 24, marginRight: 12 },
-  balanceName: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  balancePaid: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
-  balanceCardRight: { alignItems: 'flex-end' },
-  balanceAmount: { fontSize: 16, fontWeight: 'bold' },
-  balanceStatus: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
-  settledCard: { alignItems: 'center', paddingVertical: 20 },
-  settledEmoji: { fontSize: 40, marginBottom: 8 },
-  settledTitle: { color: '#10B981', fontSize: 18, fontWeight: 'bold' },
-  settledText: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
-  settlementsList: { gap: 10 },
-  settlementCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.cardLight, padding: 12, borderRadius: 12 },
-  settlementUser: { alignItems: 'center', flex: 1 },
-  settlementAvatar: { fontSize: 24, marginBottom: 4 },
-  settlementFromName: { color: '#EF4444', fontSize: 12, fontWeight: '600' },
-  settlementToName: { color: '#10B981', fontSize: 12, fontWeight: '600' },
-  settlementArrowBox: { alignItems: 'center', paddingHorizontal: 8 },
-  settlementArrow: { color: colors.primary, fontSize: 20 },
-  settlementAmount: { color: colors.primary, fontSize: 14, fontWeight: 'bold', marginTop: 2 },
+  balancesTabContent: { paddingHorizontal: 20, paddingTop: 8 },
+  balanceSummaryCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: colors.primaryBorder },
+  balanceSummaryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  balanceSummaryEmoji: { fontSize: 32, marginRight: 14 },
+  balanceSummaryTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
+  balanceSummarySubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  balanceSummaryStats: { flexDirection: 'row', backgroundColor: colors.cardLight, borderRadius: 14, padding: 16 },
+  balanceSummaryStat: { flex: 1, alignItems: 'center' },
+  balanceSummaryStatValue: { fontSize: 16, fontWeight: 'bold', color: colors.text },
+  balanceSummaryStatLabel: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
+  balanceSummaryDivider: { width: 1, backgroundColor: colors.primaryBorder, marginHorizontal: 8 },
+  balanceSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 8 },
+  balanceSectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  balanceCardsContainer: { gap: 12, marginBottom: 20 },
+  balanceUserCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder },
+  balanceUserHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  balanceUserInfo: { flexDirection: 'row', alignItems: 'center' },
+  balanceUserAvatarContainer: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.cardLight, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  balanceUserAvatar: { fontSize: 24 },
+  balanceUserName: { fontSize: 15, fontWeight: '600', color: colors.text },
+  balanceUserContribution: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  balanceStatusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  balanceStatusText: { fontSize: 11, fontWeight: '600' },
+  balanceUserStats: { flexDirection: 'row', backgroundColor: colors.cardLight, borderRadius: 12, padding: 12, marginBottom: 12 },
+  balanceUserStatItem: { flex: 1, alignItems: 'center' },
+  balanceUserStatLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 4 },
+  balanceUserStatValue: { fontSize: 14, fontWeight: '600', color: colors.text },
+  balanceUserStatValueHighlight: { fontSize: 15, fontWeight: 'bold' },
+  balanceProgressContainer: { marginTop: 4 },
+  balanceProgressTrack: { height: 4, backgroundColor: colors.cardLight, borderRadius: 2, overflow: 'hidden' },
+  balanceProgressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
+  settlementCountBadge: { backgroundColor: colors.primaryMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  settlementCountText: { fontSize: 11, fontWeight: '600', color: colors.primary },
+  settledContainer: { backgroundColor: colors.card, borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: 20 },
+  settledIconContainer: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#10B98115', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  settledIcon: { fontSize: 32 },
+  settledTitle: { fontSize: 18, fontWeight: 'bold', color: '#10B981', marginBottom: 8 },
+  settledDescription: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
+  settlementsContainer: { gap: 12, marginBottom: 20 },
+  settlementRow: { backgroundColor: colors.card, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  settlementFromSection: { flex: 1, alignItems: 'center' },
+  settlementToSection: { flex: 1, alignItems: 'center' },
+  settlementAvatarCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#EF444415', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  settlementAvatarCircleTo: { backgroundColor: '#10B98115' },
+  settlementAvatarText: { fontSize: 24 },
+  settlementFromName: { fontSize: 13, fontWeight: '600', color: '#EF4444' },
+  settlementToName: { fontSize: 13, fontWeight: '600', color: '#10B981' },
+  settlementMiddle: { flex: 1.2, alignItems: 'center', justifyContent: 'center' },
+  settlementArrowLine: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 8 },
+  settlementDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted },
+  settlementLine: { flex: 1, height: 2, backgroundColor: colors.textMuted },
+  settlementArrowHead: { width: 0, height: 0, borderLeftWidth: 8, borderTopWidth: 5, borderBottomWidth: 5, borderLeftColor: colors.textMuted, borderTopColor: 'transparent', borderBottomColor: 'transparent' },
+  settlementAmountBubble: { backgroundColor: colors.primary, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  settlementAmountText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
+  balanceTipsCard: { backgroundColor: colors.cardLight, borderRadius: 14, padding: 16, marginBottom: 20, borderLeftWidth: 3, borderLeftColor: colors.primary },
+  balanceTipsTitle: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 },
+  balanceTipsText: { fontSize: 12, color: colors.textMuted, lineHeight: 18 },
 
-  // Transactions Tab
+  // Transactions Tab styles
   filterScroll: { marginBottom: 12 },
   filterContent: { paddingHorizontal: 20, gap: 8 },
   filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primaryBorder },
@@ -863,77 +1134,580 @@ const createStyles = (colors) => StyleSheet.create({
   fabIcon: { color: colors.bg, fontSize: 20, fontWeight: 'bold', marginRight: 6 },
   fabText: { color: colors.bg, fontSize: 15, fontWeight: 'bold' },
 
-  // Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, maxHeight: '92%' },
-  modalHandle: { width: 40, height: 4, backgroundColor: colors.textMuted, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  modalTitle: { color: colors.text, fontSize: 22, fontWeight: 'bold' },
-  modalSubtitle: { color: colors.primary, fontSize: 13, marginTop: 4 },
-  modalClose: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.cardLight, justifyContent: 'center', alignItems: 'center' },
-  modalCloseText: { color: colors.textMuted, fontSize: 18 },
+  // Debug styles
+  debugCard: { marginHorizontal: 20, marginBottom: 16, backgroundColor: '#FEF3C7', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#F59E0B' },
+  debugTitle: { fontSize: 14, fontWeight: 'bold', color: '#92400E', marginBottom: 8 },
+  debugText: { fontSize: 12, color: '#78350F', marginBottom: 4 },
+  debugBtn: { marginTop: 12, backgroundColor: '#F59E0B', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center' },
+  debugBtnText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
 
-  // Amount Box
-  amountBox: { backgroundColor: colors.cardLight, borderRadius: 16, padding: 20, alignItems: 'center', marginBottom: 16 },
-  amountLabel: { color: colors.textMuted, fontSize: 13, marginBottom: 8 },
-  amountRow: { flexDirection: 'row', alignItems: 'center' },
-  currencySymbol: { color: colors.text, fontSize: 32, fontWeight: 'bold' },
-  amountInput: { color: colors.text, fontSize: 40, fontWeight: 'bold', minWidth: 80, textAlign: 'center', padding: 0 },
-  splitPreview: { marginTop: 12, backgroundColor: colors.primaryMuted, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-  splitPreviewText: { color: colors.primary, fontSize: 13, fontWeight: '500' },
+  // ========== REDESIGNED MODAL STYLES ==========
+  modalOverlay: { 
+    flex: 1, 
+    justifyContent: 'flex-end', 
+    backgroundColor: 'rgba(0,0,0,0.5)' 
+  },
+  modalContent: { 
+    backgroundColor: colors.bg, 
+    borderTopLeftRadius: 32, 
+    borderTopRightRadius: 32, 
+    maxHeight: '94%',
+    paddingTop: 8,
+  },
+  modalHandle: { 
+    width: 48, 
+    height: 5, 
+    backgroundColor: colors.textMuted + '50', 
+    borderRadius: 3, 
+    alignSelf: 'center', 
+    marginBottom: 16 
+  },
+  modalScrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  modalHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primaryBorder,
+    marginBottom: 20,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primaryMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  modalIconText: {
+    fontSize: 24,
+  },
+  modalTitle: { 
+    color: colors.text, 
+    fontSize: 20, 
+    fontWeight: 'bold' 
+  },
+  modalSubtitle: { 
+    color: colors.textMuted, 
+    fontSize: 13, 
+    marginTop: 2 
+  },
+  modalClose: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    backgroundColor: colors.cardLight, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  modalCloseText: { 
+    color: colors.textMuted, 
+    fontSize: 20,
+    fontWeight: '300',
+  },
 
-  // Inputs
-  inputGroup: { marginBottom: 16 },
-  inputLabel: { color: colors.textMuted, fontSize: 13, marginBottom: 8, fontWeight: '500' },
-  input: { backgroundColor: colors.cardLight, color: colors.text, padding: 14, borderRadius: 12, fontSize: 15, borderWidth: 1, borderColor: colors.primaryBorder },
-  notesInput: { height: 80, textAlignVertical: 'top' },
+  // Amount Section
+  amountSection: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  amountSectionLabel: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginBottom: 12,
+  },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  amountCurrency: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  amountInputField: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: colors.text,
+    minWidth: 100,
+    textAlign: 'center',
+    padding: 0,
+  },
+  amountSplitBadge: {
+    marginTop: 16,
+    backgroundColor: colors.primaryMuted,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  amountSplitText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+
+  // Quick Info Row
+  quickInfoRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  quickInfoCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  quickInfoEmoji: {
+    fontSize: 20,
+    marginBottom: 6,
+  },
+  quickInfoValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  quickInfoLabel: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+
+  // Form Sections
+  formSection: {
+    marginBottom: 20,
+  },
+  formSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  formSectionIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  formSectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  formSectionOptional: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginLeft: 6,
+  },
+  descriptionInput: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 15,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
 
   // Category Grid
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.primaryBorder },
-  catEmoji: { fontSize: 16, marginRight: 6 },
-  catText: { color: colors.text, fontSize: 12, fontWeight: '500' },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  categoryCard: {
+    width: (width - 60) / 3,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder,
+    position: 'relative',
+  },
+  categoryCardEmoji: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  categoryCardLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  categoryCheckmark: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  categoryCheckmarkText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 
-  // Split Section
-  splitSection: { backgroundColor: colors.cardLight, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.primary + '30' },
-  splitSectionTitle: { color: colors.text, fontSize: 16, fontWeight: 'bold', marginBottom: 16 },
+  // Split Options Section
+  splitOptionsSection: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  splitOptionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primaryBorder,
+  },
+  splitOptionsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  splitOptionsIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  splitOptionsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  splitOptionsSubtitle: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
 
-  // Paid By
-  paidByGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  paidByItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 2, borderColor: colors.primaryBorder, minWidth: '45%', flex: 1 },
-  paidByItemActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  paidByAvatar: { fontSize: 20, marginRight: 10 },
-  paidByName: { color: colors.text, fontSize: 14, fontWeight: '500', flex: 1 },
-  paidByNameActive: { color: colors.bg },
-  paidByCheck: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
+  // Split Sub Sections
+  splitSubSection: {
+    marginBottom: 20,
+  },
+  splitSubLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: 12,
+  },
+  splitSubLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  selectAllChip: {
+    backgroundColor: colors.primaryMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  selectAllChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
 
-  // Split Type
-  splitTypeRow: { flexDirection: 'row', gap: 8 },
-  splitTypeBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.bg, paddingVertical: 14, borderRadius: 12, borderWidth: 2, borderColor: colors.primaryBorder },
-  splitTypeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  splitTypeIcon: { fontSize: 20, marginBottom: 4 },
-  splitTypeLabel: { color: colors.text, fontSize: 12, fontWeight: '600' },
-  splitTypeLabelActive: { color: colors.bg },
+  // Paid By Cards
+  paidByScroll: {
+    gap: 10,
+  },
+  paidByCard: {
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: colors.cardLight,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    minWidth: 80,
+  },
+  paidByCardActive: {
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primary,
+  },
+  paidByAvatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.bg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  paidByAvatarCircleActive: {
+    backgroundColor: colors.primary,
+  },
+  paidByAvatarEmoji: {
+    fontSize: 22,
+  },
+  paidByCardName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  paidByCardNameActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  paidByCheckBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paidByCheckText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
 
-  // Beneficiaries
-  beneficiariesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  selectAllBtn: { backgroundColor: colors.primaryMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  selectAllText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
-  beneficiariesGrid: { gap: 8 },
-  beneficiaryItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, padding: 12, borderRadius: 12, borderWidth: 2, borderColor: colors.primaryBorder },
-  beneficiaryItemActive: { borderColor: colors.primary },
-  beneficiaryCheck: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.primaryBorder, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  beneficiaryCheckActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  beneficiaryCheckText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-  beneficiaryAvatar: { fontSize: 20, marginRight: 10 },
-  beneficiaryInfo: { flex: 1 },
-  beneficiaryName: { color: colors.text, fontSize: 14 },
-  beneficiaryNameActive: { fontWeight: '600' },
-  beneficiaryAmount: { color: colors.primary, fontSize: 12, fontWeight: '600', marginTop: 2 },
-  beneficiaryInput: { backgroundColor: colors.cardLight, color: colors.text, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, width: 80, textAlign: 'right', fontSize: 14, fontWeight: '600', borderWidth: 1, borderColor: colors.primaryBorder },
+  // Split Type Cards
+  splitTypeCards: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  splitTypeCard: {
+    flex: 1,
+    backgroundColor: colors.cardLight,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    position: 'relative',
+  },
+  splitTypeCardActive: {
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primary,
+  },
+  splitTypeCardIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  splitTypeCardLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  splitTypeCardLabelActive: {
+    color: colors.primary,
+  },
+  splitTypeCardDesc: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  splitTypeCardDescActive: {
+    color: colors.primary,
+  },
+  splitTypeCheckCircle: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  splitTypeCheckText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+
+  // Beneficiary Cards
+  beneficiariesCards: {
+    gap: 10,
+  },
+  beneficiaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.cardLight,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  beneficiaryCardActive: {
+    backgroundColor: colors.bg,
+    borderColor: colors.primary,
+  },
+  beneficiaryCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  beneficiaryCheckBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  beneficiaryCheckBoxActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  beneficiaryCheckIcon: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  beneficiaryCardAvatar: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  beneficiaryCardName: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  beneficiaryCardNameActive: {
+    fontWeight: '600',
+  },
+  beneficiaryCardRight: {
+    alignItems: 'flex-end',
+  },
+  beneficiaryAmountBadge: {
+    backgroundColor: colors.primaryMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  beneficiaryAmountText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  customSplitInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  customSplitCurrency: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginRight: 4,
+  },
+  customSplitInput: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    minWidth: 50,
+    textAlign: 'right',
+    padding: 0,
+  },
+
+  // Notes Textarea
+  notesTextarea: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 14,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+
+  // Summary Card
+  summaryCard: {
+    backgroundColor: colors.cardLight,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+  },
+  summaryCardTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 14,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  summaryValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    maxWidth: '60%',
+    textAlign: 'right',
+  },
 
   // Submit Button
-  submitBtn: { backgroundColor: colors.primary, padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 8 },
-  submitBtnDisabled: { opacity: 0.5 },
-  submitBtnText: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
+  submitButton: {
+    flexDirection: 'row',
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    padding: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+    shadowOpacity: 0,
+  },
+  submitButtonIcon: {
+    fontSize: 18,
+    color: '#FFF',
+    marginRight: 8,
+  },
+  submitButtonText: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
 });
