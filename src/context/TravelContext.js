@@ -352,15 +352,76 @@ export function TravelProvider({ children }) {
     // Also load that trip's expenses, packing items, etc.
   };
 
+  // Auto-save trip to allTrips whenever tripInfo changes with a valid destination
+  React.useEffect(() => {
+    if (tripInfo && tripInfo.destination && tripInfo.startDate) {
+      const tripCode = tripInfo.tripCode || generateUniqueTripCode();
+      const tripId = tripInfo.id || `trip-${Date.now()}`;
+      
+      // Update tripInfo with ID and code if missing
+      if (!tripInfo.id || !tripInfo.tripCode) {
+        setTripInfo(prev => ({
+          ...prev,
+          id: tripId,
+          tripCode: tripCode,
+        }));
+      }
+      
+      // Save to allTrips
+      setAllTrips(prevTrips => {
+        const tripToSave = {
+          ...tripInfo,
+          id: tripId,
+          tripCode: tripCode,
+          totalExpenses: expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        const existingIndex = prevTrips.findIndex(t => 
+          t.id === tripId || 
+          (t.destination === tripInfo.destination && t.startDate === tripInfo.startDate)
+        );
+        
+        if (existingIndex >= 0) {
+          // Update existing trip
+          const updated = [...prevTrips];
+          updated[existingIndex] = { ...updated[existingIndex], ...tripToSave };
+          return updated;
+        } else {
+          // Add new trip
+          return [tripToSave, ...prevTrips];
+        }
+      });
+    }
+  }, [tripInfo.destination, tripInfo.startDate, tripInfo.endDate, tripInfo.tripType]);
+
+  // Updated setTripInfo wrapper to ensure trip code is generated
+  const updateTripInfo = (updater) => {
+    setTripInfo(prev => {
+      const newInfo = typeof updater === 'function' ? updater(prev) : updater;
+      
+      // Auto-generate trip code and ID if this is a new trip with destination
+      if (newInfo.destination && !newInfo.tripCode) {
+        newInfo.tripCode = generateUniqueTripCode();
+      }
+      if (newInfo.destination && !newInfo.id) {
+        newInfo.id = `trip-${Date.now()}`;
+      }
+      
+      return newInfo;
+    });
+  };
+
   // Make sure deleteExpense is included in the context value
   return (
     <TravelContext.Provider value={{
-      tripInfo, setTripInfo,
+      tripInfo, 
+      setTripInfo: updateTripInfo, // Use the wrapper instead of raw setTripInfo
       budget, setBudget,
       expenses,
       setExpenses,
       addExpense,
-      deleteExpense,  // Ensure this is included
+      deleteExpense,
       getTotalExpenses, getExpensesByCategory,
       packingItems, addPackingItem, togglePackingItem, deletePackingItem,
       itinerary, addItineraryItem, deleteItineraryItem, updateItineraryItem,

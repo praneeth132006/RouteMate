@@ -72,8 +72,42 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
     }
   };
 
-  // Build the display trips list - REAL DATA ONLY, NO TEST/MOCK DATA
-  const buildDisplayTrips = () => {
+  // Helper function to parse date string to Date object
+  const parseDate = (dateString) => {
+    if (!dateString) return null;
+    try {
+      const parts = dateString.split(' ');
+      if (parts.length < 3) return null;
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIndex = months.indexOf(parts[1]);
+      if (monthIndex === -1) return null;
+      const date = new Date(parseInt(parts[2]), monthIndex, parseInt(parts[0]));
+      return isNaN(date.getTime()) ? null : date;
+    } catch {
+      return null;
+    }
+  };
+
+  // Helper function to get days until trip starts (negative if trip has started/passed)
+  const getDaysUntilStart = (startDateString) => {
+    const startDate = parseDate(startDateString);
+    if (!startDate) return Infinity; // Put trips without dates at the end
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const diffTime = start.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  // Get current total expenses for memoization
+  const currentTotalExpenses = getTotalExpenses();
+
+  // Build the display trips list - SORTED BY NEAREST START DATE
+  const allDisplayTrips = useMemo(() => {
     let trips = [];
     
     // First, check if there's an active trip from context
@@ -82,7 +116,7 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
         ...tripInfo,
         id: tripInfo.id || 'current',
         tripCode: tripInfo.tripCode || null,
-        totalExpenses: getTotalExpenses(),
+        totalExpenses: currentTotalExpenses,
       };
       trips.push(currentTripData);
     }
@@ -98,12 +132,51 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
       });
     }
     
-    // Return only real trips - NO TEST DATA
+    // Sort trips by start date - nearest to current date first
+    if (trips.length > 1) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      trips.sort((a, b) => {
+        const startA = parseDate(a.startDate);
+        const startB = parseDate(b.startDate);
+        const endA = parseDate(a.endDate);
+        const endB = parseDate(b.endDate);
+        
+        // Handle null dates - put them at the end
+        if (!startA && !startB) return 0;
+        if (!startA) return 1;
+        if (!startB) return -1;
+        
+        // Check if trips are ongoing (started but not ended)
+        const isOngoingA = startA <= today && endA && endA >= today;
+        const isOngoingB = startB <= today && endB && endB >= today;
+        
+        // Ongoing trips come first
+        if (isOngoingA && !isOngoingB) return -1;
+        if (!isOngoingA && isOngoingB) return 1;
+        
+        // Calculate days until start
+        const daysUntilA = getDaysUntilStart(a.startDate);
+        const daysUntilB = getDaysUntilStart(b.startDate);
+        
+        // For upcoming trips (positive days), sort ascending (soonest first)
+        // For past trips (negative days), sort descending (most recent first)
+        if (daysUntilA >= 0 && daysUntilB >= 0) {
+          // Both upcoming - soonest first
+          return daysUntilA - daysUntilB;
+        } else if (daysUntilA < 0 && daysUntilB < 0) {
+          // Both past - most recent first
+          return daysUntilB - daysUntilA;
+        } else {
+          // One upcoming, one past - upcoming comes first
+          return daysUntilA >= 0 ? -1 : 1;
+        }
+      });
+    }
+    
     return trips;
-  };
-
-  // Use useMemo to prevent recalculation on every render
-  const allDisplayTrips = useMemo(() => buildDisplayTrips(), [hasActiveTrip, tripInfo, allTrips]);
+  }, [hasActiveTrip, tripInfo, allTrips, currentTotalExpenses]);
   
   // Separate current trip from upcoming trips
   const currentTrip = allDisplayTrips.length > 0 ? allDisplayTrips[0] : null;
@@ -336,6 +409,15 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
       </Pressable>
     );
   };
+
+  // DEBUG: Log what data we have
+  useEffect(() => {
+    console.log('=== WelcomeScreen Debug ===');
+    console.log('hasActiveTrip:', hasActiveTrip);
+    console.log('tripInfo:', JSON.stringify(tripInfo, null, 2));
+    console.log('allTrips:', JSON.stringify(allTrips, null, 2));
+    console.log('allTrips length:', allTrips?.length || 0);
+  }, [hasActiveTrip, tripInfo, allTrips]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
