@@ -81,6 +81,7 @@ export default function ExpenseScreen() {
     splitType: 'equal',
     beneficiaries: travelers.map(t => t.id),
     splitAmounts: {},
+    transferTo: null, // Added for transfer type
   });
 
   const [newExpense, setNewExpense] = useState(getInitialExpenseState());
@@ -765,31 +766,30 @@ export default function ExpenseScreen() {
                   <Text style={styles.formSectionIcon}>🏷️</Text>
                   <Text style={styles.formSectionTitle}>Category</Text>
                 </View>
-                <View style={styles.categoryGrid}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryScroll}
+                >
                   {CATEGORIES.map((cat) => {
                     const isSelected = newExpense.category === cat.key;
                     return (
                       <TouchableOpacity
                         key={cat.key}
                         style={[
-                          styles.categoryCard,
+                          styles.categoryChip,
                           isSelected && { backgroundColor: cat.color, borderColor: cat.color }
                         ]}
                         onPress={() => setNewExpense({...newExpense, category: cat.key})}
                       >
-                        <Text style={styles.categoryCardEmoji}>{cat.emoji}</Text>
-                        <Text style={[styles.categoryCardLabel, isSelected && { color: '#FFF' }]}>
+                        <Text style={styles.categoryChipEmoji}>{cat.emoji}</Text>
+                        <Text style={[styles.categoryChipLabel, isSelected && { color: '#FFF' }]}>
                           {cat.label}
                         </Text>
-                        {isSelected && (
-                          <View style={styles.categoryCheckmark}>
-                            <Text style={styles.categoryCheckmarkText}>✓</Text>
-                          </View>
-                        )}
                       </TouchableOpacity>
                     );
                   })}
-                </View>
+                </ScrollView>
               </View>
 
               {/* Split Options - Only for multi-user trips */}
@@ -845,7 +845,7 @@ export default function ExpenseScreen() {
                       {[
                         { key: 'equal', icon: '⚖️', label: 'Equal', desc: 'Split evenly' },
                         { key: 'custom', icon: '✏️', label: 'Custom', desc: 'Set amounts' },
-                        { key: 'full', icon: '👤', label: 'Single', desc: 'One pays all' },
+                        { key: 'transfer', icon: '💸', label: 'Transfer', desc: 'Send to one' },
                       ].map((type) => {
                         const isSelected = newExpense.splitType === type.key;
                         return (
@@ -872,8 +872,62 @@ export default function ExpenseScreen() {
                     </View>
                   </View>
 
-                  {/* Beneficiaries Selection */}
-                  {newExpense.splitType !== 'full' && (
+                  {/* Transfer Selection - Only for transfer type */}
+                  {newExpense.splitType === 'transfer' && (
+                    <View style={styles.splitSubSection}>
+                      <Text style={styles.splitSubLabel}>Transfer to whom?</Text>
+                      <View style={styles.transferContainer}>
+                        <View style={styles.transferFromTo}>
+                          <View style={styles.transferPerson}>
+                            <View style={styles.transferAvatarCircle}>
+                              <Text style={styles.transferAvatarEmoji}>{getTravelerAvatar(newExpense.paidBy)}</Text>
+                            </View>
+                            <Text style={styles.transferPersonName}>{getTravelerName(newExpense.paidBy)}</Text>
+                            <Text style={styles.transferPersonLabel}>From</Text>
+                          </View>
+                          
+                          <View style={styles.transferArrowContainer}>
+                            <Text style={styles.transferArrow}>→</Text>
+                            <Text style={styles.transferAmount}>{safeFormatCurrency(parseFloat(newExpense.amount) || 0)}</Text>
+                          </View>
+                          
+                          <View style={styles.transferPerson}>
+                            <View style={[styles.transferAvatarCircle, styles.transferAvatarCircleTo]}>
+                              <Text style={styles.transferAvatarEmoji}>
+                                {newExpense.transferTo ? getTravelerAvatar(newExpense.transferTo) : '?'}
+                              </Text>
+                            </View>
+                            <Text style={styles.transferPersonName}>
+                              {newExpense.transferTo ? getTravelerName(newExpense.transferTo) : 'Select'}
+                            </Text>
+                            <Text style={styles.transferPersonLabel}>To</Text>
+                          </View>
+                        </View>
+                        
+                        <View style={styles.transferRecipientList}>
+                          {travelers.filter(t => t.id !== newExpense.paidBy).map((t) => {
+                            const isSelected = newExpense.transferTo === t.id;
+                            return (
+                              <TouchableOpacity
+                                key={t.id}
+                                style={[styles.transferRecipientCard, isSelected && styles.transferRecipientCardActive]}
+                                onPress={() => setNewExpense({...newExpense, transferTo: t.id, beneficiaries: [t.id]})}
+                              >
+                                <Text style={styles.transferRecipientAvatar}>{t.avatar || '👤'}</Text>
+                                <Text style={[styles.transferRecipientName, isSelected && styles.transferRecipientNameActive]}>
+                                  {t.name}
+                                </Text>
+                                {isSelected && <Text style={styles.transferRecipientCheck}>✓</Text>}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Beneficiaries Selection - Only for equal and custom */}
+                  {(newExpense.splitType === 'equal' || newExpense.splitType === 'custom') && (
                     <View style={styles.splitSubSection}>
                       <View style={styles.splitSubLabelRow}>
                         <Text style={styles.splitSubLabel}>Split among</Text>
@@ -976,7 +1030,8 @@ export default function ExpenseScreen() {
                         <Text style={styles.summaryLabel}>Split</Text>
                         <Text style={styles.summaryValue}>
                           {newExpense.splitType === 'equal' ? `Equal (${newExpense.beneficiaries?.length || 0} people)` :
-                           newExpense.splitType === 'custom' ? 'Custom amounts' : 'Single payer'}
+                           newExpense.splitType === 'custom' ? 'Custom amounts' : 
+                           newExpense.splitType === 'transfer' ? `Transfer to ${newExpense.transferTo ? getTravelerName(newExpense.transferTo) : 'N/A'}` : 'N/A'}
                         </Text>
                       </View>
                     </>
@@ -1331,40 +1386,28 @@ const createStyles = (colors) => StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
-  categoryCard: {
-    width: (width - 60) / 3,
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
+  categoryScroll: {
+    gap: 8,
+    paddingRight: 10,
+  },
+  categoryChip: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.card,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderWidth: 1.5,
     borderColor: colors.primaryBorder,
-    position: 'relative',
+    gap: 6,
   },
-  categoryCardEmoji: {
-    fontSize: 24,
-    marginBottom: 6,
+  categoryChipEmoji: {
+    fontSize: 16,
   },
-  categoryCardLabel: {
-    fontSize: 12,
+  categoryChipLabel: {
+    fontSize: 13,
     fontWeight: '500',
     color: colors.text,
-  },
-  categoryCheckmark: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  categoryCheckmarkText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
 
   // Split Options Section
@@ -1546,94 +1589,107 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Beneficiary Cards
-  beneficiariesCards: {
-    gap: 10,
+  // Transfer Styles
+  transferContainer: {
+    backgroundColor: colors.cardLight,
+    borderRadius: 16,
+    padding: 16,
   },
-  beneficiaryCard: {
+  transferFromTo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.cardLight,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primaryBorder,
   },
-  beneficiaryCardActive: {
-    backgroundColor: colors.bg,
-    borderColor: colors.primary,
-  },
-  beneficiaryCardLeft: {
-    flexDirection: 'row',
+  transferPerson: {
     alignItems: 'center',
+    flex: 1,
   },
-  beneficiaryCheckBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.textMuted,
-    marginRight: 12,
+  transferAvatarCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  beneficiaryCheckBoxActive: {
-    backgroundColor: colors.primary,
+    marginBottom: 6,
+    borderWidth: 2,
     borderColor: colors.primary,
   },
-  beneficiaryCheckIcon: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: 'bold',
+  transferAvatarCircleTo: {
+    backgroundColor: '#10B981' + '20',
+    borderColor: '#10B981',
   },
-  beneficiaryCardAvatar: {
-    fontSize: 22,
-    marginRight: 10,
+  transferAvatarEmoji: {
+    fontSize: 24,
   },
-  beneficiaryCardName: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  beneficiaryCardNameActive: {
-    fontWeight: '600',
-  },
-  beneficiaryCardRight: {
-    alignItems: 'flex-end',
-  },
-  beneficiaryAmountBadge: {
-    backgroundColor: colors.primaryMuted,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  beneficiaryAmountText: {
+  transferPersonName: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.text,
   },
-  customSplitInputBox: {
+  transferPersonLabel: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  transferArrowContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  transferArrow: {
+    fontSize: 24,
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  transferAmount: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.primary,
+    backgroundColor: colors.primaryMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  transferRecipientList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  transferRecipientCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardLight,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: colors.primaryBorder,
+    gap: 8,
   },
-  customSplitCurrency: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginRight: 4,
+  transferRecipientCardActive: {
+    backgroundColor: '#10B981' + '15',
+    borderColor: '#10B981',
   },
-  customSplitInput: {
-    fontSize: 15,
-    fontWeight: '600',
+  transferRecipientAvatar: {
+    fontSize: 18,
+  },
+  transferRecipientName: {
+    fontSize: 13,
+    fontWeight: '500',
     color: colors.text,
-    minWidth: 50,
-    textAlign: 'right',
-    padding: 0,
+  },
+  transferRecipientNameActive: {
+    color: '#10B981',
+    fontWeight: '600',
+  },
+  transferRecipientCheck: {
+    fontSize: 14,
+    color: '#10B981',
+    fontWeight: 'bold',
   },
 
   // Notes Textarea
@@ -1706,8 +1762,11 @@ const createStyles = (colors) => StyleSheet.create({
     marginRight: 8,
   },
   submitButtonText: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#FFF',
+
+
+
+
+
+});  },    color: '#FFF',    fontWeight: 'bold',    fontSize: 17,    color: '#FFF',
   },
 });
