@@ -82,12 +82,15 @@ export default function AppNavigator() {
   };
 
   const handleSetupComplete = (tripData) => {
+    console.log('Trip setup complete:', tripData);
     setTripInfo({
       destination: tripData.destination,
       startDate: tripData.startDate,
       endDate: tripData.endDate,
       name: tripData.name,
-      participants: tripData.participants,
+      participants: tripData.participants || [],
+      tripCode: tripData.tripCode,
+      tripType: tripData.tripType, // Add this line
     });
     setBudget(prev => ({ ...prev, total: parseFloat(tripData.budget) || 0 }));
     setScreen('trip');

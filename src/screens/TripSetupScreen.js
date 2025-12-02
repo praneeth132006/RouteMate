@@ -721,7 +721,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
       case 'business':
         return (
           <View style={styles.stepContent}>
-            {/* Add Colleague */}
+            {/* Add Colleague Input */}
             <View style={styles.addCompanionSection}>
               <View style={styles.inputContainer}>
                 <View style={styles.inputIconBg}>
@@ -729,7 +729,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                 </View>
                 <TextInput
                   style={styles.mainInput}
-                  placeholder="Colleague's name"
+                  placeholder="Enter colleague's name"
                   placeholderTextColor={colors.textMuted}
                   value={tripData.newColleagueName}
                   onChangeText={(text) => setTripData({ ...tripData, newColleagueName: text })}
@@ -753,8 +753,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
               {tripData.colleagues.length === 0 ? (
                 <View style={styles.emptyCompanions}>
                   <Text style={styles.emptyEmoji}>👔</Text>
-                  <Text style={styles.emptyText}>No colleagues added</Text>
-                  <Text style={styles.emptyHint}>Add colleagues traveling with you</Text>
+                  <Text style={styles.emptyText}>No colleagues added yet</Text>
+                  <Text style={styles.emptyHint}>Add colleagues joining this business trip</Text>
                 </View>
               ) : (
                 tripData.colleagues.map((colleague, index) => (
@@ -769,6 +769,11 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                   </View>
                 ))
               )}
+            </View>
+
+            {/* Skip Note */}
+            <View style={styles.skipNote}>
+              <Text style={styles.skipNoteText}>💡 You can add more colleagues later</Text>
             </View>
           </View>
         );
@@ -869,151 +874,631 @@ export default function TripSetupScreen({ onComplete, onBack }) {
 }
 
 const createStyles = (colors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  keyboardView: { flex: 1 },
-
-  // Header
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
-  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  backButtonText: { color: colors.text, fontSize: 20, fontWeight: 'bold' },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  stepIndicator: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
-  headerRight: { width: 44 },
-
-  // Progress
-  progressContainer: { paddingHorizontal: 20, marginBottom: 20 },
-  progressTrack: { height: 6, backgroundColor: colors.cardLight, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 3 },
-
-  // Step Header
-  stepHeader: { alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
-  stepIconBg: { width: 72, height: 72, borderRadius: 24, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 2, borderColor: colors.primaryBorder },
-  stepIcon: { fontSize: 36 },
-  stepTitle: { color: colors.text, fontSize: 26, fontWeight: 'bold', marginBottom: 6 },
-  stepSubtitle: { color: colors.textMuted, fontSize: 14, textAlign: 'center' },
-
-  // ScrollView
-  scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
-  stepContent: { gap: 20 },
-
-  // Input Section
-  inputSection: { gap: 10 },
-  inputLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, padding: 4, borderWidth: 1, borderColor: colors.primaryBorder },
-  inputIconBg: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
-  inputIcon: { fontSize: 18 },
-  mainInput: { flex: 1, color: colors.text, fontSize: 16, paddingHorizontal: 12, paddingVertical: 10 },
-  clearButton: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.cardLight, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
-  clearButtonText: { color: colors.textMuted, fontSize: 14 },
-
-  // Destinations
-  suggestionsSection: { marginTop: 8 },
-  suggestionsTitle: { color: colors.text, fontSize: 15, fontWeight: '600', marginBottom: 12 },
-  destinationsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  destinationCard: { width: '31%', backgroundColor: colors.card, borderRadius: 14, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  destinationCardActive: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primaryMuted },
-  destinationEmoji: { fontSize: 28, marginBottom: 6 },
-  destinationName: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  destinationCountry: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
-
-  // Dates
-  datesSection: { gap: 12 },
-  datesRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dateCard: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.primaryBorder, gap: 10 },
-  dateCardEmoji: { fontSize: 20 },
-  dateCardContent: { flex: 1 },
-  dateCardLabel: { color: colors.textMuted, fontSize: 11 },
-  dateCardValue: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 2 },
-  dateCardPlaceholder: { color: colors.textMuted },
-  dateArrowContainer: { paddingHorizontal: 4 },
-  dateArrow: { color: colors.textMuted, fontSize: 16 },
-  durationCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primaryMuted, borderRadius: 12, padding: 12, gap: 10, borderWidth: 1, borderColor: colors.primaryBorder },
-  durationIcon: { fontSize: 18 },
-  durationText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
-
-  // Trip Type
-  tripTypeGrid: { gap: 12 },
-  tripTypeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder, borderLeftWidth: 4 },
-  tripTypeCardActive: { backgroundColor: colors.primaryMuted, borderWidth: 2 },
-  tripTypeIconBg: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  tripTypeEmoji: { fontSize: 26 },
-  tripTypeInfo: { flex: 1, marginLeft: 14 },
-  tripTypeLabel: { color: colors.text, fontSize: 16, fontWeight: 'bold' },
-  tripTypeDesc: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  tripTypeCheck: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: colors.primaryBorder, alignItems: 'center', justifyContent: 'center' },
-  tripTypeCheckText: { color: colors.bg, fontSize: 14, fontWeight: 'bold' },
-
-  // Companions
-  addCompanionSection: { marginBottom: 8 },
-  addBtn: { backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, marginRight: 4 },
-  addBtnSmall: { backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
-  addBtnDisabled: { opacity: 0.5 },
-  addBtnText: { color: colors.bg, fontSize: 14, fontWeight: 'bold' },
-  companionsList: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  companionsListTitle: { color: colors.text, fontSize: 15, fontWeight: 'bold', marginBottom: 12 },
-  emptyCompanions: { alignItems: 'center', paddingVertical: 24 },
-  emptyEmoji: { fontSize: 36, marginBottom: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 14 },
-  emptyHint: { color: colors.textLight, fontSize: 12, marginTop: 4 },
-  companionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, borderRadius: 12, padding: 12, marginBottom: 8 },
-  companionAvatar: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  companionAvatarText: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
-  companionInfo: { flex: 1, marginLeft: 12 },
-  companionName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '500', marginLeft: 12 },
-  companionRelation: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  removeBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  removeBtnText: { color: colors.textMuted, fontSize: 14 },
-  skipNote: { backgroundColor: colors.cardLight, borderRadius: 10, padding: 12 },
-  skipNoteText: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
-
-  // Family specific
-  familyInputRow: { flexDirection: 'row', gap: 8 },
-  familyInput: { flex: 1, color: colors.text, fontSize: 15, padding: 14 },
-  quickRelations: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  relationChip: { backgroundColor: colors.cardLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.primaryBorder },
-  relationChipText: { color: colors.text, fontSize: 13 },
-
-  // Couple specific
-  coupleSection: { alignItems: 'center', paddingVertical: 20 },
-  coupleIllustration: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  coupleEmoji: { fontSize: 48 },
-  coupleTitle: { color: colors.text, fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
-  coupleSubtitle: { color: colors.textMuted, fontSize: 14, marginBottom: 24 },
-
-  // Budget
-  budgetInputSection: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.primaryBorder },
-  budgetCurrency: { color: colors.text, fontSize: 36, fontWeight: 'bold', marginRight: 4 },
-  budgetInput: { color: colors.text, fontSize: 48, fontWeight: 'bold', minWidth: 100, textAlign: 'center' },
-  presetsSection: { marginTop: 8 },
-  presetsTitle: { color: colors.textMuted, fontSize: 12, fontWeight: '600', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
-  presetsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  presetCard: { width: '48%', backgroundColor: colors.card, borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
-  presetCardActive: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primaryMuted },
-  presetEmoji: { fontSize: 24, marginBottom: 8 },
-  presetLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  presetLabelActive: { color: colors.primary },
-  presetRange: { color: colors.textMuted, fontSize: 11, marginTop: 4 },
-  presetRangeActive: { color: colors.primary },
-
-  // Summary
-  summaryCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  summaryTitle: { color: colors.text, fontSize: 16, fontWeight: 'bold', marginBottom: 14 },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.primaryBorder },
-  summaryEmoji: { fontSize: 20, marginRight: 12 },
-  summaryContent: { flex: 1 },
-  summaryLabel: { color: colors.textMuted, fontSize: 11 },
-  summaryValue: { color: colors.text, fontSize: 14, fontWeight: '500', marginTop: 2 },
-
-  // Tip
-  tipCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, borderRadius: 12, padding: 14, gap: 12 },
-  tipEmoji: { fontSize: 18 },
-  tipText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-
-  // Footer
-  footer: { padding: 20, paddingBottom: 10 },
-  nextButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 18, gap: 8 },
-  nextButtonDisabled: { opacity: 0.5 },
-  nextButtonText: { color: colors.bg, fontSize: 17, fontWeight: 'bold' },
-  nextButtonIcon: { color: colors.bg, fontSize: 18, fontWeight: 'bold' },
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  backButtonText: {
+    fontSize: 22,
+    color: colors.text,
+  },
+  headerCenter: {
+    alignItems: 'center',
+  },
+  stepIndicator: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  headerRight: {
+    width: 44,
+  },
+  progressContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: colors.cardLight,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  stepHeader: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  stepIconBg: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  stepIcon: {
+    fontSize: 36,
+  },
+  stepTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  stepSubtitle: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  stepContent: {
+    flex: 1,
+  },
+  inputSection: {
+    marginBottom: 24,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  inputIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputIcon: {
+    fontSize: 20,
+  },
+  mainInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  clearButton: {
+    padding: 10,
+  },
+  clearButtonText: {
+    color: colors.textMuted,
+    fontSize: 16,
+  },
+  suggestionsSection: {
+    marginBottom: 24,
+  },
+  suggestionsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: 12,
+  },
+  destinationsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  destinationCard: {
+    width: '31%',
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  destinationCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  destinationEmoji: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  destinationName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  destinationCountry: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  datesSection: {
+    marginBottom: 24,
+  },
+  datesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dateCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  dateCardEmoji: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  dateCardContent: {
+    flex: 1,
+  },
+  dateCardLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginBottom: 2,
+  },
+  dateCardValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  dateCardPlaceholder: {
+    color: colors.textMuted,
+  },
+  dateArrowContainer: {
+    paddingHorizontal: 4,
+  },
+  dateArrow: {
+    fontSize: 18,
+    color: colors.textMuted,
+  },
+  durationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryMuted,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  durationIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  durationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  tripTypeGrid: {
+    gap: 12,
+  },
+  tripTypeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: colors.primaryBorder,
+    borderLeftWidth: 4,
+  },
+  tripTypeCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  tripTypeIconBg: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tripTypeEmoji: {
+    fontSize: 24,
+  },
+  tripTypeInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  tripTypeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  tripTypeDesc: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  tripTypeCheck: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.cardLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.primaryBorder,
+  },
+  tripTypeCheckText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  addCompanionSection: {
+    marginBottom: 20,
+  },
+  familyInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  familyInput: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+    padding: 14,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  addBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  addBtnSmall: {
+    backgroundColor: colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtnDisabled: {
+    opacity: 0.5,
+  },
+  addBtnText: {
+    color: colors.bg,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  quickRelations: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  relationChip: {
+    backgroundColor: colors.cardLight,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  relationChipText: {
+    color: colors.text,
+    fontSize: 13,
+  },
+  companionsList: {
+    marginBottom: 20,
+  },
+  companionsListTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  emptyCompanions: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    borderStyle: 'dashed',
+  },
+  emptyEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  emptyHint: {
+    fontSize: 13,
+    color: colors.textLight,
+    marginTop: 4,
+  },
+  companionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  companionAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  companionAvatarText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  companionInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  companionName: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  companionRelation: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  removeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.cardLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBtnText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  skipNote: {
+    backgroundColor: colors.cardLight,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  skipNoteText: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  coupleSection: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  coupleIllustration: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: colors.primaryBorder,
+  },
+  coupleEmoji: {
+    fontSize: 50,
+  },
+  coupleTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  coupleSubtitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginBottom: 24,
+  },
+  budgetInputSection: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  budgetCurrency: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  budgetInput: {
+    fontSize: 56,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    minWidth: 150,
+  },
+  presetsSection: {
+    marginTop: 24,
+  },
+  presetsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  presetsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  presetCard: {
+    width: '48%',
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primaryBorder,
+  },
+  presetCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  presetEmoji: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  presetLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  presetLabelActive: {
+    color: colors.primary,
+  },
+  presetRange: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  presetRangeActive: {
+    color: colors.primary,
+  },
+  summaryCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    padding: 18,
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primaryBorder,
+  },
+  summaryEmoji: {
+    fontSize: 22,
+    marginRight: 14,
+  },
+  summaryContent: {
+    flex: 1,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  summaryValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 2,
+  },
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardLight,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 16,
+  },
+  tipEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.primaryBorder,
+    backgroundColor: colors.bg,
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    paddingVertical: 18,
+    gap: 8,
+  },
+  nextButtonDisabled: {
+    opacity: 0.5,
+  },
+  nextButtonText: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: colors.bg,
+  },
+  nextButtonIcon: {
+    fontSize: 18,
+    color: colors.bg,
+  },
 });

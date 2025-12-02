@@ -111,26 +111,33 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
   const allDisplayTrips = useMemo(() => {
     let trips = [];
     
-    // First, check if there's an active trip from context
-    if (hasActiveTrip && tripInfo && tripInfo.destination) {
-      const currentTripData = {
-        ...tripInfo,
-        id: tripInfo.id || 'current',
-        tripCode: tripInfo.tripCode || null,
-        totalExpenses: currentTotalExpenses,
-      };
-      trips.push(currentTripData);
-    }
-    
-    // Add trips from context if available (excluding duplicates)
+    // Add all trips from allTrips
     if (allTrips && allTrips.length > 0) {
       allTrips.forEach(trip => {
-        const exists = trips.some(t => t.id === trip.id || 
-          (t.destination === trip.destination && t.startDate === trip.startDate));
-        if (!exists) {
-          trips.push(trip);
+        if (trip && trip.destination) {
+          const exists = trips.some(t => t.id === trip.id);
+          if (!exists) {
+            trips.push({
+              ...trip,
+              totalExpenses: trip.totalExpenses || 0,
+            });
+          }
         }
       });
+    }
+    
+    // Also check current tripInfo if it has a destination but isn't in trips yet
+    if (hasActiveTrip && tripInfo && tripInfo.destination) {
+      const currentExists = trips.some(t => t.id === tripInfo.id || 
+        (t.destination === tripInfo.destination && t.startDate === tripInfo.startDate));
+      if (!currentExists) {
+        trips.unshift({
+          ...tripInfo,
+          id: tripInfo.id || 'current',
+          tripCode: tripInfo.tripCode || null,
+          totalExpenses: getTotalExpenses(),
+        });
+      }
     }
     
     // Sort trips by start date - nearest to current date first
@@ -164,20 +171,17 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
         // For upcoming trips (positive days), sort ascending (soonest first)
         // For past trips (negative days), sort descending (most recent first)
         if (daysUntilA >= 0 && daysUntilB >= 0) {
-          // Both upcoming - soonest first
           return daysUntilA - daysUntilB;
         } else if (daysUntilA < 0 && daysUntilB < 0) {
-          // Both past - most recent first
           return daysUntilB - daysUntilA;
         } else {
-          // One upcoming, one past - upcoming comes first
           return daysUntilA >= 0 ? -1 : 1;
         }
       });
     }
     
     return trips;
-  }, [hasActiveTrip, tripInfo, allTrips, currentTotalExpenses]);
+  }, [hasActiveTrip, tripInfo, allTrips, getTotalExpenses]);
   
   // Separate current trip from upcoming trips
   const currentTrip = allDisplayTrips.length > 0 ? allDisplayTrips[0] : null;

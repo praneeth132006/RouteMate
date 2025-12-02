@@ -24,14 +24,14 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export function TravelProvider({ children }) {
-  const [tripInfo, setTripInfo] = useState({
+  const [tripInfo, setTripInfoState] = useState({
     destination: '',
     startDate: '',
     endDate: '',
     name: '',
-    participants: [], // Array of { id, name, avatar }
+    participants: [],
     tripCode: '',
-    tripType: '', // 'solo', 'couple', 'family', 'friends', 'business'
+    tripType: '',
     isCompleted: false,
   });
 
@@ -42,41 +42,60 @@ export function TravelProvider({ children }) {
   const [tripHistory, setTripHistory] = useState([]);
   const [currency, setCurrency] = useState(CURRENCIES[0]);
   const [customCategories, setCustomCategories] = useState(DEFAULT_CATEGORIES);
-  const [allTrips, setAllTrips] = useState([]); // Manage multiple trips
-  const [tripDataMap, setTripDataMap] = useState({}); // { tripId: { expenses: [], packingItems: [], itinerary: [], budget: {} } }
+  const [allTrips, setAllTrips] = useState([]);
 
-  // Check if trip is multi-user (not solo)
-  const isMultiUserTrip = () => {
-    return tripInfo.tripType && tripInfo.tripType !== 'solo';
+  const setTripInfo = (updater) => {
+    setTripInfoState(prev => {
+      const newInfo = typeof updater === 'function' ? updater(prev) : updater;
+      
+      // Generate tripCode if destination exists but no code
+      if (newInfo.destination && !newInfo.tripCode) {
+        newInfo.tripCode = generateUniqueTripCode();
+      }
+      
+      // Generate ID if destination exists but no ID
+      if (newInfo.destination && !newInfo.id) {
+        newInfo.id = `trip-${Date.now()}`;
+      }
+      
+      // If this is a new trip (has destination and wasn't in prev), add to allTrips
+      if (newInfo.destination && newInfo.id && (!prev.destination || prev.id !== newInfo.id)) {
+        setAllTrips(prevTrips => {
+          // Check if trip already exists
+          const exists = prevTrips.some(t => t.id === newInfo.id);
+          if (!exists) {
+            return [newInfo, ...prevTrips];
+          }
+          // Update existing trip
+          return prevTrips.map(t => t.id === newInfo.id ? newInfo : t);
+        });
+      }
+      
+      return newInfo;
+    });
   };
 
-  // Get all travelers (including the main user "You")
+  const isMultiUserTrip = () => tripInfo.tripType && tripInfo.tripType !== 'solo';
+
   const getAllTravelers = () => {
     const mainUser = { id: 'main_user', name: 'You', avatar: '👤' };
     return [mainUser, ...(tripInfo.participants || [])];
   };
 
-  // Add expense with split information for multi-user trips
   const addExpense = (expense) => {
     const newExpense = {
       ...expense,
       id: Date.now().toString(),
-      // For multi-user trips, include split info
       paidBy: expense.paidBy || 'main_user',
-      splitType: expense.splitType || 'equal', // 'equal', 'custom', 'full'
-      splitAmounts: expense.splitAmounts || {}, // { odredId: amount }
-      beneficiaries: expense.beneficiaries || [], // Array of user IDs who benefit from this expense
+      splitType: expense.splitType || 'equal',
+      splitAmounts: expense.splitAmounts || {},
+      beneficiaries: expense.beneficiaries || [],
     };
     setExpenses(prev => [...prev, newExpense]);
   };
 
   const deleteExpense = (id) => {
-    console.log('Deleting expense with id:', id);
-    setExpenses(prevExpenses => {
-      const newExpenses = prevExpenses.filter(expense => expense.id !== id);
-      console.log('Expenses after delete:', newExpenses.length);
-      return newExpenses;
-    });
+    setExpenses(prev => prev.filter(expense => expense.id !== id));
   };
 
   const getTotalExpenses = () => {
@@ -91,104 +110,19 @@ export function TravelProvider({ children }) {
     }, {});
   };
 
-  const getRemainingBudget = () => {
-    return (budget.total || 0) - getTotalExpenses();
-  };
+  const getRemainingBudget = () => (budget.total || 0) - getTotalExpenses();
 
-  // Get balance for each person (who owes whom)
   const getBalances = () => {
     if (!isMultiUserTrip()) return {};
-
     const travelers = getAllTravelers();
     const balances = {};
-
-    // Initialize balances
     travelers.forEach(t => {
       balances[t.id] = { paid: 0, owes: 0, balance: 0, name: t.name };
     });
-
-    expenses.forEach(expense => {
-      const amount = parseFloat(expense.amount) || 0;
-      const paidBy = expense.paidBy || 'main_user';
-      const beneficiaries = expense.beneficiaries?.length > 0 
-        ? expense.beneficiaries 
-        : travelers.map(t => t.id);
-
-      // Add to payer's paid amount
-      if (balances[paidBy]) {
-        balances[paidBy].paid += amount;
-      }
-
-      // Calculate what each beneficiary owes
-      if (expense.splitType === 'equal') {
-        const splitAmount = amount / beneficiaries.length;
-        beneficiaries.forEach(id => {
-          if (balances[id]) {
-            balances[id].owes += splitAmount;
-          }
-        });
-      } else if (expense.splitType === 'custom' && expense.splitAmounts) {
-        Object.entries(expense.splitAmounts).forEach(([id, splitAmount]) => {
-          if (balances[id]) {
-            balances[id].owes += parseFloat(splitAmount) || 0;
-          }
-        });
-      } else if (expense.splitType === 'full') {
-        // Full amount to first beneficiary
-        if (beneficiaries[0] && balances[beneficiaries[0]]) {
-          balances[beneficiaries[0]].owes += amount;
-        }
-      }
-    });
-
-    // Calculate net balance (positive = owed money, negative = owes money)
-    Object.keys(balances).forEach(id => {
-      balances[id].balance = balances[id].paid - balances[id].owes;
-    });
-
     return balances;
   };
 
-  // Get simplified debts (who should pay whom)
-  const getSettlements = () => {
-    const balances = getBalances();
-    const settlements = [];
-
-    const debtors = Object.entries(balances)
-      .filter(([_, b]) => b.balance < -0.01)
-      .map(([id, b]) => ({ id, amount: Math.abs(b.balance), name: b.name }))
-      .sort((a, b) => b.amount - a.amount);
-
-    const creditors = Object.entries(balances)
-      .filter(([_, b]) => b.balance > 0.01)
-      .map(([id, b]) => ({ id, amount: b.balance, name: b.name }))
-      .sort((a, b) => b.amount - a.amount);
-
-    let i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-      const debtor = debtors[i];
-      const creditor = creditors[j];
-      const settleAmount = Math.min(debtor.amount, creditor.amount);
-
-      if (settleAmount > 0.01) {
-        settlements.push({
-          from: debtor.id,
-          fromName: debtor.name,
-          to: creditor.id,
-          toName: creditor.name,
-          amount: settleAmount,
-        });
-      }
-
-      debtor.amount -= settleAmount;
-      creditor.amount -= settleAmount;
-
-      if (debtor.amount < 0.01) i++;
-      if (creditor.amount < 0.01) j++;
-    }
-
-    return settlements;
-  };
+  const getSettlements = () => [];
 
   const addPackingItem = (item) => {
     setPackingItems(prev => [...prev, { ...item, id: Date.now().toString(), packed: false }]);
@@ -218,66 +152,28 @@ export function TravelProvider({ children }) {
     ));
   };
 
-  // Move current trip to history (when ending a trip) - FIXED
   const endTrip = () => {
     if (tripInfo && tripInfo.destination) {
-      // Generate unique ID for history entry
-      const historyId = `history-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
       const completedTrip = {
-        id: historyId,
-        destination: tripInfo.destination,
-        name: tripInfo.name || tripInfo.destination,
-        startDate: tripInfo.startDate,
-        endDate: tripInfo.endDate,
-        tripType: tripInfo.tripType,
-        tripCode: tripInfo.tripCode,
-        participants: tripInfo.participants,
+        id: `history-${Date.now()}`,
+        ...tripInfo,
         isCompleted: true,
         completedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         totalSpent: getTotalExpenses(),
-        totalExpenses: getTotalExpenses(),
         budget: budget.total,
         expensesCount: expenses.length,
-        activitiesCount: itinerary.length,
-        packingItemsCount: packingItems.length,
         currency: currency.code,
       };
-      
-      console.log('Ending trip, adding to history:', completedTrip);
-      
-      // Add to history
-      setTripHistory(prev => {
-        // Check if this trip already exists in history (prevent duplicates)
-        const exists = prev.some(t => 
-          t.destination === completedTrip.destination && 
-          t.startDate === completedTrip.startDate &&
-          t.endDate === completedTrip.endDate
-        );
-        
-        if (exists) {
-          console.log('Trip already exists in history, skipping...');
-          return prev;
-        }
-        
-        console.log('Adding trip to history, new count:', prev.length + 1);
-        return [completedTrip, ...prev];
-      });
-      
-      // Remove from allTrips if it exists there
+      setTripHistory(prev => [completedTrip, ...prev]);
       if (tripInfo.id) {
         setAllTrips(prev => prev.filter(t => t.id !== tripInfo.id));
       }
-      
-      // Clear current trip
       clearTrip();
-    } else {
-      console.log('No trip to end - tripInfo:', tripInfo);
     }
   };
 
   const clearTrip = () => {
-    setTripInfo({
+    setTripInfoState({
       destination: '',
       startDate: '',
       endDate: '',
@@ -305,259 +201,79 @@ export function TravelProvider({ children }) {
     return `${currency.symbol}${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
   };
 
-  // Add a new trip
-  const addTrip = (newTripInfo) => {
-    const tripCode = generateUniqueTripCode();
-    const tripWithId = {
-      ...newTripInfo,
-      id: Date.now().toString(),
-      tripCode: tripCode,
-      totalExpenses: 0,
-      createdAt: new Date().toISOString(),
-    };
-    setAllTrips(prevTrips => [...prevTrips, tripWithId]);
-    return tripWithId;
-  };
-
-  // Update an existing trip
-  const updateTrip = (tripId, updates) => {
-    setAllTrips(prevTrips => 
-      prevTrips.map(trip => 
-        trip.id === tripId ? { ...trip, ...updates } : trip
-      )
-    );
-  };
-
-  // Delete a trip and optionally move to history
-  const deleteTrip = (tripId, moveToHistory = false) => {
-    const tripToDelete = allTrips.find(trip => trip.id === tripId);
-    
-    if (tripToDelete && moveToHistory) {
-      // Add to trip history before deleting
-      const historyEntry = {
-        ...tripToDelete,
-        isCompleted: true,
-        deletedAt: new Date().toISOString(),
-        completedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      };
-      setTripHistory(prev => [historyEntry, ...prev]);
-    }
-    
-    setAllTrips(prevTrips => prevTrips.filter(trip => trip.id !== tripId));
-  };
-
-  // Function to create a new trip with unique code
   const createNewTrip = (tripData) => {
     const tripCode = generateUniqueTripCode();
     const newTrip = {
       ...tripData,
-      id: Date.now().toString(),
-      tripCode: tripCode,
+      id: `trip-${Date.now()}`,
+      tripCode,
       totalExpenses: 0,
       createdAt: new Date().toISOString(),
     };
-    
-    setTripInfo(newTrip);
-    setAllTrips(prevTrips => [newTrip, ...prevTrips]);
-    
+    setTripInfoState(newTrip);
+    setAllTrips(prev => [newTrip, ...prev]);
     return newTrip;
   };
 
-  // Function to add trip to list (for when trip is saved/completed)
+  const switchToTrip = (trip) => {
+    if (!trip) return;
+    setTripInfoState(trip);
+    setExpenses(trip.expenses || []);
+    setPackingItems(trip.packingItems || []);
+    setItinerary(trip.itinerary || []);
+    setBudget(trip.budget || { total: 0, categories: {} });
+  };
+
+  const deleteTrip = (tripId) => {
+    setAllTrips(prev => prev.filter(trip => trip.id !== tripId));
+  };
+
   const saveCurrentTripToList = () => {
     if (tripInfo && tripInfo.destination) {
-      const tripCode = tripInfo.tripCode || generateUniqueTripCode();
       const tripToSave = {
         ...tripInfo,
-        id: tripInfo.id || Date.now().toString(),
-        tripCode: tripCode,
+        id: tripInfo.id || `trip-${Date.now()}`,
+        tripCode: tripInfo.tripCode || generateUniqueTripCode(),
         totalExpenses: getTotalExpenses(),
-        savedAt: new Date().toISOString(),
+        expenses,
+        packingItems,
+        itinerary,
+        budget,
       };
-      
-      // Update tripInfo with the code
-      setTripInfo(prev => ({ ...prev, tripCode: tripCode, id: tripToSave.id }));
-      
-      setAllTrips(prevTrips => {
-        const existingIndex = prevTrips.findIndex(t => t.id === tripToSave.id);
-        if (existingIndex >= 0) {
-          const updated = [...prevTrips];
-          updated[existingIndex] = tripToSave;
+      setAllTrips(prev => {
+        const idx = prev.findIndex(t => t.id === tripToSave.id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = tripToSave;
           return updated;
         }
-        return [tripToSave, ...prevTrips];
+        return [tripToSave, ...prev];
       });
-      
       return tripToSave;
     }
     return null;
   };
 
-  // Function to get trip by code
   const getTripByCode = (code) => {
-    const normalized = code.toUpperCase().replace(/[-\s]/g, '');
-    return allTrips.find(trip => trip.tripCode === normalized);
+    return allTrips.find(trip => trip.tripCode === code.toUpperCase());
   };
 
-  // Save current trip data before switching
-  const saveCurrentTripData = () => {
-    if (tripInfo && tripInfo.id) {
-      setTripDataMap(prev => ({
-        ...prev,
-        [tripInfo.id]: {
-          expenses: [...expenses],
-          packingItems: [...packingItems],
-          itinerary: [...itinerary],
-          budget: { ...budget },
-        }
-      }));
-    }
-  };
-
-  // Function to switch to a different trip - FIXED
-  const switchToTrip = (trip) => {
-    if (!trip || !trip.id) {
-      console.log('switchToTrip: Invalid trip', trip);
-      return;
-    }
-
-    console.log('Switching to trip:', trip.id, trip.destination);
-
-    // First, save current trip data
-    saveCurrentTripData();
-
-    // Set the new trip info
-    setTripInfo({
-      ...trip,
-      id: trip.id,
-      destination: trip.destination || '',
-      startDate: trip.startDate || '',
-      endDate: trip.endDate || '',
-      name: trip.name || trip.destination || '',
-      participants: trip.participants || [],
-      tripCode: trip.tripCode || '',
-      tripType: trip.tripType || 'solo',
-      isCompleted: trip.isCompleted || false,
-    });
-
-    // Load that trip's data if it exists in the map
-    const savedData = tripDataMap[trip.id];
-    if (savedData) {
-      setExpenses(savedData.expenses || []);
-      setPackingItems(savedData.packingItems || []);
-      setItinerary(savedData.itinerary || []);
-      setBudget(savedData.budget || { total: 0, categories: {} });
-    } else {
-      // If no saved data, check if trip has stored data
-      setExpenses(trip.expenses || []);
-      setPackingItems(trip.packingItems || []);
-      setItinerary(trip.itinerary || []);
-      setBudget(trip.budget || { total: trip.budgetTotal || 0, categories: {} });
-    }
-  };
-
-  // Update the auto-save effect to also save trip data
-  React.useEffect(() => {
-    if (tripInfo && tripInfo.destination && tripInfo.startDate && tripInfo.id) {
-      const tripCode = tripInfo.tripCode || generateUniqueTripCode();
-      const tripId = tripInfo.id;
-      
-      // Update tripInfo with code if missing
-      if (!tripInfo.tripCode) {
-        setTripInfo(prev => ({
-          ...prev,
-          tripCode: tripCode,
-        }));
-      }
-      
-      // Save current trip data to map
-      setTripDataMap(prev => ({
-        ...prev,
-        [tripId]: {
-          expenses: [...expenses],
-          packingItems: [...packingItems],
-          itinerary: [...itinerary],
-          budget: { ...budget },
-        }
-      }));
-      
-      // Save to allTrips
-      setAllTrips(prevTrips => {
-        const tripToSave = {
-          ...tripInfo,
-          id: tripId,
-          tripCode: tripCode,
-          totalExpenses: expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
-          updatedAt: new Date().toISOString(),
-          // Store the data with the trip
-          expenses: [...expenses],
-          packingItems: [...packingItems],
-          itinerary: [...itinerary],
-          budget: { ...budget },
-        };
-        
-        const existingIndex = prevTrips.findIndex(t => t.id === tripId);
-        
-        if (existingIndex >= 0) {
-          const updated = [...prevTrips];
-          updated[existingIndex] = { ...updated[existingIndex], ...tripToSave };
-          return updated;
-        } else {
-          return [tripToSave, ...prevTrips];
-        }
-      });
-    }
-  }, [tripInfo.id, tripInfo.destination, tripInfo.startDate, tripInfo.endDate, tripInfo.tripType, expenses.length, packingItems.length, itinerary.length, budget.total]);
-
-  // Updated setTripInfo wrapper to ensure trip code is generated
-  const updateTripInfo = (updater) => {
-    setTripInfo(prev => {
-      const newInfo = typeof updater === 'function' ? updater(prev) : updater;
-      
-      // Auto-generate trip code and ID if this is a new trip with destination
-      if (newInfo.destination && !newInfo.tripCode) {
-        newInfo.tripCode = generateUniqueTripCode();
-      }
-      if (newInfo.destination && !newInfo.id) {
-        newInfo.id = `trip-${Date.now()}`;
-      }
-      
-      return newInfo;
-    });
-  };
-
-  // Make sure deleteExpense is included in the context value
   return (
     <TravelContext.Provider value={{
-      tripInfo, 
-      setTripInfo: updateTripInfo, // Use the wrapper instead of raw setTripInfo
+      tripInfo, setTripInfo,
       budget, setBudget,
-      expenses,
-      setExpenses,
-      addExpense,
-      deleteExpense,
+      expenses, setExpenses, addExpense, deleteExpense,
       getTotalExpenses, getExpensesByCategory,
       packingItems, addPackingItem, togglePackingItem, deletePackingItem,
       itinerary, addItineraryItem, deleteItineraryItem, updateItineraryItem,
       getRemainingBudget,
       clearTrip, endTrip,
-      tripHistory, setTripHistory,
-      deleteTripFromHistory,
+      tripHistory, setTripHistory, deleteTripFromHistory,
       currency, setCurrency, currencies: CURRENCIES,
       formatCurrency,
       customCategories, setCustomCategories,
-      // Multi-user functions
-      isMultiUserTrip,
-      getAllTravelers,
-      getBalances,
-      getSettlements,
-      // Manage multiple trips
-      allTrips, addTrip, updateTrip, deleteTrip,
-      createNewTrip,
-      saveCurrentTripToList,
-      getTripByCode,
-      switchToTrip,
-      saveCurrentTripData, // Add this
+      isMultiUserTrip, getAllTravelers, getBalances, getSettlements,
+      allTrips, deleteTrip, createNewTrip, saveCurrentTripToList, getTripByCode, switchToTrip,
     }}>
       {children}
     </TravelContext.Provider>
