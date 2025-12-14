@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,7 +14,21 @@ export default function RootNavigator() {
   const { user, initializing } = useAuth();
   const [authScreen, setAuthScreen] = useState('signIn');
 
-  console.log('RootNavigator:', { user: user?.email, initializing });
+  // Reset to signIn screen when user logs out
+  useEffect(() => {
+    console.log('RootNavigator useEffect: user =', user?.email || 'null');
+    if (!user && !initializing) {
+      console.log('RootNavigator: User is null, showing SignIn screen');
+      setAuthScreen('signIn');
+    }
+  }, [user, initializing]);
+
+  console.log('RootNavigator render:', { 
+    hasUser: !!user, 
+    userEmail: user?.email || 'null', 
+    initializing,
+    authScreen 
+  });
 
   // Loading state
   if (initializing) {
@@ -22,14 +36,14 @@ export default function RootNavigator() {
       <View style={[styles.loading, { backgroundColor: colors.bg }]}>
         <Text style={styles.logo}>✈️</Text>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.text, { color: colors.textMuted }]}>Loading...</Text>
+        <Text style={[styles.text, { color: colors.textMuted }]}>Loading TripNest...</Text>
       </View>
     );
   }
 
-  // Authenticated - show main app
+  // Authenticated - show main app wrapped in TravelProvider
   if (user && user.email) {
-    console.log('RootNavigator: Showing MainApp');
+    console.log('RootNavigator: User authenticated, showing MainApp');
     return (
       <TravelProvider>
         <MainApp />
@@ -38,7 +52,7 @@ export default function RootNavigator() {
   }
 
   // Not authenticated - show auth screens
-  console.log('RootNavigator: Showing auth screen:', authScreen);
+  console.log('RootNavigator: No user, showing:', authScreen);
   
   if (authScreen === 'signUp') {
     return <SignUpScreen onNavigateToSignIn={() => setAuthScreen('signIn')} />;

@@ -90,13 +90,18 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    console.log('AuthContext.signOut: Starting...');
     try {
       setLoading(true);
+      
       await firebaseSignOut(auth);
-      console.log('signOut success');
+      
+      console.log('AuthContext.signOut: Firebase signOut complete');
+      // onAuthStateChanged will set user to null
+      
       return { success: true };
     } catch (error) {
-      console.error('signOut error:', error);
+      console.error('AuthContext.signOut: Error:', error);
       return { success: false, error: error.message };
     } finally {
       setLoading(false);
