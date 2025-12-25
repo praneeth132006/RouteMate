@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  View, Text, TextInput, ScrollView, 
-  StyleSheet, Animated, Pressable, KeyboardAvoidingView, Platform, Alert 
+import {
+  View, Text, TextInput, ScrollView,
+  StyleSheet, Animated, Pressable, KeyboardAvoidingView, Platform, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -37,7 +37,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  
+
   const [tripData, setTripData] = useState({
     destination: '',
     startDate: '',
@@ -74,16 +74,15 @@ export default function TripSetupScreen({ onComplete, onBack }) {
 
     // Add companions step based on trip type (skip for solo)
     if (tripData.tripType && tripData.tripType !== 'solo') {
-      baseSteps.push({ 
-        key: 'companions', 
-        title: getCompanionsTitle(), 
-        subtitle: getCompanionsSubtitle(), 
-        icon: getCompanionsIcon() 
+      baseSteps.push({
+        key: 'companions',
+        title: getCompanionsTitle(),
+        subtitle: getCompanionsSubtitle(),
+        icon: getCompanionsIcon()
       });
     }
 
-    // Always add budget step at the end
-    baseSteps.push({ key: 'budget', title: 'Budget', subtitle: 'Plan your spending', icon: '💰' });
+    // Budget step removed - users can add budget manually in home page
 
     return baseSteps;
   };
@@ -127,10 +126,10 @@ export default function TripSetupScreen({ onComplete, onBack }) {
       Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
     ]).start();
 
-    Animated.timing(progressAnim, { 
-      toValue: (currentStep + 1) / totalSteps, 
-      duration: 300, 
-      useNativeDriver: false 
+    Animated.timing(progressAnim, {
+      toValue: (currentStep + 1) / totalSteps,
+      duration: 300,
+      useNativeDriver: false
     }).start();
   }, [currentStep, totalSteps]);
 
@@ -166,7 +165,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
 
   const handleComplete = () => {
     const tripCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    
+
     // Prepare participants based on trip type
     let participants = [];
     switch (tripData.tripType) {
@@ -192,8 +191,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     console.log('TripSetupScreen - completing with tripType:', tripData.tripType);
     console.log('TripSetupScreen - participants:', participants);
 
-    onComplete({ 
-      ...tripData, 
+    onComplete({
+      ...tripData,
       tripCode,
       participants,
       tripType: tripData.tripType, // MAKE SURE THIS IS INCLUDED
@@ -204,18 +203,16 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   const isStepValid = () => {
     const step = STEPS[currentStep];
     switch (step.key) {
-      case 'location': 
+      case 'location':
         return tripData.destination.trim().length > 0 && tripData.startDate && tripData.endDate;
-      case 'tripType': 
+      case 'tripType':
         return tripData.tripType !== '';
       case 'companions':
         if (tripData.tripType === 'couple') {
           return tripData.partnerName.trim().length > 0;
         }
         return true; // Friends, family, business can be empty
-      case 'budget': 
-        return tripData.budget && parseFloat(tripData.budget) > 0;
-      default: 
+      default:
         return true;
     }
   };
@@ -225,8 +222,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   };
 
   const selectTripType = (type) => {
-    setTripData({ 
-      ...tripData, 
+    setTripData({
+      ...tripData,
       tripType: type.key,
       // Reset companion data when changing type
       friends: [],
@@ -257,9 +254,9 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     if (tripData.newMemberName.trim()) {
       setTripData({
         ...tripData,
-        familyMembers: [...tripData.familyMembers, { 
-          name: tripData.newMemberName.trim(), 
-          relation: tripData.newMemberRelation || 'Member' 
+        familyMembers: [...tripData.familyMembers, {
+          name: tripData.newMemberName.trim(),
+          relation: tripData.newMemberRelation || 'Member'
         }],
         newMemberName: '',
         newMemberRelation: '',
@@ -339,35 +336,13 @@ export default function TripSetupScreen({ onComplete, onBack }) {
               </View>
             </View>
 
-            {/* Popular Destinations */}
-            <View style={styles.suggestionsSection}>
-              <Text style={styles.suggestionsTitle}>🔥 Popular Destinations</Text>
-              <View style={styles.destinationsGrid}>
-                {POPULAR_DESTINATIONS.map((dest, index) => (
-                  <Pressable
-                    key={index}
-                    style={({ pressed }) => [
-                      styles.destinationCard,
-                      tripData.destination === `${dest.name}, ${dest.country}` && styles.destinationCardActive,
-                      pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }
-                    ]}
-                    onPress={() => selectDestination(dest)}
-                  >
-                    <Text style={styles.destinationEmoji}>{dest.emoji}</Text>
-                    <Text style={styles.destinationName}>{dest.name}</Text>
-                    <Text style={styles.destinationCountry}>{dest.country}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
             {/* Date Selection */}
             <View style={styles.datesSection}>
               <Text style={styles.inputLabel}>📅 Travel Dates</Text>
-              
+
               <View style={styles.datesRow}>
                 {/* Start Date */}
-                <Pressable 
+                <Pressable
                   style={({ pressed }) => [styles.dateCard, pressed && { opacity: 0.9 }]}
                   onPress={() => setShowStartDatePicker(true)}
                 >
@@ -385,7 +360,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                 </View>
 
                 {/* End Date */}
-                <Pressable 
+                <Pressable
                   style={({ pressed }) => [styles.dateCard, pressed && { opacity: 0.9 }]}
                   onPress={() => setShowEndDatePicker(true)}
                 >
@@ -497,7 +472,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
             {/* Trip Summary */}
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>📋 Trip Summary</Text>
-              
+
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryEmoji}>📍</Text>
                 <View style={styles.summaryContent}>
@@ -571,7 +546,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                   onChangeText={(text) => setTripData({ ...tripData, newFriendName: text })}
                   onSubmitEditing={addFriend}
                 />
-                <Pressable 
+                <Pressable
                   style={[styles.addBtn, !tripData.newFriendName.trim() && styles.addBtnDisabled]}
                   onPress={addFriend}
                   disabled={!tripData.newFriendName.trim()}
@@ -620,7 +595,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
             {/* Add Family Member */}
             <View style={styles.addCompanionSection}>
               <View style={styles.familyInputRow}>
-                <View style={[styles.inputContainer, { flex: 1 }]}>
+                <View style={[styles.inputContainer, styles.familyNameInput]}>
                   <TextInput
                     style={styles.familyInput}
                     placeholder="Name"
@@ -629,7 +604,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                     onChangeText={(text) => setTripData({ ...tripData, newMemberName: text })}
                   />
                 </View>
-                <View style={[styles.inputContainer, { flex: 0.6 }]}>
+                <View style={[styles.inputContainer, styles.familyRelationInput]}>
                   <TextInput
                     style={styles.familyInput}
                     placeholder="Relation"
@@ -638,8 +613,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                     onChangeText={(text) => setTripData({ ...tripData, newMemberRelation: text })}
                   />
                 </View>
-                <Pressable 
-                  style={[styles.addBtnSmall, !tripData.newMemberName.trim() && styles.addBtnDisabled]}
+                <Pressable
+                  style={[styles.addBtnFamily, !tripData.newMemberName.trim() && styles.addBtnDisabled]}
                   onPress={addFamilyMember}
                   disabled={!tripData.newMemberName.trim()}
                 >
@@ -651,12 +626,18 @@ export default function TripSetupScreen({ onComplete, onBack }) {
             {/* Quick Add Relations */}
             <View style={styles.quickRelations}>
               {['Spouse', 'Child', 'Parent', 'Sibling'].map((rel, i) => (
-                <Pressable 
+                <Pressable
                   key={i}
-                  style={styles.relationChip}
+                  style={[
+                    styles.relationChip,
+                    tripData.newMemberRelation === rel && styles.relationChipActive
+                  ]}
                   onPress={() => setTripData({ ...tripData, newMemberRelation: rel })}
                 >
-                  <Text style={styles.relationChipText}>{rel}</Text>
+                  <Text style={[
+                    styles.relationChipText,
+                    tripData.newMemberRelation === rel && styles.relationChipTextActive
+                  ]}>{rel}</Text>
                 </Pressable>
               ))}
             </View>
@@ -701,7 +682,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
               </View>
               <Text style={styles.coupleTitle}>Traveling with your partner?</Text>
               <Text style={styles.coupleSubtitle}>Add their name to share this trip</Text>
-              
+
               <View style={styles.inputContainer}>
                 <View style={styles.inputIconBg}>
                   <Text style={styles.inputIcon}>💕</Text>
@@ -735,7 +716,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                   onChangeText={(text) => setTripData({ ...tripData, newColleagueName: text })}
                   onSubmitEditing={addColleague}
                 />
-                <Pressable 
+                <Pressable
                   style={[styles.addBtn, !tripData.newColleagueName.trim() && styles.addBtnDisabled]}
                   onPress={addColleague}
                   disabled={!tripData.newColleagueName.trim()}
@@ -790,7 +771,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
@@ -822,7 +803,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         </Animated.View>
 
         {/* Content */}
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -859,6 +840,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
           onSelect={(date) => setTripData({ ...tripData, startDate: date })}
           selectedDate={tripData.startDate}
           title="Select Start Date"
+          startDate={tripData.startDate}
+          endDate={tripData.endDate}
         />
         <DatePickerModal
           visible={showEndDatePicker}
@@ -867,6 +850,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
           selectedDate={tripData.endDate}
           title="Select End Date"
           minDate={tripData.startDate}
+          startDate={tripData.startDate}
+          endDate={tripData.endDate}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1181,6 +1166,12 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  familyNameInput: {
+    flex: 1,
+  },
+  familyRelationInput: {
+    flex: 0.8,
+  },
   familyInput: {
     flex: 1,
     fontSize: 15,
@@ -1205,12 +1196,20 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  addBtnFamily: {
+    backgroundColor: colors.primary,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   addBtnDisabled: {
     opacity: 0.5,
   },
   addBtnText: {
     color: colors.bg,
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   quickRelations: {
@@ -1227,9 +1226,17 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primaryBorder,
   },
+  relationChipActive: {
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primary,
+  },
   relationChipText: {
     color: colors.text,
     fontSize: 13,
+  },
+  relationChipTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   companionsList: {
     marginBottom: 20,
