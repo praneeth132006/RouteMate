@@ -40,15 +40,15 @@ export const useTravelContext = () => {
       allTrips: [],
       currency: currencies[0],
       currencies,
-      setTripInfo: () => {},
-      setBudget: () => {},
-      setExpenses: () => {},
-      addExpense: () => {},
-      setPackingItems: () => {},
-      setItinerary: () => {},
-      setCurrency: () => {},
-      clearTrip: async () => {},
-      deleteTripFromHistory: () => {},
+      setTripInfo: () => { },
+      setBudget: () => { },
+      setExpenses: () => { },
+      addExpense: () => { },
+      setPackingItems: () => { },
+      setItinerary: () => { },
+      setCurrency: () => { },
+      clearTrip: async () => { },
+      deleteTripFromHistory: () => { },
     };
   }
   return context;
@@ -56,7 +56,7 @@ export const useTravelContext = () => {
 
 export const TravelProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
-  
+
   const [tripInfo, setTripInfoState] = useState({
     destination: '',
     startDate: '',
@@ -105,37 +105,37 @@ export const TravelProvider = ({ children }) => {
     try {
       setIsLoading(true);
       console.log('Loading user data from Firebase...');
-      
+
       // Load current trip info
       const currentTrip = await DB.getCurrentTripInfo();
       if (currentTrip) {
         setTripInfoState(currentTrip);
       }
-      
+
       // Load budget
       const savedBudget = await DB.getBudget();
       setBudgetState(savedBudget);
-      
+
       // Load expenses
       const savedExpenses = await DB.getExpenses();
       setExpenses(savedExpenses);
-      
+
       // Load packing items
       const savedPackingItems = await DB.getPackingItems();
       setPackingItems(savedPackingItems);
-      
+
       // Load itinerary
       const savedItinerary = await DB.getItinerary();
       setItinerary(savedItinerary);
-      
+
       // Load all trips
       const savedTrips = await DB.getTrips();
       setAllTrips(savedTrips);
-      
+
       // Load trip history
       const savedHistory = await DB.getTripHistory();
       setTripHistory(savedHistory);
-      
+
       console.log('User data loaded successfully');
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -147,16 +147,16 @@ export const TravelProvider = ({ children }) => {
   // Set trip info and save to Firebase
   const setTripInfo = async (updater) => {
     const newInfo = typeof updater === 'function' ? updater(tripInfo) : updater;
-    
+
     if (newInfo.destination && !newInfo.tripCode) {
       newInfo.tripCode = generateUniqueTripCode();
     }
     if (newInfo.destination && !newInfo.id) {
       newInfo.id = `trip-${Date.now()}`;
     }
-    
+
     setTripInfoState(newInfo);
-    
+
     // Save to Firebase
     if (isAuthenticated && newInfo.destination) {
       try {
@@ -171,7 +171,7 @@ export const TravelProvider = ({ children }) => {
   const setBudget = async (updater) => {
     const newBudget = typeof updater === 'function' ? updater(budget) : updater;
     setBudgetState(newBudget);
-    
+
     if (isAuthenticated) {
       try {
         await DB.saveBudget(newBudget);
@@ -192,9 +192,9 @@ export const TravelProvider = ({ children }) => {
       beneficiaries: expense.beneficiaries || [],
       createdAt: Date.now(),
     };
-    
+
     setExpenses(prev => [...prev, newExpense]);
-    
+
     if (isAuthenticated) {
       try {
         await DB.saveExpense(newExpense);
@@ -207,7 +207,7 @@ export const TravelProvider = ({ children }) => {
   // Delete expense
   const deleteExpense = async (id) => {
     setExpenses(prev => prev.filter(expense => expense.id !== id));
-    
+
     if (isAuthenticated) {
       try {
         await DB.deleteExpenseFromDB(id);
@@ -221,7 +221,7 @@ export const TravelProvider = ({ children }) => {
   const addPackingItem = async (item) => {
     const newItem = { ...item, id: Date.now().toString(), packed: false };
     setPackingItems(prev => [...prev, newItem]);
-    
+
     if (isAuthenticated) {
       try {
         await DB.savePackingItem(newItem);
@@ -235,7 +235,7 @@ export const TravelProvider = ({ children }) => {
   const togglePackingItem = async (id) => {
     const item = packingItems.find(i => i.id === id);
     setPackingItems(prev => prev.map(i => i.id === id ? { ...i, packed: !i.packed } : i));
-    
+
     if (isAuthenticated && item) {
       try {
         await DB.updatePackingItem(id, { packed: !item.packed });
@@ -248,7 +248,7 @@ export const TravelProvider = ({ children }) => {
   // Delete packing item
   const deletePackingItem = async (id) => {
     setPackingItems(prev => prev.filter(item => item.id !== id));
-    
+
     if (isAuthenticated) {
       try {
         await DB.deletePackingItemFromDB(id);
@@ -262,7 +262,7 @@ export const TravelProvider = ({ children }) => {
   const addItineraryItem = async (item) => {
     const newItem = { ...item, id: Date.now().toString() };
     setItinerary(prev => [...prev, newItem]);
-    
+
     if (isAuthenticated) {
       try {
         await DB.saveItineraryItem(newItem);
@@ -275,7 +275,7 @@ export const TravelProvider = ({ children }) => {
   // Delete itinerary item
   const deleteItineraryItem = async (id) => {
     setItinerary(prev => prev.filter(item => item.id !== id));
-    
+
     if (isAuthenticated) {
       try {
         await DB.deleteItineraryItemFromDB(id);
@@ -303,9 +303,9 @@ export const TravelProvider = ({ children }) => {
         expensesCount: expenses.length,
         currency: currency.code,
       };
-      
+
       setTripHistory(prev => [completedTrip, ...prev]);
-      
+
       if (isAuthenticated) {
         try {
           await DB.saveToHistory(completedTrip);
@@ -314,7 +314,7 @@ export const TravelProvider = ({ children }) => {
           console.error('Error ending trip:', error);
         }
       }
-      
+
       await clearTrip();
     }
   };
@@ -329,7 +329,7 @@ export const TravelProvider = ({ children }) => {
     setExpenses([]);
     setPackingItems([]);
     setItinerary([]);
-    
+
     if (isAuthenticated) {
       try {
         await DB.clearCurrentTripData();
@@ -349,7 +349,7 @@ export const TravelProvider = ({ children }) => {
         totalExpenses: getTotalExpenses(),
         createdAt: Date.now(),
       };
-      
+
       setAllTrips(prev => {
         const idx = prev.findIndex(t => t.id === tripToSave.id);
         if (idx >= 0) {
@@ -359,7 +359,7 @@ export const TravelProvider = ({ children }) => {
         }
         return [tripToSave, ...prev];
       });
-      
+
       if (isAuthenticated) {
         try {
           await DB.saveTrip(tripToSave);
@@ -367,22 +367,22 @@ export const TravelProvider = ({ children }) => {
           console.error('Error saving trip to list:', error);
         }
       }
-      
+
       return tripToSave;
     }
     return null;
   };
 
   const getTotalExpenses = () => expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-  
+
   const getExpensesByCategory = () => expenses.reduce((acc, e) => {
     const amount = parseFloat(e.amount) || 0;
     acc[e.category] = (acc[e.category] || 0) + amount;
     return acc;
   }, {});
-  
+
   const getRemainingBudget = () => (budget.total || 0) - getTotalExpenses();
-  
+
   const formatCurrency = (amount) => {
     const num = parseFloat(amount) || 0;
     if (currency.code === 'INR') {
@@ -390,9 +390,9 @@ export const TravelProvider = ({ children }) => {
     }
     return `${currency.symbol}${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
   };
-  
+
   const isMultiUserTrip = () => tripInfo.tripType && tripInfo.tripType !== 'solo';
-  
+
   const getAllTravelers = () => {
     const mainUser = { id: 'main_user', name: 'You', avatar: '👤' };
     return [mainUser, ...(tripInfo.participants || [])];
@@ -415,6 +415,41 @@ export const TravelProvider = ({ children }) => {
 
   const switchToTrip = (trip) => {
     if (trip) setTripInfoState(trip);
+  };
+
+  // Join trip by code
+  const joinTripByCode = async (code) => {
+    try {
+      if (!isAuthenticated) return { success: false, error: 'Please sign in to join a trip' };
+
+      setIsLoading(true);
+      const trip = await DB.getTripByCode(code);
+
+      if (!trip) {
+        setIsLoading(false);
+        return { success: false, error: 'Trip code not found' };
+      }
+
+      // Check if already joined
+      const alreadyJoined = allTrips.some(t => t.id === trip.id || t.tripCode === code);
+      if (alreadyJoined) {
+        setIsLoading(false);
+        return { success: true, trip, message: 'You have already joined this trip' };
+      }
+
+      // Add to my trips
+      await DB.addMeToTrip(trip);
+
+      // Update local state
+      setAllTrips(prev => [trip, ...prev]);
+
+      setIsLoading(false);
+      return { success: true, trip };
+    } catch (error) {
+      console.error('Join trip error:', error);
+      setIsLoading(false);
+      return { success: false, error: 'Failed to join trip' };
+    }
   };
 
   const getTripByCode = (code) => allTrips.find(trip => trip.tripCode === code?.toUpperCase());
@@ -474,7 +509,7 @@ export const TravelProvider = ({ children }) => {
       formatCurrency,
       customCategories, setCustomCategories,
       isMultiUserTrip, getAllTravelers, getBalances, getSettlements,
-      allTrips, deleteTrip, createNewTrip, saveCurrentTripToList, getTripByCode, switchToTrip,
+      allTrips, deleteTrip, createNewTrip, saveCurrentTripToList, getTripByCode, joinTripByCode, switchToTrip,
       isLoading,
     }}>
       {children}

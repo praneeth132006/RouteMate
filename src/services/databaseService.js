@@ -22,6 +22,12 @@ export const saveTrip = async (tripData) => {
   const tripRef = ref(database, `users/${userId}/trips/${tripId}`);
 
   await set(tripRef, { ...tripData, id: tripId, updatedAt: Date.now(), createdAt: tripData.createdAt || Date.now() });
+
+  // If trip has a code, map it globally
+  if (tripData.tripCode) {
+    await saveTripCodeMapping(tripData.tripCode, userId, tripId);
+  }
+
   return { ...tripData, id: tripId };
 };
 
@@ -37,6 +43,31 @@ export const deleteTrip = async (tripId) => {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
   await remove(ref(database, `users/${userId}/trips/${tripId}`));
+};
+
+// ============ TRIP CODES & SHARING ============
+export const saveTripCodeMapping = async (code, userId, tripId) => {
+  await set(ref(database, `tripCodes/${code}`), { userId, tripId });
+};
+
+export const getTripByCode = async (code) => {
+  // 1. Look up code in 'tripCodes'
+  const codeSnapshot = await get(ref(database, `tripCodes/${code}`));
+  if (!codeSnapshot.exists()) return null;
+
+  const { userId, tripId } = codeSnapshot.val();
+
+  // 2. Fetch trip data
+  const tripSnapshot = await get(ref(database, `users/${userId}/trips/${tripId}`));
+  return tripSnapshot.exists() ? tripSnapshot.val() : null;
+};
+
+export const addMeToTrip = async (trip) => {
+  const userId = getUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  // Add trip to my trips
+  await saveTrip(trip);
 };
 
 // ============ CURRENT TRIP ============

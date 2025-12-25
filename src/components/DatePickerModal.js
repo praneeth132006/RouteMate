@@ -40,6 +40,12 @@ export default function DatePickerModal({ visible, onClose, onSelect, selectedDa
       }
     }
     setCurrentDate(date);
+
+    // For end date picker, apply the selection immediately for range highlighting
+    if (minDate && startDate) {
+      const formatted = `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+      onSelect(formatted);
+    }
   };
 
   const handleConfirm = () => {
@@ -135,7 +141,7 @@ const createStyles = (colors) => StyleSheet.create({
   dayCellInRange: { backgroundColor: colors.primaryMuted },
   dayCellDisabled: { opacity: 0.3 },
   dayText: { color: colors.text, fontSize: 15, fontWeight: '500' },
-  dayTextSelected: { color: colors.bg, fontWeight: 'bold' },
+  dayTextSelected: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16 },
   dayTextToday: { color: colors.primary },
   dayTextDisabled: { color: colors.textMuted },
   selectedDisplay: { marginTop: 20, alignItems: 'center', padding: 16, backgroundColor: colors.primaryMuted, borderRadius: 16, borderWidth: 1, borderColor: colors.primaryBorder },

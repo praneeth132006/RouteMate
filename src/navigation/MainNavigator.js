@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useTravelContext } from '../context/TravelContext';
 
@@ -97,7 +97,7 @@ function TabNavigator({ onBackToHome }) {
 // Main Navigator
 export default function MainNavigator() {
   const [currentScreen, setCurrentScreen] = React.useState('Welcome');
-  const { setTripInfo, setBudget, tripInfo, saveCurrentTripToList } = useTravelContext();
+  const { setTripInfo, setBudget, tripInfo, saveCurrentTripToList, joinTripByCode, switchToTrip } = useTravelContext();
 
   // Check if there's an active trip
   const hasActiveTrip = !!(tripInfo.destination || tripInfo.startDate || tripInfo.name);
@@ -107,10 +107,31 @@ export default function MainNavigator() {
     setCurrentScreen('TripSetup');
   };
 
-  const handleJoinTrip = (code) => {
+  const handleJoinTrip = async (code) => {
     console.log('Join trip with code:', code);
-    // Handle join trip logic - for now go to dashboard
-    setCurrentScreen('TripDashboard');
+
+    // Attempt to join trip
+    const result = await joinTripByCode(code);
+
+    if (result.success) {
+      // Set as active trip info
+      if (result.trip) {
+        if (switchToTrip) {
+          switchToTrip(result.trip);
+        } else {
+          setTripInfo(result.trip);
+        }
+      }
+      // Navigate to dashboard
+      setCurrentScreen('TripDashboard');
+    } else {
+      // Show error (would be better to pass back to WelcomeScreen, but Alert works for now)
+      // Note: WelcomeScreen might have closed the modal already.
+      // Ideally we pass a callback or return promise. 
+      // But WelcomeScreen calls onJoinTrip and doesn't wait.
+      // We'll rely on Alert from here.
+      Alert.alert('Error', `Could not join trip: ${result.error}`);
+    }
   };
 
   const handleMyTrip = (trip, index) => {
@@ -128,7 +149,7 @@ export default function MainNavigator() {
 
   const handleTripSetupComplete = (tripData) => {
     console.log('Trip setup complete:', tripData);
-    
+
     // Save trip data to context
     setTripInfo({
       destination: tripData.destination,
@@ -139,17 +160,17 @@ export default function MainNavigator() {
       tripCode: tripData.tripCode,
       tripType: tripData.tripType,
     });
-    
+
     // Set budget
     setBudget(prev => ({ ...prev, total: parseFloat(tripData.budget) || 0 }));
-    
+
     // Save to allTrips list after a small delay to ensure tripInfo is updated
     setTimeout(() => {
       if (saveCurrentTripToList) {
         saveCurrentTripToList();
       }
     }, 100);
-    
+
     // Navigate to dashboard
     setCurrentScreen('TripDashboard');
   };

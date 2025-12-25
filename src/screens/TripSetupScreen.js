@@ -37,6 +37,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [tempFamilyCount, setTempFamilyCount] = useState(1);
+
 
   const [tripData, setTripData] = useState({
     destination: '',
@@ -48,10 +50,9 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     // Friends data
     friends: [],
     newFriendName: '',
-    // Family data
-    familyMembers: [],
-    newMemberName: '',
-    newMemberRelation: '',
+    // Family data - redesigned for multiple families
+    numberOfFamilies: 0,
+    families: [], // Array of families, each with { familyName: '', members: [] }
     // Couple data
     partnerName: '',
     // Business data
@@ -173,7 +174,12 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         participants = tripData.friends.map(name => ({ name, type: 'friend' }));
         break;
       case 'family':
-        participants = tripData.familyMembers;
+        participants = tripData.families.flatMap(family =>
+          family.members.map(member => ({
+            ...member,
+            familyGroup: family.familyName
+          }))
+        );
         break;
       case 'couple':
         if (tripData.partnerName) {
@@ -250,24 +256,52 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     });
   };
 
-  const addFamilyMember = () => {
-    if (tripData.newMemberName.trim()) {
-      setTripData({
-        ...tripData,
-        familyMembers: [...tripData.familyMembers, {
-          name: tripData.newMemberName.trim(),
-          relation: tripData.newMemberRelation || 'Member'
-        }],
+  const setNumberOfFamilies = (count) => {
+    const families = [];
+    for (let i = 0; i < count; i++) {
+      families.push({
+        familyName: `Family ${i + 1}`,
+        members: [],
         newMemberName: '',
         newMemberRelation: '',
       });
     }
-  };
-
-  const removeFamilyMember = (index) => {
     setTripData({
       ...tripData,
-      familyMembers: tripData.familyMembers.filter((_, i) => i !== index),
+      numberOfFamilies: count,
+      families,
+    });
+  };
+
+  const addFamilyMember = (familyIndex, name, relation) => {
+    const updatedFamilies = [...tripData.families];
+    updatedFamilies[familyIndex].members.push({
+      name: name.trim(),
+      relation: relation || 'Member',
+    });
+    updatedFamilies[familyIndex].newMemberName = '';
+    updatedFamilies[familyIndex].newMemberRelation = '';
+    setTripData({
+      ...tripData,
+      families: updatedFamilies,
+    });
+  };
+
+  const removeFamilyMember = (familyIndex, memberIndex) => {
+    const updatedFamilies = [...tripData.families];
+    updatedFamilies[familyIndex].members = updatedFamilies[familyIndex].members.filter((_, i) => i !== memberIndex);
+    setTripData({
+      ...tripData,
+      families: updatedFamilies,
+    });
+  };
+
+  const updateFamilyInput = (familyIndex, field, value) => {
+    const updatedFamilies = [...tripData.families];
+    updatedFamilies[familyIndex][field] = value;
+    setTripData({
+      ...tripData,
+      families: updatedFamilies,
     });
   };
 
@@ -590,87 +624,129 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         );
 
       case 'family':
-        return (
-          <View style={styles.stepContent}>
-            {/* Add Family Member */}
-            <View style={styles.addCompanionSection}>
-              <View style={styles.familyInputRow}>
-                <View style={[styles.inputContainer, styles.familyNameInput]}>
-                  <TextInput
-                    style={styles.familyInput}
-                    placeholder="Name"
-                    placeholderTextColor={colors.textMuted}
-                    value={tripData.newMemberName}
-                    onChangeText={(text) => setTripData({ ...tripData, newMemberName: text })}
-                  />
+        if (tripData.numberOfFamilies === 0) {
+          return (
+            <View style={styles.stepContent}>
+              <View style={styles.familyCountContainer}>
+                <Text style={styles.familyCountEmoji}>👨‍👩‍👧‍👦</Text>
+                <Text style={styles.familyCountTitle}>How many families are joining?</Text>
+                <Text style={styles.familyCountSubtitle}>Including your own family</Text>
+
+                <View style={styles.countControl}>
+                  <Pressable
+                    style={[styles.countBtn, tempFamilyCount <= 1 && styles.countBtnDisabled]}
+                    onPress={() => setTempFamilyCount(Math.max(1, tempFamilyCount - 1))}
+                    disabled={tempFamilyCount <= 1}
+                  >
+                    <Text style={styles.countBtnText}>-</Text>
+                  </Pressable>
+                  <Text style={styles.countValue}>{tempFamilyCount}</Text>
+                  <Pressable
+                    style={styles.countBtn}
+                    onPress={() => setTempFamilyCount(tempFamilyCount + 1)}
+                  >
+                    <Text style={styles.countBtnText}>+</Text>
+                  </Pressable>
                 </View>
-                <View style={[styles.inputContainer, styles.familyRelationInput]}>
-                  <TextInput
-                    style={styles.familyInput}
-                    placeholder="Relation"
-                    placeholderTextColor={colors.textMuted}
-                    value={tripData.newMemberRelation}
-                    onChangeText={(text) => setTripData({ ...tripData, newMemberRelation: text })}
-                  />
-                </View>
+
                 <Pressable
-                  style={[styles.addBtnFamily, !tripData.newMemberName.trim() && styles.addBtnDisabled]}
-                  onPress={addFamilyMember}
-                  disabled={!tripData.newMemberName.trim()}
+                  style={styles.confirmCountBtn}
+                  onPress={() => setNumberOfFamilies(tempFamilyCount)}
                 >
-                  <Text style={styles.addBtnText}>+</Text>
+                  <Text style={styles.confirmCountText}>Continue</Text>
                 </Pressable>
               </View>
             </View>
+          );
+        }
 
-            {/* Quick Add Relations */}
-            <View style={styles.quickRelations}>
-              {['Spouse', 'Child', 'Parent', 'Sibling'].map((rel, i) => (
-                <Pressable
-                  key={i}
-                  style={[
-                    styles.relationChip,
-                    tripData.newMemberRelation === rel && styles.relationChipActive
-                  ]}
-                  onPress={() => setTripData({ ...tripData, newMemberRelation: rel })}
-                >
-                  <Text style={[
-                    styles.relationChipText,
-                    tripData.newMemberRelation === rel && styles.relationChipTextActive
-                  ]}>{rel}</Text>
+        return (
+          <ScrollView style={styles.familiesScroll} showsVerticalScrollIndicator={false}>
+            <View style={[styles.stepContent, { paddingBottom: 100 }]}>
+              <View style={styles.familiesHeaderRow}>
+                <Text style={styles.familiesTitle}>Families ({tripData.numberOfFamilies})</Text>
+                <Pressable onPress={() => setNumberOfFamilies(0)}>
+                  <Text style={styles.changeCountText}>Change</Text>
                 </Pressable>
-              ))}
-            </View>
+              </View>
 
-            {/* Family Members List */}
-            <View style={styles.companionsList}>
-              <Text style={styles.companionsListTitle}>
-                👨‍👩‍👧‍👦 Family Members ({tripData.familyMembers.length})
-              </Text>
-              {tripData.familyMembers.length === 0 ? (
-                <View style={styles.emptyCompanions}>
-                  <Text style={styles.emptyEmoji}>👨‍👩‍👧</Text>
-                  <Text style={styles.emptyText}>No family members added</Text>
-                  <Text style={styles.emptyHint}>Add family members joining this trip</Text>
-                </View>
-              ) : (
-                tripData.familyMembers.map((member, index) => (
-                  <View key={index} style={styles.companionCard}>
-                    <View style={styles.companionAvatar}>
-                      <Text style={styles.companionAvatarText}>{member.name.charAt(0).toUpperCase()}</Text>
+              {tripData.families.map((family, fIndex) => (
+                <View key={fIndex} style={styles.familySection}>
+                  <Text style={styles.familySectionTitle}>{family.familyName}</Text>
+
+                  {/* Add Member Input for this family */}
+                  <View style={styles.familyInputRow}>
+                    <View style={[styles.inputContainer, styles.familyNameInput]}>
+                      <TextInput
+                        style={styles.familyInput}
+                        placeholder="Name"
+                        placeholderTextColor={colors.textMuted}
+                        value={family.newMemberName}
+                        onChangeText={(text) => updateFamilyInput(fIndex, 'newMemberName', text)}
+                      />
                     </View>
-                    <View style={styles.companionInfo}>
-                      <Text style={styles.companionName}>{member.name}</Text>
-                      <Text style={styles.companionRelation}>{member.relation}</Text>
+                    <View style={[styles.inputContainer, styles.familyRelationInput]}>
+                      <TextInput
+                        style={styles.familyInput}
+                        placeholder="Relation"
+                        placeholderTextColor={colors.textMuted}
+                        value={family.newMemberRelation}
+                        onChangeText={(text) => updateFamilyInput(fIndex, 'newMemberRelation', text)}
+                      />
                     </View>
-                    <Pressable style={styles.removeBtn} onPress={() => removeFamilyMember(index)}>
-                      <Text style={styles.removeBtnText}>✕</Text>
+                    <Pressable
+                      style={[styles.addBtnFamily, !family.newMemberName?.trim() && styles.addBtnDisabled]}
+                      onPress={() => addFamilyMember(fIndex, family.newMemberName, family.newMemberRelation)}
+                      disabled={!family.newMemberName?.trim()}
+                    >
+                      <Text style={styles.addBtnText}>+</Text>
                     </Pressable>
                   </View>
-                ))
-              )}
+
+                  {/* Quick Relations for this family */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickRelationsScroll}>
+                    {['Spouse', 'Child', 'Parent', 'Sibling'].map((rel, i) => (
+                      <Pressable
+                        key={i}
+                        style={[
+                          styles.relationChip,
+                          family.newMemberRelation === rel && styles.relationChipActive
+                        ]}
+                        onPress={() => updateFamilyInput(fIndex, 'newMemberRelation', rel)}
+                      >
+                        <Text style={[
+                          styles.relationChipText,
+                          family.newMemberRelation === rel && styles.relationChipTextActive
+                        ]}>{rel}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+
+                  {/* Members List for this family */}
+                  <View style={styles.familyMembersList}>
+                    {family.members.length === 0 ? (
+                      <Text style={styles.emptyFamilyText}>No members added yet</Text>
+                    ) : (
+                      family.members.map((member, mIndex) => (
+                        <View key={mIndex} style={styles.familyMemberCard}>
+                          <View style={styles.familyMemberInfo}>
+                            <Text style={styles.familyMemberName}>{member.name}</Text>
+                            <Text style={styles.familyMemberRelation}>{member.relation}</Text>
+                          </View>
+                          <Pressable
+                            style={styles.removeMemberBtn}
+                            onPress={() => removeFamilyMember(fIndex, mIndex)}
+                          >
+                            <Text style={styles.removeMemberText}>✕</Text>
+                          </Pressable>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                </View>
+              ))}
             </View>
-          </View>
+          </ScrollView>
         );
 
       case 'couple':
@@ -1240,6 +1316,163 @@ const createStyles = (colors) => StyleSheet.create({
   },
   companionsList: {
     marginBottom: 20,
+  },
+  // Family Count UI
+  familyCountContainer: {
+    alignItems: 'center',
+    marginVertical: 40,
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 30,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  familyCountEmoji: {
+    fontSize: 60,
+    marginBottom: 20,
+  },
+  familyCountTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  familyCountSubtitle: {
+    fontSize: 16,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  countControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 30,
+  },
+  countBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.cardLight,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBtnDisabled: {
+    opacity: 0.3,
+  },
+  countBtnText: {
+    fontSize: 28,
+    color: colors.text,
+    fontWeight: 'bold',
+  },
+  countValue: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: colors.primary,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  confirmCountBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 16,
+    width: '100%',
+    alignItems: 'center',
+  },
+  confirmCountText: {
+    color: colors.bg,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+
+  // Family Sections UI
+  familiesScroll: {
+    flex: 1,
+  },
+  familiesHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 20,
+  },
+  familiesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  changeCountText: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  familySection: {
+    marginBottom: 30,
+    backgroundColor: colors.card,
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  familySectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  quickRelationsScroll: {
+    flexGrow: 0,
+    marginBottom: 20,
+  },
+  familyMembersList: {
+    marginTop: 10,
+  },
+  emptyFamilyText: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginBottom: 10,
+  },
+  familyMemberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardLight,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  familyMemberInfo: {
+    flex: 1,
+  },
+  familyMemberName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  familyMemberRelation: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  removeMemberBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  removeMemberText: {
+    fontSize: 14,
+    color: colors.textMuted,
   },
   companionsListTitle: {
     fontSize: 15,
