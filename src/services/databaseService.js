@@ -195,6 +195,20 @@ export const getTripHistory = async () => {
   return snapshot.exists() ? Object.values(snapshot.val()).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0)) : [];
 };
 
+// ============ USER SETTINGS (Theme, Currency, etc.) ============
+export const saveUserSettings = async (settings) => {
+  const userId = getUserId();
+  if (!userId) throw new Error('User not authenticated');
+  await update(ref(database, `users/${userId}/settings`), { ...settings, updatedAt: Date.now() });
+};
+
+export const getUserSettings = async () => {
+  const userId = getUserId();
+  if (!userId) return null;
+  const snapshot = await get(ref(database, `users/${userId}/settings`));
+  return snapshot.exists() ? snapshot.val() : null;
+};
+
 // ============ DELETE ALL USER DATA ============
 export const deleteAllUserData = async () => {
   const userId = getUserId();

@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateUniqueTripCode } from '../utils/tripCodeGenerator';
 import { useAuth } from './AuthContext';
 import * as DB from '../services/databaseService';
@@ -74,9 +73,21 @@ export const TravelProvider = ({ children }) => {
   const [itinerary, setItinerary] = useState([]);
   const [tripHistory, setTripHistory] = useState([]);
   const [allTrips, setAllTrips] = useState([]);
-  const [currency, setCurrency] = useState(currencies[0]);
+  const [currency, setCurrencyState] = useState(currencies[0]);
   const [customCategories, setCustomCategories] = useState(DEFAULT_CATEGORIES);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Wrapper for setCurrency to save to Firebase
+  const setCurrency = async (newCurrency) => {
+    setCurrencyState(newCurrency);
+    if (isAuthenticated && user) {
+      try {
+        await DB.saveUserSettings({ currency: newCurrency.code });
+      } catch (error) {
+        console.error('Error saving currency:', error);
+      }
+    }
+  };
 
   // Load data from Firebase when user logs in
   useEffect(() => {
@@ -99,12 +110,20 @@ export const TravelProvider = ({ children }) => {
     setItinerary([]);
     setTripHistory([]);
     setAllTrips([]);
+    setCurrencyState(currencies[0]);
   };
 
   const loadUserData = async () => {
     try {
       setIsLoading(true);
       console.log('Loading user data from Firebase...');
+
+      // Load user settings (Currency)
+      const settings = await DB.getUserSettings();
+      if (settings?.currency) {
+        const savedCurrency = currencies.find(c => c.code === settings.currency);
+        if (savedCurrency) setCurrencyState(savedCurrency);
+      }
 
       // Load current trip info
       const currentTrip = await DB.getCurrentTripInfo();
@@ -286,56 +305,77 @@ export const TravelProvider = ({ children }) => {
   };
 
   // Update itinerary item
-  const updateItineraryItem = (id, updates) => {
+  const updateItineraryItem = async (id, updates) => {
     setItinerary(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+
+    if (isAuthenticated) {
+      try {
+        const item = itinerary.find(i => i.id === id);
+        if (item) {
+          await DB.saveItineraryItem({ ...item, ...updates });
+        }
+      } catch (error) {
+        console.error('Error updating itinerary item:', error);
+      }
+    }
   };
 
   // End trip - move to history
   const endTrip = async () => {
     if (tripInfo && tripInfo.destination) {
-      const completedTrip = {
-        ...tripInfo,
-        id: `history-${Date.now()}`,
-        isCompleted: true,
-        completedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-        totalSpent: getTotalExpenses(),
-        budget: budget.total,
-        expensesCount: expenses.length,
-        currency: currency.code,
-      };
+      try {
+        setIsLoading(true);
+        const completedTrip = {
+          ...tripInfo,
+          id: tripInfo.id || `history-${Date.now()}`,
+          isCompleted: true,
+          completedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+          totalSpent: getTotalExpenses(),
+          budget: budget.total,
+          expensesCount: expenses.length,
+          currency: currency.code,
+        };
 
-      setTripHistory(prev => [completedTrip, ...prev]);
+        setTripHistory(prev => [completedTrip, ...prev]);
 
-      if (isAuthenticated) {
-        try {
+        if (isAuthenticated) {
           await DB.saveToHistory(completedTrip);
-          await DB.clearCurrentTripData();
-        } catch (error) {
-          console.error('Error ending trip:', error);
         }
-      }
 
-      await clearTrip();
+        await clearTrip();
+        return { success: true };
+      } catch (error) {
+        console.error('Error ending trip:', error);
+        return { success: false, error: error.message };
+      } finally {
+        setIsLoading(false);
+      }
     }
+    return { success: false, error: 'No active trip to end' };
   };
 
   // Clear current trip
   const clearTrip = async () => {
-    setTripInfoState({
-      destination: '', startDate: '', endDate: '', name: '',
-      participants: [], tripCode: '', tripType: '', isCompleted: false,
-    });
-    setBudgetState({ total: 0, categories: {} });
-    setExpenses([]);
-    setPackingItems([]);
-    setItinerary([]);
+    try {
+      setIsLoading(true);
+      setTripInfoState({
+        destination: '', startDate: '', endDate: '', name: '',
+        participants: [], tripCode: '', tripType: '', isCompleted: false,
+      });
+      setBudgetState({ total: 0, categories: {} });
+      setExpenses([]);
+      setPackingItems([]);
+      setItinerary([]);
 
-    if (isAuthenticated) {
-      try {
+      if (isAuthenticated) {
         await DB.clearCurrentTripData();
-      } catch (error) {
-        console.error('Error clearing trip:', error);
       }
+      return { success: true };
+    } catch (error) {
+      console.error('Error clearing trip:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -400,17 +440,43 @@ export const TravelProvider = ({ children }) => {
 
   const deleteTripFromHistory = async (id) => {
     setTripHistory(prev => prev.filter(trip => trip.id !== id));
+    if (isAuthenticated) {
+      try {
+        await DB.deleteTripFromHistory(id);
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting trip from history:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    return { success: true };
   };
 
   const deleteTrip = async (tripId) => {
-    setAllTrips(prev => prev.filter(trip => trip.id !== tripId));
+    // Try to remove from active trips
+    const isActive = allTrips.some(t => t.id === tripId);
+    if (isActive) {
+      setAllTrips(prev => prev.filter(trip => trip.id !== tripId));
+    }
+
+    // Also try to remove from history just in case
+    const isHistory = tripHistory.some(t => t.id === tripId);
+    if (isHistory) {
+      setTripHistory(prev => prev.filter(trip => trip.id !== tripId));
+    }
+
     if (isAuthenticated) {
       try {
         await DB.deleteTrip(tripId);
+        // Also try deleting from history DB path if needed
+        await DB.deleteTripFromHistory(tripId);
+        return { success: true };
       } catch (error) {
         console.error('Error deleting trip:', error);
+        return { success: false, error: error.message };
       }
     }
+    return { success: true };
   };
 
   const switchToTrip = (trip) => {
@@ -456,43 +522,6 @@ export const TravelProvider = ({ children }) => {
   const createNewTrip = () => saveCurrentTripToList();
   const getBalances = () => ({});
   const getSettlements = () => [];
-
-  // Load data on mount
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Save data when it changes
-  useEffect(() => {
-    saveData();
-  }, [tripInfo, budget, expenses, packingItems, itinerary, tripHistory, currency]);
-
-  const loadData = async () => {
-    try {
-      const data = await AsyncStorage.getItem('travelData');
-      if (data) {
-        const parsed = JSON.parse(data);
-        setTripInfoState(parsed.tripInfo || {});
-        setBudgetState(parsed.budget || { total: 0 });
-        setExpenses(parsed.expenses || []);
-        setPackingItems(parsed.packingItems || []);
-        setItinerary(parsed.itinerary || []);
-        setTripHistory(parsed.tripHistory || []);
-        if (parsed.currency) setCurrency(parsed.currency);
-      }
-    } catch (e) {
-      console.log('Load data error:', e);
-    }
-  };
-
-  const saveData = async () => {
-    try {
-      const data = { tripInfo, budget, expenses, packingItems, itinerary, tripHistory, currency };
-      await AsyncStorage.setItem('travelData', JSON.stringify(data));
-    } catch (e) {
-      console.log('Save data error:', e);
-    }
-  };
 
   return (
     <TravelContext.Provider value={{

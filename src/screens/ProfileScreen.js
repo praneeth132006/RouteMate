@@ -74,6 +74,8 @@ export default function ProfileScreen({ onBack }) {
     currency,
     setCurrency,
     currencies,
+    tripHistory,
+    deleteTripFromHistory,
   } = useTravelContext();
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -801,12 +803,55 @@ const createStyles = (colors, isDark) => StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 16,
   },
-  settingIcon: { fontSize: 20 },
-  settingInfo: { marginLeft: 16, flex: 1 },
-  settingLabel: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 2, letterSpacing: 0.2 },
-  settingValue: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
-  settingArrow: { fontSize: 24, color: colors.textMuted, fontWeight: '300', marginLeft: 8 },
+
+  settingIcon: { fontSize: 22 },
+  settingInfo: { flex: 1 },
+  settingLabel: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 2 },
+  settingValue: { fontSize: 13, color: colors.textMuted },
+  settingArrow: { fontSize: 20, color: colors.textMuted, fontWeight: '600' },
+
+  // Trip History Styles
+  historyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  historyLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  historyIconBg: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  historyIcon: { fontSize: 22 },
+  historyInfo: { flex: 1 },
+  historyDest: { fontSize: 16, fontWeight: 'bold', color: colors.text, marginBottom: 2 },
+  historyDate: { fontSize: 12, color: colors.textMuted },
+  historyRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  historyStats: { alignItems: 'flex-end' },
+  historyAmount: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  deleteHistoryBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  deleteHistoryText: { fontSize: 14, color: colors.textMuted, fontWeight: 'bold' },
 
   // Footer
   footer: {

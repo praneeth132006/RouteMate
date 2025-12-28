@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Animated, Pressable, Modal, Alert } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Animated, Pressable, Modal, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
@@ -7,13 +7,13 @@ import { useNavigation } from '@react-navigation/native';
 import DatePickerModal from '../components/DatePickerModal';
 
 export default function HomeScreen({ onBackToHome }) {
-  const { 
-    tripInfo, setTripInfo, budget, setBudget, getTotalExpenses, getRemainingBudget, 
-    packingItems, itinerary, expenses, clearTrip, endTrip, formatCurrency, currency
+  const {
+    tripInfo, setTripInfo, budget, setBudget, getTotalExpenses, getRemainingBudget,
+    packingItems, itinerary, expenses, clearTrip, endTrip, formatCurrency, currency, isLoading, deleteTrip
   } = useTravelContext();
   const { colors } = useTheme();
   const navigation = useNavigation();
-  
+
   // Modal states
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
@@ -23,7 +23,7 @@ export default function HomeScreen({ onBackToHome }) {
   const [showDatesModal, setShowDatesModal] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  
+
   // Edit states
   const [newBudget, setNewBudget] = useState(budget.total.toString());
   const [newTravelerName, setNewTravelerName] = useState('');
@@ -45,20 +45,20 @@ export default function HomeScreen({ onBackToHome }) {
 
   // Check if trip has ended automatically
   useEffect(() => {
-    const checkTripEnded = () => {
+    const checkTripEnded = async () => {
       if (tripInfo.endDate && !tripInfo.isCompleted) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         try {
           const parts = tripInfo.endDate.split(' ');
           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
           const endDate = new Date(parseInt(parts[2]), months.indexOf(parts[1]), parseInt(parts[0]));
           endDate.setHours(23, 59, 59, 999);
-          
+
           if (today > endDate) {
             // Trip has ended, add to history
-            handleAutoEndTrip();
+            await handleAutoEndTrip();
           }
         } catch (e) {
           console.log('Error checking trip end date:', e);
@@ -139,10 +139,10 @@ export default function HomeScreen({ onBackToHome }) {
 
   const handleUpdateDates = () => {
     if (editStartDate && editEndDate) {
-      setTripInfo(prev => ({ 
-        ...prev, 
-        startDate: editStartDate, 
-        endDate: editEndDate 
+      setTripInfo(prev => ({
+        ...prev,
+        startDate: editStartDate,
+        endDate: editEndDate
       }));
       setShowDatesModal(false);
     }
@@ -163,34 +163,48 @@ export default function HomeScreen({ onBackToHome }) {
     setTripInfo(prev => ({ ...prev, participants: updatedTravelers }));
   };
 
-  const handleAutoEndTrip = () => {
+  const handleAutoEndTrip = async () => {
     if (endTrip) {
-      endTrip();
+      await endTrip();
     }
     onBackToHome();
   };
 
-  const handleEndTrip = () => {
+  const handleEndTrip = async () => {
     console.log('handleEndTrip called, tripInfo:', tripInfo);
     if (endTrip) {
-      endTrip();
+      const result = await endTrip();
+      if (result && result.success) {
+        setShowEndTripModal(false);
+        onBackToHome();
+      } else {
+        Alert.alert('Error', result.error || 'Failed to end trip');
+      }
     }
-    setShowEndTripModal(false);
-    onBackToHome();
   };
 
-  const handleDeleteTrip = () => {
-    if (clearTrip) {
-      clearTrip();
+  const handleDeleteTrip = async () => {
+    // Delete from all trips list if ID exists
+    if (tripInfo.id && deleteTrip) {
+      await deleteTrip(tripInfo.id);
     }
-    setShowDeleteModal(false);
-    onBackToHome();
+
+    // Clear current trip data
+    if (clearTrip) {
+      const result = await clearTrip();
+      if (result && result.success) {
+        setShowDeleteModal(false);
+        onBackToHome();
+      } else {
+        Alert.alert('Error', result.error || 'Failed to delete trip');
+      }
+    }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         bounces={false}
       >
@@ -202,8 +216,8 @@ export default function HomeScreen({ onBackToHome }) {
               <Text style={styles.headerTitle}>{tripInfo.destination || 'My Adventure'}</Text>
             </View>
             <View style={styles.headerActions}>
-              <Pressable 
-                style={styles.settingsButton} 
+              <Pressable
+                style={styles.settingsButton}
                 onPress={() => setShowSettingsModal(true)}
               >
                 <Text style={styles.settingsButtonText}>⚙️</Text>
@@ -213,7 +227,7 @@ export default function HomeScreen({ onBackToHome }) {
               </Pressable>
             </View>
           </View>
-          
+
           {/* Trip Status Badge */}
           {daysUntil !== null && (
             <View style={styles.statusBadge}>
@@ -241,7 +255,7 @@ export default function HomeScreen({ onBackToHome }) {
               )}
             </View>
           </View>
-          
+
           <View style={styles.heroStats}>
             <View style={styles.heroStatItem}>
               <Text style={styles.heroStatValue}>{tripDays}</Text>
@@ -264,7 +278,7 @@ export default function HomeScreen({ onBackToHome }) {
         <Animated.View style={[styles.quickActionsSection, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
-            <Pressable 
+            <Pressable
               style={({ pressed }) => [styles.quickActionCard, pressed && { opacity: 0.8 }]}
               onPress={() => { setEditStartDate(tripInfo.startDate); setEditEndDate(tripInfo.endDate); setShowDatesModal(true); }}
             >
@@ -274,7 +288,7 @@ export default function HomeScreen({ onBackToHome }) {
               <Text style={styles.quickActionLabel}>Edit Dates</Text>
             </Pressable>
 
-            <Pressable 
+            <Pressable
               style={({ pressed }) => [styles.quickActionCard, pressed && { opacity: 0.8 }]}
               onPress={() => setShowBudgetModal(true)}
             >
@@ -284,7 +298,7 @@ export default function HomeScreen({ onBackToHome }) {
               <Text style={styles.quickActionLabel}>Edit Budget</Text>
             </Pressable>
 
-            <Pressable 
+            <Pressable
               style={({ pressed }) => [styles.quickActionCard, pressed && { opacity: 0.8 }]}
               onPress={() => setShowTravelersModal(true)}
             >
@@ -294,7 +308,7 @@ export default function HomeScreen({ onBackToHome }) {
               <Text style={styles.quickActionLabel}>Travelers</Text>
             </Pressable>
 
-            <Pressable 
+            <Pressable
               style={({ pressed }) => [styles.quickActionCard, pressed && { opacity: 0.8 }]}
               onPress={() => setShowEndTripModal(true)}
             >
@@ -370,8 +384,8 @@ export default function HomeScreen({ onBackToHome }) {
             ) : (
               <View style={styles.overviewList}>
                 {itinerary.slice(0, 4).map((item, index) => (
-                  <TouchableOpacity 
-                    key={item.id} 
+                  <TouchableOpacity
+                    key={item.id}
                     style={[styles.overviewItem, index < Math.min(itinerary.length, 4) - 1 && styles.overviewItemBorder]}
                     onPress={goToItinerary}
                   >
@@ -414,8 +428,8 @@ export default function HomeScreen({ onBackToHome }) {
                 {recentExpenses.map((expense, index) => {
                   const categoryInfo = getCategoryInfo(expense.category);
                   return (
-                    <TouchableOpacity 
-                      key={expense.id} 
+                    <TouchableOpacity
+                      key={expense.id}
                       style={[styles.expenseItem, index < recentExpenses.length - 1 && styles.overviewItemBorder]}
                       onPress={goToExpenses}
                     >
@@ -486,13 +500,13 @@ export default function HomeScreen({ onBackToHome }) {
             </View>
 
             <View style={styles.settingsList}>
-              <Pressable 
+              <Pressable
                 style={styles.settingsItem}
-                onPress={() => { 
-                  setShowSettingsModal(false); 
-                  setEditStartDate(tripInfo.startDate); 
-                  setEditEndDate(tripInfo.endDate); 
-                  setShowDatesModal(true); 
+                onPress={() => {
+                  setShowSettingsModal(false);
+                  setEditStartDate(tripInfo.startDate);
+                  setEditEndDate(tripInfo.endDate);
+                  setShowDatesModal(true);
                 }}
               >
                 <View style={[styles.settingsIconBg, { backgroundColor: '#8B5CF620' }]}>
@@ -505,7 +519,7 @@ export default function HomeScreen({ onBackToHome }) {
                 <Text style={styles.settingsArrow}>→</Text>
               </Pressable>
 
-              <Pressable 
+              <Pressable
                 style={styles.settingsItem}
                 onPress={() => { setShowSettingsModal(false); setShowBudgetModal(true); }}
               >
@@ -519,7 +533,7 @@ export default function HomeScreen({ onBackToHome }) {
                 <Text style={styles.settingsArrow}>→</Text>
               </Pressable>
 
-              <Pressable 
+              <Pressable
                 style={styles.settingsItem}
                 onPress={() => { setShowSettingsModal(false); setShowTravelersModal(true); }}
               >
@@ -533,7 +547,7 @@ export default function HomeScreen({ onBackToHome }) {
                 <Text style={styles.settingsArrow}>→</Text>
               </Pressable>
 
-              <Pressable 
+              <Pressable
                 style={styles.settingsItem}
                 onPress={() => { setShowSettingsModal(false); setShowEndTripModal(true); }}
               >
@@ -547,7 +561,7 @@ export default function HomeScreen({ onBackToHome }) {
                 <Text style={styles.settingsArrow}>→</Text>
               </Pressable>
 
-              <Pressable 
+              <Pressable
                 style={[styles.settingsItem, styles.settingsItemDanger]}
                 onPress={() => { setShowSettingsModal(false); setShowDeleteModal(true); }}
               >
@@ -578,7 +592,7 @@ export default function HomeScreen({ onBackToHome }) {
             </View>
 
             <View style={styles.datesEditSection}>
-              <Pressable 
+              <Pressable
                 style={styles.dateEditCard}
                 onPress={() => setShowStartDatePicker(true)}
               >
@@ -592,7 +606,7 @@ export default function HomeScreen({ onBackToHome }) {
                 <Text style={styles.dateEditArrow}>→</Text>
               </Pressable>
 
-              <Pressable 
+              <Pressable
                 style={styles.dateEditCard}
                 onPress={() => setShowEndDatePicker(true)}
               >
@@ -616,8 +630,8 @@ export default function HomeScreen({ onBackToHome }) {
               )}
             </View>
 
-            <Pressable 
-              style={[styles.saveButton, (!editStartDate || !editEndDate) && { opacity: 0.5 }]} 
+            <Pressable
+              style={[styles.saveButton, (!editStartDate || !editEndDate) && { opacity: 0.5 }]}
               onPress={handleUpdateDates}
               disabled={!editStartDate || !editEndDate}
             >
@@ -687,7 +701,7 @@ export default function HomeScreen({ onBackToHome }) {
                   value={newTravelerName}
                   onChangeText={setNewTravelerName}
                 />
-                <Pressable 
+                <Pressable
                   style={[styles.addTravelerBtn, !newTravelerName.trim() && { opacity: 0.5 }]}
                   onPress={handleAddTraveler}
                   disabled={!newTravelerName.trim()}
@@ -744,11 +758,11 @@ export default function HomeScreen({ onBackToHome }) {
               This will mark your trip as completed. You can view it in your trip history.
             </Text>
             <View style={styles.confirmButtons}>
-              <Pressable style={styles.confirmCancelBtn} onPress={() => setShowEndTripModal(false)}>
+              <Pressable style={[styles.confirmCancelBtn, isLoading && { opacity: 0.5 }]} onPress={() => setShowEndTripModal(false)} disabled={isLoading}>
                 <Text style={styles.confirmCancelText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.confirmActionBtn} onPress={handleEndTrip}>
-                <Text style={styles.confirmActionText}>End Trip</Text>
+              <Pressable style={[styles.confirmActionBtn, isLoading && { opacity: 0.5 }]} onPress={handleEndTrip} disabled={isLoading}>
+                {isLoading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.confirmActionText}>End Trip</Text>}
               </Pressable>
             </View>
           </View>
@@ -767,11 +781,11 @@ export default function HomeScreen({ onBackToHome }) {
               This action cannot be undone. All trip data including expenses, itinerary, and packing lists will be permanently deleted.
             </Text>
             <View style={styles.confirmButtons}>
-              <Pressable style={styles.confirmCancelBtn} onPress={() => setShowDeleteModal(false)}>
+              <Pressable style={[styles.confirmCancelBtn, isLoading && { opacity: 0.5 }]} onPress={() => setShowDeleteModal(false)} disabled={isLoading}>
                 <Text style={styles.confirmCancelText}>Cancel</Text>
               </Pressable>
-              <Pressable style={[styles.confirmActionBtn, { backgroundColor: '#EF4444' }]} onPress={handleDeleteTrip}>
-                <Text style={styles.confirmActionText}>Delete</Text>
+              <Pressable style={[styles.confirmActionBtn, { backgroundColor: '#EF4444' }, isLoading && { opacity: 0.5 }]} onPress={handleDeleteTrip} disabled={isLoading}>
+                {isLoading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.confirmActionText}>Delete</Text>}
               </Pressable>
             </View>
           </View>
@@ -817,12 +831,12 @@ const createStyles = (colors) => StyleSheet.create({
   statusText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
 
   // Hero Card
-  heroCard: { 
-    marginHorizontal: 20, 
-    backgroundColor: colors.card, 
-    borderRadius: 24, 
-    padding: 20, 
-    marginBottom: 20, 
+  heroCard: {
+    marginHorizontal: 20,
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 20,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: colors.primaryBorder,
@@ -979,33 +993,33 @@ const createStyles = (colors) => StyleSheet.create({
 
   // Add Date Edit styles
   datesEditSection: { gap: 12, marginBottom: 20 },
-  dateEditCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: colors.cardLight, 
-    borderRadius: 14, 
+  dateEditCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardLight,
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
   },
-  dateEditIcon: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: 14, 
-    backgroundColor: colors.primaryMuted, 
-    alignItems: 'center', 
-    justifyContent: 'center' 
+  dateEditIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   dateEditEmoji: { fontSize: 22 },
   dateEditContent: { flex: 1, marginLeft: 14 },
   dateEditLabel: { color: colors.textMuted, fontSize: 12 },
   dateEditValue: { color: colors.text, fontSize: 16, fontWeight: '600', marginTop: 4 },
   dateEditArrow: { color: colors.primary, fontSize: 18, fontWeight: 'bold' },
-  durationPreview: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: colors.primaryMuted, 
-    borderRadius: 12, 
+  durationPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryMuted,
+    borderRadius: 12,
     padding: 12,
     gap: 10,
   },

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './AuthContext';
+import * as DB from '../services/databaseService';
 
 const ThemeContext = createContext(null);
 
@@ -102,15 +104,28 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
+  const { user } = useAuth();
   const [currentTheme, setCurrentTheme] = useState('dark');
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     loadTheme();
-  }, []);
+  }, [user]); // Reload when user changes
 
   const loadTheme = async () => {
     try {
+      // 1. Try to load from Firebase if logged in
+      if (user) {
+        const settings = await DB.getUserSettings();
+        if (settings?.theme && THEMES[settings.theme]) {
+          setCurrentTheme(settings.theme);
+          await AsyncStorage.setItem('theme', settings.theme); // Sync local
+          setIsLoaded(true);
+          return;
+        }
+      }
+
+      // 2. Fallback to local storage
       const savedTheme = await AsyncStorage.getItem('theme');
       if (savedTheme !== null && THEMES[savedTheme]) {
         setCurrentTheme(savedTheme);
@@ -127,6 +142,11 @@ export const ThemeProvider = ({ children }) => {
       if (THEMES[themeName]) {
         setCurrentTheme(themeName);
         await AsyncStorage.setItem('theme', themeName);
+
+        // Save to Firebase if logged in
+        if (user) {
+          await DB.saveUserSettings({ theme: themeName });
+        }
       }
     } catch (error) {
       console.log('Error saving theme:', error);

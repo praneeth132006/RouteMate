@@ -64,8 +64,8 @@ function AppContent() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar 
-        barStyle={isDark ? 'light-content' : 'dark-content'} 
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.bg}
       />
       {isAuthenticated ? <MainNavigator /> : <AuthScreen />}
@@ -78,13 +78,13 @@ export default function App() {
     <ErrorBoundary>
       <SafeAreaProvider>
         <NavigationContainer>
-          <ThemeProvider>
-            <AuthProvider>
+          <AuthProvider>
+            <ThemeProvider>
               <TravelProvider>
                 <AppContent />
               </TravelProvider>
-            </AuthProvider>
-          </ThemeProvider>
+            </ThemeProvider>
+          </AuthProvider>
         </NavigationContainer>
       </SafeAreaProvider>
     </ErrorBoundary>
