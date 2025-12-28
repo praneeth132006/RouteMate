@@ -171,23 +171,36 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     let participants = [];
     switch (tripData.tripType) {
       case 'friends':
-        participants = tripData.friends.map(name => ({ name, type: 'friend' }));
+        participants = tripData.friends.map(name => ({
+          id: `fr_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          name,
+          type: 'friend'
+        }));
         break;
       case 'family':
         participants = tripData.families.flatMap(family =>
           family.members.map(member => ({
             ...member,
+            id: `fam_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
             familyGroup: family.familyName
           }))
         );
         break;
       case 'couple':
         if (tripData.partnerName) {
-          participants = [{ name: tripData.partnerName, type: 'partner' }];
+          participants = [{
+            id: `pt_${Date.now()}`,
+            name: tripData.partnerName,
+            type: 'partner'
+          }];
         }
         break;
       case 'business':
-        participants = tripData.colleagues.map(name => ({ name, type: 'colleague' }));
+        participants = tripData.colleagues.map(name => ({
+          id: `col_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          name,
+          type: 'colleague'
+        }));
         break;
       default:
         participants = [];

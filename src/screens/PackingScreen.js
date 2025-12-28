@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  View, Text, ScrollView, TextInput, TouchableOpacity, 
-  Modal, StyleSheet, Dimensions, Alert 
+import {
+  View, Text, ScrollView, TextInput, TouchableOpacity,
+  Modal, StyleSheet, Dimensions, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
@@ -32,15 +32,15 @@ const QUICK_ADD_ITEMS = {
 };
 
 export default function PackingScreen() {
-  const { 
-    packingItems = [], 
-    addPackingItem, 
-    togglePackingItem, 
+  const {
+    packingItems = [],
+    addPackingItem,
+    togglePackingItem,
     deletePackingItem,
     tripInfo = {}
   } = useTravelContext();
   const { colors } = useTheme();
-  
+
   const [modalVisible, setModalVisible] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
   const [newItem, setNewItem] = useState({ name: '', category: 'essentials', quantity: '1', notes: '' });
@@ -126,7 +126,7 @@ export default function PackingScreen() {
           </View>
 
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { 
+            <View style={[styles.progressFill, {
               width: `${packedPercentage}%`,
               backgroundColor: packedPercentage === 100 ? '#10B981' : colors.primary
             }]} />
@@ -143,7 +143,7 @@ export default function PackingScreen() {
         <View style={styles.categoryOverview}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
             {categoryStats.filter(cat => cat.total > 0).map((cat) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={cat.key}
                 style={[
                   styles.categoryPill,
@@ -244,7 +244,7 @@ export default function PackingScreen() {
                             <Text style={styles.itemNotes}>{item.notes}</Text>
                           )}
                         </View>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.itemDelete}
                           onPress={() => handleDeleteItem(item.id, item.name)}
                         >
@@ -264,9 +264,9 @@ export default function PackingScreen() {
           <View style={styles.suggestSection}>
             <Text style={styles.sectionTitle}>💡 Suggested Items</Text>
             <View style={styles.suggestItems}>
-              {PACKING_CATEGORIES.slice(0, 3).flatMap(cat => 
+              {PACKING_CATEGORIES.slice(0, 3).flatMap(cat =>
                 QUICK_ADD_ITEMS[cat.key]
-                  .filter(item => !packingItems.some(p => p.name.toLowerCase() === item.toLowerCase()))
+                  .filter(item => !packingItems.some(p => (p.name || '').toLowerCase() === item.toLowerCase()))
                   .slice(0, 2)
                   .map(item => (
                     <TouchableOpacity
@@ -341,7 +341,7 @@ export default function PackingScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Quantity</Text>
                 <View style={styles.quantityRow}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.quantityBtn}
                     onPress={() => setNewItem({ ...newItem, quantity: Math.max(1, parseInt(newItem.quantity) - 1).toString() })}
                   >
@@ -353,7 +353,7 @@ export default function PackingScreen() {
                     value={newItem.quantity}
                     onChangeText={(t) => setNewItem({ ...newItem, quantity: t.replace(/[^0-9]/g, '') || '1' })}
                   />
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.quantityBtn}
                     onPress={() => setNewItem({ ...newItem, quantity: (parseInt(newItem.quantity) + 1).toString() })}
                   >
@@ -409,7 +409,7 @@ export default function PackingScreen() {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { paddingBottom: 20 },
-  
+
   // Header
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
   headerTitle: { color: colors.text, fontSize: 24, fontWeight: 'bold' },

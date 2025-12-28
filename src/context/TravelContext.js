@@ -4,14 +4,12 @@ import { useAuth } from './AuthContext';
 import * as DB from '../services/databaseService';
 
 const DEFAULT_CATEGORIES = [
-  { id: '1', name: 'Food & Dining', emoji: '🍽️', color: '#FF6B6B' },
-  { id: '2', name: 'Transportation', emoji: '🚗', color: '#4ECDC4' },
-  { id: '3', name: 'Accommodation', emoji: '🏨', color: '#45B7D1' },
-  { id: '4', name: 'Activities', emoji: '🎯', color: '#96CEB4' },
-  { id: '5', name: 'Shopping', emoji: '🛍️', color: '#FFEAA7' },
-  { id: '6', name: 'Entertainment', emoji: '🎬', color: '#DDA0DD' },
-  { id: '7', name: 'Health', emoji: '💊', color: '#98D8C8' },
-  { id: '8', name: 'Other', emoji: '📦', color: '#B8B8B8' },
+  { key: 'accommodation', label: 'Stay', emoji: '🏨', color: '#8B5CF6', tip: '30-40%' },
+  { key: 'transport', label: 'Transport', emoji: '🚗', color: '#3B82F6', tip: '15-25%' },
+  { key: 'food', label: 'Food', emoji: '🍽️', color: '#F59E0B', tip: '20-30%' },
+  { key: 'activities', label: 'Activities', emoji: '🎭', color: '#10B981', tip: '10-15%' },
+  { key: 'shopping', label: 'Shopping', emoji: '🛍️', color: '#EC4899', tip: '5-10%' },
+  { key: 'other', label: 'Other', emoji: '📦', color: '#6B7280', tip: '5-10%' },
 ];
 
 const currencies = [

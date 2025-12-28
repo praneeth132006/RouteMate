@@ -1,541 +1,181 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  View, Text, ScrollView, TextInput, TouchableOpacity, 
-  Modal, StyleSheet, Dimensions, Alert
-} from 'react-native';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Modal, StyleSheet, Dimensions, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
+// Fallback if context fails
 const DEFAULT_CATEGORIES = [
-  { key: 'accommodation', label: 'Stay', emoji: '🏨', color: '#8B5CF6' },
-  { key: 'transport', label: 'Transport', emoji: '🚗', color: '#3B82F6' },
   { key: 'food', label: 'Food', emoji: '🍽️', color: '#F59E0B' },
-  { key: 'activities', label: 'Activities', emoji: '🎭', color: '#10B981' },
-  { key: 'shopping', label: 'Shopping', emoji: '🛍️', color: '#EC4899' },
-  { key: 'other', label: 'Other', emoji: '📦', color: '#6B7280' },
+  { key: 'transport', label: 'Transport', emoji: '🚗', color: '#3B82F6' },
 ];
 
 export default function ExpenseScreen() {
-  const { 
-    expenses = [], 
-    addExpense, 
-    deleteExpense, 
-    getTotalExpenses, 
-    budget = { total: 0 }, 
-    getRemainingBudget, 
-    formatCurrency, 
+  const {
+    expenses = [],
+    addExpense,
+    deleteExpense,
+    getTotalExpenses,
+    budget = { total: 0 },
+    getRemainingBudget,
+    formatCurrency,
     currency = { symbol: '₹', code: 'INR' },
     customCategories,
     tripInfo = {},
-    setTripInfo, // Add this to allow adding test participants
+    setTripInfo,
   } = useTravelContext();
   const { colors } = useTheme();
-  
-  const CATEGORIES = customCategories?.length > 0 ? customCategories : DEFAULT_CATEGORIES;
-  
+
+  // Use context categories
+  const CATEGORIES = customCategories && customCategories.length > 0 ? customCategories : DEFAULT_CATEGORIES;
+
   const [modalVisible, setModalVisible] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
   const [activeTab, setActiveTab] = useState('transactions');
-  const [showDebug, setShowDebug] = useState(false); // Debug toggle
 
-  // Determine if multi-user trip
-  const isMultiUser = useMemo(() => {
-    const hasParticipants = tripInfo?.participants?.length > 0;
-    const isNotSolo = tripInfo?.tripType && tripInfo.tripType !== 'solo';
-    return hasParticipants || isNotSolo;
-  }, [tripInfo?.participants, tripInfo?.tripType]);
-
-  // Get all travelers
-  const travelers = useMemo(() => {
-    const mainUser = { id: 'main_user', name: 'You', avatar: '👤' };
-    const participants = tripInfo?.participants || [];
-    return [mainUser, ...participants];
-  }, [tripInfo?.participants]);
-
-  // Function to add test participants for debugging
-  const addTestParticipants = () => {
-    if (setTripInfo) {
-      setTripInfo(prev => ({
-        ...prev,
-        tripType: 'friends',
-        participants: [
-          { id: 'user_1', name: 'John', avatar: '👨' },
-          { id: 'user_2', name: 'Sarah', avatar: '👩' },
-          { id: 'user_3', name: 'Mike', avatar: '🧑' },
-        ]
-      }));
-    }
-  };
-
-  // Initial expense state
-  const getInitialExpenseState = () => ({
-    title: '', 
-    amount: '', 
-    category: 'food',
-    date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), 
-    notes: '',
+  // New Expense State
+  const [newExpense, setNewExpense] = useState({
+    title: '',
+    amount: '',
+    category: CATEGORIES[0]?.key || 'food',
     paidBy: 'main_user',
-    splitType: 'equal',
-    beneficiaries: travelers.map(t => t.id),
-    splitAmounts: {},
-    transferTo: null, // Added for transfer type
+    splitType: 'equal', // 'equal', 'custom'
+    beneficiaries: [], // List of user IDs involved
+    splitAmounts: {}, // For custom split: { userId: amount }
+    date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
   });
 
-  const [newExpense, setNewExpense] = useState(getInitialExpenseState());
-
-  // Update beneficiaries when travelers change
-  useEffect(() => {
-    if (travelers.length > 0) {
-      setNewExpense(prev => ({
-        ...prev,
-        beneficiaries: travelers.map(t => t.id),
-      }));
-    }
-  }, [travelers]);
-
-  const styles = useMemo(() => createStyles(colors), [colors]);
-
-  // Reset expense form
-  const resetNewExpense = () => {
-    setNewExpense(getInitialExpenseState());
-  };
-
-  // Add expense handler
-  const handleAddExpense = () => {
-    if (newExpense.title.trim() && newExpense.amount) {
-      const expenseData = {
-        ...newExpense,
-        id: `expense_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Ensure unique ID
-        amount: parseFloat(newExpense.amount) || 0,
-        timestamp: Date.now(),
-      };
-      addExpense(expenseData);
-      resetNewExpense();
-      setModalVisible(false);
-    }
-  };
-
-  // Delete expense handler
-  const handleDeleteExpense = (id, title) => {
-    console.log('Delete button pressed for:', id, title); // Debug log
-    Alert.alert(
-      'Delete Expense',
-      `Are you sure you want to delete "${title}"?`,
-      [
-        { 
-          text: 'Cancel', 
-          style: 'cancel',
-          onPress: () => console.log('Cancel pressed')
-        },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: () => {
-            console.log('Delete confirmed for:', id);
-            if (deleteExpense) {
-              deleteExpense(id);
-            } else {
-              console.log('deleteExpense function not available');
-              Alert.alert('Error', 'Delete function not available');
-            }
-          } 
-        }
-      ],
-      { cancelable: true }
-    );
-  };
-
-  // Toggle beneficiary selection
-  const toggleBeneficiary = (userId) => {
-    const current = newExpense.beneficiaries || [];
-    if (current.includes(userId)) {
-      if (current.length > 1) {
-        setNewExpense({ ...newExpense, beneficiaries: current.filter(id => id !== userId) });
-      }
-    } else {
-      setNewExpense({ ...newExpense, beneficiaries: [...current, userId] });
-    }
-  };
-
-  // Select all beneficiaries
-  const selectAllBeneficiaries = () => {
-    setNewExpense({ ...newExpense, beneficiaries: travelers.map(t => t.id) });
-  };
-
-  // Update custom split amount
-  const updateCustomSplit = (userId, amount) => {
-    setNewExpense({
-      ...newExpense,
-      splitAmounts: { ...newExpense.splitAmounts, [userId]: amount }
-    });
-  };
-
-  // Helper functions
-  const getCategoryInfo = (key) => CATEGORIES.find(c => c.key === key) || CATEGORIES[CATEGORIES.length - 1];
   const getTravelerName = (id) => travelers.find(t => t.id === id)?.name || 'Unknown';
   const getTravelerAvatar = (id) => travelers.find(t => t.id === id)?.avatar || '👤';
 
-  // Calculations
-  const totalExpenses = getTotalExpenses ? getTotalExpenses() : 0;
-  const remainingBudget = getRemainingBudget ? getRemainingBudget() : (budget.total - totalExpenses);
-  const budgetTotal = budget.total || 0;
-  const spentPercentage = budgetTotal > 0 ? (totalExpenses / budgetTotal) * 100 : 0;
+  // Determine travelers
+  const travelers = useMemo(() => {
+    const mainUser = { id: 'main_user', name: 'You', avatar: '👤' };
+    const participants = (tripInfo.participants || []).map((p, i) => ({
+      ...p,
+      id: p.id || `part_${i}_${(p.name || '').replace(/\s+/g, '')}`
+    }));
+    return [mainUser, ...participants];
+  }, [tripInfo.participants]);
 
-  // Calculate balances for multi-user
-  const balances = useMemo(() => {
-    if (!isMultiUser || travelers.length < 2) return {};
-    
-    const result = {};
-    travelers.forEach(t => {
-      result[t.id] = { paid: 0, owes: 0, balance: 0, name: t.name };
-    });
+  // Is this a group trip?
+  const isMultiUser = travelers.length > 1;
 
-    expenses.forEach(expense => {
-      const amount = parseFloat(expense.amount) || 0;
-      const paidBy = expense.paidBy || 'main_user';
-      const beneficiaries = expense.beneficiaries?.length > 0 ? expense.beneficiaries : travelers.map(t => t.id);
-
-      if (result[paidBy]) {
-        result[paidBy].paid += amount;
-      }
-
-      if (expense.splitType === 'equal') {
-        const splitAmount = amount / beneficiaries.length;
-        beneficiaries.forEach(id => {
-          if (result[id]) result[id].owes += splitAmount;
-        });
-      } else if (expense.splitType === 'custom' && expense.splitAmounts) {
-        Object.entries(expense.splitAmounts).forEach(([id, splitAmount]) => {
-          if (result[id]) result[id].owes += parseFloat(splitAmount) || 0;
-        });
-      } else if (expense.splitType === 'transfer' && expense.transferTo) {
-        // For transfers: payer sends money, recipient receives it
-        // The recipient "owes" the amount (meaning they received it)
-        if (result[expense.transferTo]) {
-          result[expense.transferTo].owes += amount;
-        }
-      }
-    });
-
-    Object.keys(result).forEach(id => {
-      result[id].balance = result[id].paid - result[id].owes;
-    });
-
-    return result;
-  }, [expenses, travelers, isMultiUser]);
-
-  // Calculate settlements
-  const settlements = useMemo(() => {
-    if (!isMultiUser || Object.keys(balances).length === 0) return [];
-
-    const result = [];
-    const debtors = Object.entries(balances)
-      .filter(([_, b]) => b.balance < -0.01)
-      .map(([id, b]) => ({ id, amount: Math.abs(b.balance), name: b.name }))
-      .sort((a, b) => b.amount - a.amount);
-
-    const creditors = Object.entries(balances)
-      .filter(([_, b]) => b.balance > 0.01)
-      .map(([id, b]) => ({ id, amount: b.balance, name: b.name }))
-      .sort((a, b) => b.amount - a.amount);
-
-    let i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-      const debtor = debtors[i];
-      const creditor = creditors[j];
-      const settleAmount = Math.min(debtor.amount, creditor.amount);
-
-      if (settleAmount > 0.01) {
-        result.push({
-          from: debtor.id,
-          fromName: debtor.name,
-          to: creditor.id,
-          toName: creditor.name,
-          amount: settleAmount,
-        });
-      }
-
-      debtor.amount -= settleAmount;
-      creditor.amount -= settleAmount;
-      if (debtor.amount < 0.01) i++;
-      if (creditor.amount < 0.01) j++;
+  // Initialize beneficiaries when modal opens or travelers change
+  useEffect(() => {
+    if (travelers.length > 0 && newExpense.beneficiaries.length === 0) {
+      setNewExpense(prev => ({
+        ...prev,
+        beneficiaries: travelers.map(t => t.id)
+      }));
     }
+  }, [travelers, modalVisible]);
 
-    return result;
-  }, [balances, isMultiUser]);
+  // --- Logic for Split Validation ---
+  const currentTotalAmount = parseFloat(newExpense.amount) || 0;
 
-  // Filter and group expenses
-  const filteredExpenses = filterCategory === 'all' ? expenses : expenses.filter(e => e.category === filterCategory);
-  const sortedExpenses = [...filteredExpenses].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-  
-  const groupedExpenses = sortedExpenses.reduce((groups, expense) => {
-    const date = expense.date || 'Unknown';
-    if (!groups[date]) groups[date] = [];
-    groups[date].push(expense);
-    return groups;
-  }, {});
-  
-  const dateGroups = Object.keys(groupedExpenses);
-  const uniqueDates = [...new Set(expenses.map(e => e.date))];
-  const dailyAverage = uniqueDates.length > 0 ? Math.round(totalExpenses / uniqueDates.length) : 0;
+  const getSplitValidation = () => {
+    if (!isMultiUser) return { isValid: true, message: '' };
 
-  // Format currency safely
-  const safeFormatCurrency = (amount) => {
-    if (formatCurrency) return formatCurrency(amount);
-    const num = parseFloat(amount) || 0;
-    return `${currency.symbol}${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  };
-
-  // Split preview calculation
-  const splitPreview = useMemo(() => {
-    const amount = parseFloat(newExpense.amount) || 0;
-    if (amount === 0 || !newExpense.beneficiaries?.length) return null;
     if (newExpense.splitType === 'equal') {
-      return {
-        perPerson: amount / newExpense.beneficiaries.length,
-        selectedCount: newExpense.beneficiaries.length,
-      };
+      return { isValid: newExpense.beneficiaries.length > 0, message: '' };
     }
-    return null;
-  }, [newExpense.amount, newExpense.beneficiaries, newExpense.splitType]);
 
-  // Render Balances Tab
-  const renderBalancesTab = () => {
-    const totalPaid = Object.values(balances).reduce((sum, b) => sum + b.paid, 0);
-    
-    return (
-      <View style={styles.balancesTabContent}>
-        {/* Summary Header Card */}
-        <View style={styles.balanceSummaryCard}>
-          <View style={styles.balanceSummaryStats}>
-            <View style={styles.balanceSummaryStat}>
-              <Text style={styles.balanceSummaryStatLabel}>Total Spent</Text>
-              <Text style={styles.balanceSummaryStatValue}>{safeFormatCurrency(totalPaid)}</Text>
-            </View>
-            <View style={styles.balanceSummaryDivider} />
-            <View style={styles.balanceSummaryStat}>
-              <Text style={styles.balanceSummaryStatLabel}>Per Person</Text>
-              <Text style={styles.balanceSummaryStatValue}>{safeFormatCurrency(totalPaid / travelers.length)}</Text>
-            </View>
-            <View style={styles.balanceSummaryDivider} />
-            <View style={styles.balanceSummaryStat}>
-              <Text style={styles.balanceSummaryStatLabel}>Expenses</Text>
-              <Text style={styles.balanceSummaryStatValue}>{expenses.length}</Text>
-            </View>
-          </View>
-        </View>
+    if (newExpense.splitType === 'custom') {
+      let allocated = 0;
+      travelers.forEach(t => {
+        allocated += parseFloat(newExpense.splitAmounts[t.id] || 0);
+      });
 
-        {/* Individual Balances */}
-        <Text style={styles.sectionTitle}>Who Owes Who?</Text>
-        
-        <View style={styles.balanceCardsContainer}>
-          {Object.entries(balances).map(([id, data]) => {
-            const isPositive = data.balance >= 0;
-            const balanceAbs = Math.abs(data.balance);
-            
-            return (
-              <View key={id} style={styles.balanceCard}>
-                <View style={styles.balanceCardLeft}>
-                  <View style={styles.balanceAvatar}>
-                    <Text style={styles.balanceAvatarText}>{getTravelerAvatar(id)}</Text>
-                  </View>
-                  <View style={styles.balanceInfo}>
-                    <Text style={styles.balanceName}>{data.name}</Text>
-                    <Text style={styles.balanceDetail}>
-                      Paid {safeFormatCurrency(data.paid)} • Share {safeFormatCurrency(data.owes)}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.balanceCardRight}>
-                  <Text style={[
-                    styles.balanceAmount,
-                    { color: isPositive ? '#2563EB' : '#DC2626' }
-                  ]}>
-                    {isPositive ? '+' : '-'}{safeFormatCurrency(balanceAbs)}
-                  </Text>
-                  <Text style={[
-                    styles.balanceStatus,
-                    { color: isPositive ? '#2563EB' : '#DC2626' }
-                  ]}>
-                    {balanceAbs < 1 ? 'Settled' : isPositive ? 'to receive' : 'to pay'}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
+      const diff = currentTotalAmount - allocated;
 
-        {/* Settlements Section */}
-        <View style={styles.settlementsHeader}>
-          <Text style={styles.sectionTitle}>Settle Up</Text>
-          {settlements.length > 0 && (
-            <Text style={styles.settlementCount}>{settlements.length} payment{settlements.length > 1 ? 's' : ''}</Text>
-          )}
-        </View>
+      if (Math.abs(diff) < 0.01) return { isValid: true, message: 'Perfectly split! ✅' };
+      if (diff > 0) return { isValid: false, message: `Remaining: ${formatCurrency ? formatCurrency(diff) : diff.toFixed(0)}` };
+      return { isValid: false, message: `Over allocated: ${formatCurrency ? formatCurrency(Math.abs(diff)) : Math.abs(diff).toFixed(0)}` };
+    }
 
-        {settlements.length === 0 ? (
-          <View style={styles.settledCard}>
-            <Text style={styles.settledEmoji}>✓</Text>
-            <Text style={styles.settledText}>All settled! No payments needed.</Text>
-          </View>
-        ) : (
-          <View style={styles.settlementsContainer}>
-            {settlements.map((s, idx) => (
-              <View key={idx} style={styles.settlementCard}>
-                <View style={styles.settlementPerson}>
-                  <Text style={styles.settlementAvatar}>{getTravelerAvatar(s.from)}</Text>
-                  <Text style={styles.settlementName}>{s.fromName}</Text>
-                </View>
-                
-                <View style={styles.settlementArrow}>
-                  <Text style={styles.settlementArrowText}>pays</Text>
-                  <Text style={styles.settlementAmountText}>{safeFormatCurrency(s.amount)}</Text>
-                  <Text style={styles.settlementArrowIcon}>→</Text>
-                </View>
-                
-                <View style={styles.settlementPerson}>
-                  <Text style={styles.settlementAvatar}>{getTravelerAvatar(s.to)}</Text>
-                  <Text style={styles.settlementName}>{s.toName}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    );
+    return { isValid: true };
   };
 
-  // Render Transactions Tab
-  const renderTransactionsTab = () => (
-    <View>
-      {/* Category Filters */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false} 
-        style={styles.filterScroll} 
-        contentContainerStyle={styles.filterContent}
-      >
-        <TouchableOpacity 
-          style={[styles.filterChip, filterCategory === 'all' && styles.filterChipActive]} 
-          onPress={() => setFilterCategory('all')}
-        >
-          <Text style={[styles.filterText, filterCategory === 'all' && styles.filterTextActive]}>
-            All ({expenses.length})
-          </Text>
-        </TouchableOpacity>
-        {CATEGORIES.map((cat) => {
-          const count = expenses.filter(e => e.category === cat.key).length;
-          if (count === 0) return null;
-          return (
-            <TouchableOpacity 
-              key={cat.key} 
-              style={[styles.filterChip, filterCategory === cat.key && { backgroundColor: cat.color }]} 
-              onPress={() => setFilterCategory(filterCategory === cat.key ? 'all' : cat.key)}
-            >
-              <Text style={[styles.filterText, filterCategory === cat.key && { color: '#FFF' }]}>
-                {cat.emoji} {count}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+  const splitStatus = getSplitValidation();
 
-      {/* Transactions List */}
-      <View style={styles.transactionsSection}>
-        {filteredExpenses.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>💸</Text>
-            <Text style={styles.emptyTitle}>No expenses yet</Text>
-            <Text style={styles.emptyText}>Start tracking your spending</Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
-              <Text style={styles.emptyBtnText}>+ Add Expense</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.transactionsList}>
-            {dateGroups.map((date) => (
-              <View key={date} style={styles.dateGroup}>
-                <View style={styles.dateHeader}>
-                  <Text style={styles.dateText}>{date}</Text>
-                  <View style={styles.dateLine} />
-                  <Text style={styles.dateTotal}>
-                    {safeFormatCurrency(groupedExpenses[date].reduce((s, e) => s + (parseFloat(e.amount) || 0), 0))}
-                  </Text>
-                </View>
-                {groupedExpenses[date].map((expense) => {
-                  const cat = getCategoryInfo(expense.category);
-                  const isTransfer = expense.splitType === 'transfer';
-                  
-                  return (
-                    <View 
-                      key={expense.id} 
-                      style={[
-                        styles.expenseCard, 
-                        { borderLeftColor: isTransfer ? '#10B981' : cat.color }
-                      ]}
-                    >
-                      <View style={[
-                        styles.expenseIcon, 
-                        { backgroundColor: isTransfer ? '#10B98120' : cat.color + '20' }
-                      ]}>
-                        <Text style={styles.expenseEmoji}>{isTransfer ? '💸' : cat.emoji}</Text>
-                      </View>
-                      <View style={styles.expenseInfo}>
-                        <Text style={styles.expenseTitle}>{expense.title}</Text>
-                        {isTransfer ? (
-                          <View style={styles.transferInfoRow}>
-                            <Text style={styles.transferFromText}>
-                              {getTravelerAvatar(expense.paidBy)} {getTravelerName(expense.paidBy)}
-                            </Text>
-                            <Text style={styles.transferArrowSmall}>→</Text>
-                            <Text style={styles.transferToText}>
-                              {getTravelerAvatar(expense.transferTo)} {getTravelerName(expense.transferTo)}
-                            </Text>
-                          </View>
-                        ) : (
-                          <>
-                            <Text style={styles.expenseCategory}>{cat.label}</Text>
-                            {isMultiUser && expense.paidBy && (
-                              <View style={styles.expenseSplitInfo}>
-                                <Text style={styles.expensePaidBy}>💳 {getTravelerName(expense.paidBy)}</Text>
-                                <Text style={styles.expenseSplitType}>
-                                  {expense.splitType === 'equal' ? '⚖️ Equal' : 
-                                   expense.splitType === 'custom' ? '✏️ Custom' : ''}
-                                </Text>
-                              </View>
-                            )}
-                          </>
-                        )}
-                        {expense.notes ? <Text style={styles.expenseNotes}>📝 {expense.notes}</Text> : null}
-                      </View>
-                      <View style={styles.expenseRight}>
-                        <Text style={[
-                          styles.expenseAmount, 
-                          isTransfer && { color: '#10B981' }
-                        ]}>
-                          {isTransfer ? '' : '-'}{safeFormatCurrency(expense.amount)}
-                        </Text>
-                        <TouchableOpacity 
-                          onPress={() => handleDeleteExpense(expense.id, expense.title)} 
-                          style={styles.deleteBtn}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                          <Text style={styles.deleteBtnText}>🗑️</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    </View>
-  );
+  const handleAddExpense = () => {
+    if (!newExpense.title.trim() || !newExpense.amount) {
+      Alert.alert('Missing Info', 'Please enter amount and description');
+      return;
+    }
+
+    // Final validation check
+    if (!splitStatus.isValid && isMultiUser) {
+      Alert.alert('Invalid Split', splitStatus.message);
+      return;
+    }
+
+    const expenseData = {
+      ...newExpense,
+      id: `expense_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      amount: parseFloat(newExpense.amount),
+      timestamp: Date.now(),
+    };
+
+    addExpense(expenseData);
+    setModalVisible(false);
+    // Reset form
+    setNewExpense({
+      title: '',
+      amount: '',
+      category: CATEGORIES[0]?.key,
+      paidBy: 'main_user',
+      splitType: 'equal',
+      beneficiaries: travelers.map(t => t.id),
+      splitAmounts: {},
+      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+    });
+  };
+
+  // --- Calculations for Balances ---
+  // Simplified debt simplification logic
+  const balances = useMemo(() => {
+    if (!isMultiUser) return {};
+    const bal = {};
+    travelers.forEach(t => bal[t.id] = 0);
+
+    expenses.forEach(e => {
+      const amt = parseFloat(e.amount);
+      const payer = e.paidBy || 'main_user';
+
+      // Payer +ve
+      bal[payer] = (bal[payer] || 0) + amt;
+
+      // Debtors -ve
+      if (e.splitType === 'custom') {
+        Object.keys(e.splitAmounts || {}).forEach(uid => {
+          bal[uid] = (bal[uid] || 0) - parseFloat(e.splitAmounts[uid]);
+        });
+      } else {
+        // Equal split
+        const bens = e.beneficiaries || [];
+        const splitAmt = amt / (bens.length || 1);
+        bens.forEach(uid => {
+          bal[uid] = (bal[uid] || 0) - splitAmt;
+        });
+      }
+    });
+    return bal; // Positive means "owed money", Negative means "owes money"
+  }, [expenses, travelers]);
+
+  // Styles
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const safeFormat = (val) => {
+    if (formatCurrency) return formatCurrency(val);
+    return `${currency.symbol}${parseFloat(val).toFixed(0)}`;
+  };
+
+  const totalSpent = getTotalExpenses ? getTotalExpenses() : 0;
+  const remainingBudget = (budget.total || 0) - totalSpent;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -544,350 +184,226 @@ export default function ExpenseScreen() {
         <View>
           <Text style={styles.headerTitle}>💳 Expenses</Text>
           <Text style={styles.headerSubtitle}>
-            {isMultiUser 
-              ? `${tripInfo?.tripType || 'Group'} Trip • ${travelers.length} travelers` 
-              : 'Track your spending'}
+            {isMultiUser ? `${travelers.length} Travelers • Group Trip` : 'Personal Spending'}
           </Text>
+        </View>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+          <Text style={styles.addBtnText}>+ Add</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Summary Card */}
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryRow}>
+          <View>
+            <Text style={styles.summaryLabel}>TOTAL SPENT</Text>
+            <Text style={styles.summaryValue}>{safeFormat(totalSpent)}</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.summaryLabel}>REMAINING</Text>
+            <Text style={[styles.summaryValue, { color: remainingBudget < 0 ? '#EF4444' : '#10B981' }]}>
+              {safeFormat(remainingBudget)}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.summaryBar}>
+          <View style={[styles.summaryFill, { width: `${Math.min((totalSpent / budget.total) * 100, 100)}%`, backgroundColor: remainingBudget < 0 ? '#EF4444' : colors.primary }]} />
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Budget Summary Card */}
-        <View style={styles.budgetCard}>
-          <View style={styles.budgetTop}>
-            <View style={styles.budgetMain}>
-              <Text style={styles.budgetLabel}>Total Spent</Text>
-              <Text style={styles.budgetAmount}>{safeFormatCurrency(totalExpenses)}</Text>
-              <Text style={styles.budgetOf}>of {safeFormatCurrency(budgetTotal)} budget</Text>
-            </View>
-            <View style={[styles.percentCircle, { borderColor: spentPercentage > 90 ? '#EF4444' : spentPercentage > 70 ? '#F59E0B' : colors.primary }]}>
-              <Text style={[styles.percentText, { color: spentPercentage > 90 ? '#EF4444' : spentPercentage > 70 ? '#F59E0B' : colors.primary }]}>
-                {Math.min(spentPercentage, 100).toFixed(0)}%
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { 
-              width: `${Math.min(spentPercentage, 100)}%`,
-              backgroundColor: spentPercentage > 90 ? '#EF4444' : spentPercentage > 70 ? '#F59E0B' : colors.primary
-            }]} />
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statEmoji}>💵</Text>
-              <Text style={[styles.statValue, { color: remainingBudget >= 0 ? colors.primary : '#EF4444' }]}>
-                {safeFormatCurrency(Math.abs(remainingBudget))}
-              </Text>
-              <Text style={styles.statLabel}>{remainingBudget >= 0 ? 'Remaining' : 'Over budget'}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statEmoji}>📊</Text>
-              <Text style={styles.statValue}>{safeFormatCurrency(dailyAverage)}</Text>
-              <Text style={styles.statLabel}>Daily Avg</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statEmoji}>🧾</Text>
-              <Text style={styles.statValue}>{expenses.length}</Text>
-              <Text style={styles.statLabel}>Expenses</Text>
-            </View>
-          </View>
+      {/* Tabs */}
+      {isMultiUser && (
+        <View style={styles.tabs}>
+          <TouchableOpacity onPress={() => setActiveTab('transactions')} style={[styles.tab, activeTab === 'transactions' && styles.tabActive]}>
+            <Text style={[styles.tabText, activeTab === 'transactions' && styles.tabTextActive]}>Transactions</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setActiveTab('balances')} style={[styles.tab, activeTab === 'balances' && styles.tabActive]}>
+            <Text style={[styles.tabText, activeTab === 'balances' && styles.tabTextActive]}>Balances</Text>
+          </TouchableOpacity>
         </View>
+      )}
 
-        {/* Tab Switcher - Only for multi-user trips */}
-        {isMultiUser && travelers.length > 1 && (
-          <View style={styles.tabSwitcher}>
-            <TouchableOpacity 
-              style={[styles.tabBtn, activeTab === 'transactions' && styles.tabBtnActive]} 
-              onPress={() => setActiveTab('transactions')}
-            >
-              <Text style={styles.tabIcon}>💳</Text>
-              <Text style={[styles.tabText, activeTab === 'transactions' && styles.tabTextActive]}>
-                Transactions
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.tabBtn, activeTab === 'balances' && styles.tabBtnActive]} 
-              onPress={() => setActiveTab('balances')}
-            >
-              <Text style={styles.tabIcon}>👥</Text>
-              <Text style={[styles.tabText, activeTab === 'balances' && styles.tabTextActive]}>
-                Balances
-              </Text>
-              {settlements.length > 0 && (
-                <View style={styles.tabBadge}>
-                  <Text style={styles.tabBadgeText}>{settlements.length}</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {activeTab === 'transactions' ? (
+          <>
+            {expenses.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>💸</Text>
+                <Text style={styles.emptyText}>No expenses yet. Tap + to add one!</Text>
+              </View>
+            ) : (
+              expenses.slice().reverse().map(expense => {
+                const cat = CATEGORIES.find(c => c.key === expense.category) || CATEGORIES[0];
+                return (
+                  <View key={expense.id} style={styles.expenseCard}>
+                    <View style={[styles.exIcon, { backgroundColor: cat.color + '20' }]}>
+                      <Text style={styles.exEmoji}>{cat.emoji}</Text>
+                    </View>
+                    <View style={styles.exContent}>
+                      <Text style={styles.exTitle}>{expense.title}</Text>
+                      <Text style={styles.exSub}>
+                        {getTravelerName(expense.paidBy)} paid • {cat.label}
+                      </Text>
+                    </View>
+                    <View style={styles.exRight}>
+                      <Text style={styles.exAmount}>{safeFormat(expense.amount)}</Text>
+                      <TouchableOpacity onPress={() => deleteExpense && deleteExpense(expense.id)} style={styles.exDelete}>
+                        <Text style={styles.exDeleteText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </>
+        ) : (
+          <View style={styles.balanceList}>
+            {Object.entries(balances).map(([uid, bal]) => {
+              // Show all balances, even if 0
+              const isOwed = bal > 0;
+              return (
+                <View key={uid} style={styles.balCard}>
+                  <View style={styles.balUser}>
+                    <Text style={styles.balAvatar}>{getTravelerAvatar(uid)}</Text>
+                    <Text style={styles.balName}>{getTravelerName(uid)}</Text>
+                  </View>
+                  <Text style={[styles.balAmount, { color: isOwed ? '#10B981' : '#EF4444' }]}>
+                    {isOwed ? `gets back ${safeFormat(bal)}` : `owes ${safeFormat(Math.abs(bal))}`}
+                  </Text>
                 </View>
-              )}
-            </TouchableOpacity>
+              );
+            })}
           </View>
         )}
-
-        {/* Tab Content */}
-        {isMultiUser && activeTab === 'balances' ? renderBalancesTab() : renderTransactionsTab()}
-
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Text style={styles.fabIcon}>+</Text>
-        <Text style={styles.fabText}>Add</Text>
-      </TouchableOpacity>
-
-      {/* Add Expense Modal - Redesigned */}
-      <Modal 
-        animationType="slide" 
-        transparent 
-        visible={modalVisible} 
-        onRequestClose={() => setModalVisible(false)}
-      >
+      {/* ADD EXPENSE MODAL */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHandle} />
-            
-            {/* Modal Header */}
+          <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderLeft}>
-                <View style={styles.modalIconCircle}>
-                  <Text style={styles.modalIconText}>💸</Text>
-                </View>
-                <View>
-                  <Text style={styles.modalTitle}>Add Expense</Text>
-                  <Text style={styles.modalSubtitle}>
-                    {isMultiUser ? `Split with ${travelers.length} travelers` : 'Track your spending'}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity 
-                onPress={() => { setModalVisible(false); resetNewExpense(); }} 
-                style={styles.modalClose}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
+              <Text style={styles.modalTitle}>Add Expense</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                <Text style={styles.closeText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView 
-              showsVerticalScrollIndicator={false} 
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.modalScrollContent}
-            >
-              {/* Amount Input - Inline */}
-              <View style={styles.amountRow}>
-                <Text style={styles.amountLabel}>Amount</Text>
-                <View style={styles.amountInputBox}>
-                  <Text style={styles.amountSymbol}>{currency.symbol}</Text>
-                  <TextInput
-                    style={styles.amountInput}
-                    placeholder="0"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="decimal-pad"
-                    value={newExpense.amount}
-                    onChangeText={(t) => setNewExpense({...newExpense, amount: t.replace(/[^0-9.]/g, '')})}
-                  />
-                </View>
-              </View>
-
-              {/* Description Input */}
-              <View style={styles.formSection}>
-                <Text style={styles.inputLabel}>Description *</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Amount */}
+              <View style={styles.amtContainer}>
+                <Text style={styles.amtSymbol}>{currency.symbol}</Text>
                 <TextInput
-                  style={styles.descriptionInput}
-                  placeholder="What was this expense for?"
-                  placeholderTextColor={colors.textMuted}
-                  value={newExpense.title}
-                  onChangeText={(t) => setNewExpense({...newExpense, title: t})}
+                  style={styles.amtInput}
+                  placeholder="0"
+                  value={newExpense.amount}
+                  onChangeText={t => setNewExpense({ ...newExpense, amount: t })}
+                  keyboardType="decimal-pad"
+                  autoFocus
                 />
               </View>
 
-              {/* Category Selection */}
-              <View style={styles.formSection}>
-                <Text style={styles.inputLabel}>Category</Text>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.categoryScroll}
-                >
-                  {CATEGORIES.map((cat) => {
-                    const isSelected = newExpense.category === cat.key;
-                    return (
-                      <TouchableOpacity
-                        key={cat.key}
-                        style={[
-                          styles.categoryChip,
-                          isSelected && { backgroundColor: cat.color, borderColor: cat.color }
-                        ]}
-                        onPress={() => setNewExpense({...newExpense, category: cat.key})}
-                      >
-                        <Text style={styles.categoryChipEmoji}>{cat.emoji}</Text>
-                        <Text style={[styles.categoryChipLabel, isSelected && { color: '#FFF' }]}>
-                          {cat.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
+              {/* Title */}
+              <Text style={styles.inputLabel}>For what?</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. Dinner, Taxi"
+                value={newExpense.title}
+                onChangeText={t => setNewExpense({ ...newExpense, title: t })}
+                placeholderTextColor={colors.textMuted}
+              />
 
-              {/* Split Options - Only for multi-user trips */}
-              {isMultiUser && travelers.length > 1 && (
+              {/* Category */}
+              <Text style={styles.inputLabel}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                {CATEGORIES.map(cat => (
+                  <TouchableOpacity key={cat.key} onPress={() => setNewExpense({ ...newExpense, category: cat.key })}
+                    style={[styles.catChip, newExpense.category === cat.key && { backgroundColor: cat.color, borderColor: cat.color }]}
+                  >
+                    <Text style={styles.catEmoji}>{cat.emoji}</Text>
+                    <Text style={[styles.catLabel, newExpense.category === cat.key && { color: 'white' }]}>{cat.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Split Section */}
+              {isMultiUser && (
                 <View style={styles.splitSection}>
-                  <Text style={styles.inputLabel}>👥 Split Options</Text>
+                  {/* Paid By Section Removed as per User Request (Defaulting to main_user internally) */}
 
-                  {/* Paid By Selection */}
-                  <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Paid by</Text>
-                    <ScrollView 
-                      horizontal 
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.paidByScroll}
-                    >
-                      {travelers.map((t) => {
-                        const isSelected = newExpense.paidBy === t.id;
-                        return (
-                          <TouchableOpacity
-                            key={t.id}
-                            style={[styles.paidByChip, isSelected && styles.paidByChipActive]}
-                            onPress={() => setNewExpense({...newExpense, paidBy: t.id})}
-                          >
-                            <Text style={styles.paidByAvatar}>{t.avatar || '👤'}</Text>
-                            <Text style={[styles.paidByName, isSelected && styles.paidByNameActive]}>
-                              {t.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
+                  <View style={styles.splitHeader}>
+                    <Text style={styles.inputLabel}>Split</Text>
+                    <View style={styles.splitToggle}>
+                      <TouchableOpacity onPress={() => setNewExpense({ ...newExpense, splitType: 'equal' })}
+                        style={[styles.splitOpt, newExpense.splitType === 'equal' && styles.splitOptActive]}>
+                        <Text style={[styles.splitText, newExpense.splitType === 'equal' && styles.splitTextActive]}>Equally</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setNewExpense({ ...newExpense, splitType: 'custom' })}
+                        style={[styles.splitOpt, newExpense.splitType === 'custom' && styles.splitOptActive]}>
+                        <Text style={[styles.splitText, newExpense.splitType === 'custom' && styles.splitTextActive]}>Custom</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
-                  {/* Split Type Selection */}
-                  <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Split</Text>
-                    <View style={styles.splitTypeRow}>
-                      {[
-                        { key: 'equal', label: 'Equal' },
-                        { key: 'custom', label: 'Custom' },
-                        { key: 'transfer', label: 'Transfer' },
-                      ].map((type) => {
-                        const isSelected = newExpense.splitType === type.key;
+                  {newExpense.splitType === 'equal' ? (
+                    <View style={styles.checkList}>
+                      {travelers.map(t => {
+                        const isIncluded = newExpense.beneficiaries.includes(t.id);
                         return (
-                          <TouchableOpacity
-                            key={type.key}
-                            style={[styles.splitTypeChip, isSelected && styles.splitTypeChipActive]}
-                            onPress={() => setNewExpense({...newExpense, splitType: type.key})}
-                          >
-                            <Text style={[styles.splitTypeText, isSelected && styles.splitTypeTextActive]}>
-                              {type.label}
-                            </Text>
+                          <TouchableOpacity key={t.id} style={styles.checkRow} onPress={() => {
+                            const current = newExpense.beneficiaries;
+                            if (current.includes(t.id)) {
+                              setNewExpense({ ...newExpense, beneficiaries: current.filter(id => id !== t.id) });
+                            } else {
+                              setNewExpense({ ...newExpense, beneficiaries: [...current, t.id] });
+                            }
+                          }}>
+                            <Text style={styles.checkName}>{t.avatar} {t.name}</Text>
+                            <View style={[styles.checkBox, isIncluded && styles.checkBoxActive]}>
+                              {isIncluded && <Text style={styles.checkIcon}>✓</Text>}
+                            </View>
                           </TouchableOpacity>
                         );
                       })}
                     </View>
-                  </View>
-
-                  {/* Transfer Selection */}
-                  {newExpense.splitType === 'transfer' && (
-                    <View style={styles.splitRow}>
-                      <Text style={styles.splitLabel}>To</Text>
-                      <View style={styles.transferToRow}>
-                        {travelers.filter(t => t.id !== newExpense.paidBy).map((t) => {
-                          const isSelected = newExpense.transferTo === t.id;
-                          return (
-                            <TouchableOpacity
-                              key={t.id}
-                              style={[styles.transferToChip, isSelected && styles.transferToChipActive]}
-                              onPress={() => setNewExpense({...newExpense, transferTo: t.id, beneficiaries: [t.id]})}
-                            >
-                              <Text style={styles.transferToAvatar}>{t.avatar || '👤'}</Text>
-                              <Text style={[styles.transferToName, isSelected && styles.transferToNameActive]}>
-                                {t.name}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
+                  ) : (
+                    <View style={styles.customSplitList}>
+                      {/* Validation Message */}
+                      <View style={[styles.valMsg, splitStatus.isValid ? styles.valSuccess : styles.valError]}>
+                        <Text style={styles.valText}>{splitStatus.message || 'Adjust amounts below'}</Text>
                       </View>
-                    </View>
-                  )}
 
-                  {/* Beneficiaries Selection - Equal & Custom */}
-                  {(newExpense.splitType === 'equal' || newExpense.splitType === 'custom') && (
-                    <View style={styles.beneficiarySection}>
-                      <View style={styles.beneficiaryHeader}>
-                        <Text style={styles.splitLabel}>Among</Text>
-                        <TouchableOpacity onPress={selectAllBeneficiaries}>
-                          <Text style={styles.selectAllText}>All</Text>
-                        </TouchableOpacity>
-                      </View>
-                      
-                      {travelers.map((t) => {
-                        const isSelected = newExpense.beneficiaries?.includes(t.id);
-                        const equalAmount = newExpense.splitType === 'equal' && newExpense.amount && isSelected
-                          ? (parseFloat(newExpense.amount) / (newExpense.beneficiaries?.length || 1))
-                          : 0;
-                        
-                        return (
-                          <View key={t.id} style={styles.beneficiaryRow}>
-                            <TouchableOpacity 
-                              style={styles.beneficiaryLeft}
-                              onPress={() => toggleBeneficiary(t.id)}
-                            >
-                              <View style={[styles.checkbox, isSelected && styles.checkboxActive]}>
-                                {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                              </View>
-                              <Text style={styles.beneficiaryAvatar}>{t.avatar || '👤'}</Text>
-                              <Text style={styles.beneficiaryName}>{t.name}</Text>
-                            </TouchableOpacity>
-                            
-                            {isSelected && (
-                              <View style={styles.beneficiaryRight}>
-                                {newExpense.splitType === 'equal' ? (
-                                  <Text style={styles.equalAmount}>{safeFormatCurrency(equalAmount)}</Text>
-                                ) : (
-                                  <TextInput
-                                    style={styles.customInput}
-                                    placeholder="0"
-                                    placeholderTextColor={colors.textMuted}
-                                    keyboardType="decimal-pad"
-                                    value={newExpense.splitAmounts?.[t.id]?.toString() || ''}
-                                    onChangeText={(val) => updateCustomSplit(t.id, val.replace(/[^0-9.]/g, ''))}
-                                  />
-                                )}
-                              </View>
-                            )}
+                      {travelers.map(t => (
+                        <View key={t.id} style={styles.customRow}>
+                          <Text style={styles.customName}>{t.avatar} {t.name}</Text>
+                          <View style={styles.customInputWrap}>
+                            <Text style={styles.customSymbol}>{currency.symbol}</Text>
+                            <TextInput
+                              style={styles.customInput}
+                              placeholder="0"
+                              keyboardType="decimal-pad"
+                              value={newExpense.splitAmounts[t.id] || ''}
+                              onChangeText={v => setNewExpense({
+                                ...newExpense,
+                                splitAmounts: { ...newExpense.splitAmounts, [t.id]: v }
+                              })}
+                            />
                           </View>
-                        );
-                      })}
+                        </View>
+                      ))}
                     </View>
                   )}
                 </View>
               )}
 
-              {/* Notes */}
-              <View style={styles.formSection}>
-                <Text style={styles.inputLabel}>Notes</Text>
-                <TextInput
-                  style={styles.notesInput}
-                  placeholder="Optional details..."
-                  placeholderTextColor={colors.textMuted}
-                  value={newExpense.notes}
-                  onChangeText={(t) => setNewExpense({...newExpense, notes: t})}
-                  multiline
-                />
-              </View>
-
-              {/* Submit Button */}
               <TouchableOpacity
-                style={[styles.submitButton, (!newExpense.title.trim() || !newExpense.amount) && styles.submitButtonDisabled]}
+                style={[styles.saveBtn, (!newExpense.title || !newExpense.amount || (!splitStatus.isValid && isMultiUser)) && { opacity: 0.5 }]}
+                disabled={!newExpense.title || !newExpense.amount || (!splitStatus.isValid && isMultiUser)}
                 onPress={handleAddExpense}
-                disabled={!newExpense.title.trim() || !newExpense.amount}
               >
-                <Text style={styles.submitButtonText}>Add Expense</Text>
+                <Text style={styles.saveBtnText}>Save Expense</Text>
               </TouchableOpacity>
-
-              <View style={{ height: 30 }} />
+              <View style={{ height: 50 }} />
             </ScrollView>
           </View>
         </View>
@@ -898,380 +414,100 @@ export default function ExpenseScreen() {
 
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  scrollContent: { paddingBottom: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
-  headerTitle: { color: colors.text, fontSize: 24, fontWeight: 'bold' },
-  headerSubtitle: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  debugBtn2: { backgroundColor: colors.cardLight, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12 },
-  debugBtn2Text: { fontSize: 16 },
-  addBtn: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
-  addBtnText: { color: colors.bg, fontSize: 14, fontWeight: 'bold' },
-  budgetCard: { marginHorizontal: 20, backgroundColor: colors.card, borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.primaryBorder },
-  budgetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  budgetMain: {},
-  budgetLabel: { color: colors.textMuted, fontSize: 12 },
-  budgetAmount: { color: colors.text, fontSize: 32, fontWeight: 'bold', marginVertical: 4 },
-  budgetOf: { color: colors.textMuted, fontSize: 13 },
-  percentCircle: { width: 60, height: 60, borderRadius: 30, borderWidth: 4, justifyContent: 'center', alignItems: 'center' },
-  percentText: { fontSize: 15, fontWeight: 'bold' },
-  progressBar: { height: 8, backgroundColor: colors.cardLight, borderRadius: 4, marginBottom: 16, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 4 },
-  statsRow: { flexDirection: 'row', backgroundColor: colors.cardLight, borderRadius: 14, padding: 12 },
-  statItem: { flex: 1, alignItems: 'center' },
-  statEmoji: { fontSize: 18, marginBottom: 4 },
-  statValue: { color: colors.text, fontSize: 14, fontWeight: 'bold' },
-  statLabel: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: colors.primaryBorder },
-  tabSwitcher: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, backgroundColor: colors.card, borderRadius: 14, padding: 4, borderWidth: 1, borderColor: colors.primaryBorder },
-  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10 },
-  tabBtnActive: { backgroundColor: colors.primary },
-  tabIcon: { fontSize: 16, marginRight: 6 },
-  tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '500' },
-  tabTextActive: { color: colors.bg, fontWeight: '600' },
-  tabBadge: { backgroundColor: '#DC2626', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
-  tabBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: colors.text },
+  headerSubtitle: { fontSize: 13, color: colors.textMuted },
+  addBtn: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  addBtnText: { color: 'white', fontWeight: '700' },
 
-  // Balance Tab - Redesigned
-  balancesTabContent: { paddingHorizontal: 20, paddingTop: 8 },
-  balanceSummaryCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.primaryBorder },
-  balanceSummaryStats: { flexDirection: 'row' },
-  balanceSummaryStat: { flex: 1, alignItems: 'center' },
-  balanceSummaryStatLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 4 },
-  balanceSummaryStatValue: { fontSize: 16, fontWeight: 'bold', color: colors.text },
-  balanceSummaryDivider: { width: 1, backgroundColor: colors.primaryBorder, marginHorizontal: 12 },
-  
-  sectionTitle: { fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 12 },
-  
-  // Balance Cards - Clean Design (updated colors)
-  balanceCardsContainer: { gap: 8, marginBottom: 24 },
-  balanceCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between',
-    backgroundColor: colors.card, 
-    borderRadius: 12, 
-    padding: 14, 
-    borderWidth: 1, 
-    borderColor: colors.primaryBorder 
-  },
-  balanceCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  balanceAvatar: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    backgroundColor: colors.cardLight, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginRight: 12 
-  },
-  balanceAvatarText: { fontSize: 20 },
-  balanceInfo: { flex: 1 },
-  balanceName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  balanceDetail: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  balanceCardRight: { alignItems: 'flex-end' },
-  balanceAmount: { fontSize: 16, fontWeight: 'bold' },
-  balanceStatus: { fontSize: 10, marginTop: 2 },
+  summaryCard: { backgroundColor: colors.card, margin: 20, marginTop: 0, padding: 20, borderRadius: 20 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  summaryLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1 },
+  summaryValue: { fontSize: 24, fontWeight: '800', color: colors.text, marginTop: 4 },
+  summaryBar: { height: 8, backgroundColor: colors.bg, borderRadius: 4, overflow: 'hidden' },
+  summaryFill: { height: '100%', borderRadius: 4 },
 
-  // Settlements - Cleaner (updated colors)
-  settlementsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  settlementCount: { fontSize: 12, color: colors.textMuted },
-  settledCard: { 
-    backgroundColor: colors.card, 
-    borderRadius: 12, 
-    padding: 20, 
-    alignItems: 'center', 
-    borderWidth: 1, 
-    borderColor: colors.primaryBorder,
-    marginBottom: 20,
-  },
-  settledEmoji: { fontSize: 24, color: '#2563EB', marginBottom: 8 },
-  settledText: { fontSize: 14, color: colors.textMuted },
-  settlementsContainer: { gap: 10, marginBottom: 20 },
-  settlementCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: colors.card, 
-    borderRadius: 12, 
-    padding: 14, 
-    borderWidth: 1, 
-    borderColor: colors.primaryBorder 
-  },
-  settlementPerson: { flex: 1, alignItems: 'center' },
-  settlementAvatar: { fontSize: 24, marginBottom: 4 },
-  settlementName: { fontSize: 12, color: colors.text, fontWeight: '500' },
-  settlementArrow: { alignItems: 'center', paddingHorizontal: 8 },
-  settlementArrowText: { fontSize: 10, color: colors.textMuted },
-  settlementAmountText: { fontSize: 14, fontWeight: 'bold', color: colors.primary, marginVertical: 2 },
-  settlementArrowIcon: { fontSize: 16, color: colors.textMuted },
+  scrollContent: { padding: 20 },
 
-  // Transactions Tab styles
-  filterScroll: { marginBottom: 12 },
-  filterContent: { paddingHorizontal: 20, gap: 8 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primaryBorder },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterText: { color: colors.text, fontSize: 12, fontWeight: '500' },
-  filterTextActive: { color: colors.bg },
-  transactionsSection: { paddingHorizontal: 20 },
-  emptyState: { alignItems: 'center', paddingVertical: 40 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '600' },
-  emptyText: { color: colors.textMuted, fontSize: 14, marginTop: 4 },
-  emptyBtn: { marginTop: 20, backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
-  emptyBtnText: { color: colors.bg, fontWeight: 'bold' },
-  transactionsList: { gap: 16 },
-  dateGroup: { marginBottom: 8 },
-  dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  dateText: { color: colors.primary, fontSize: 12, fontWeight: '600', backgroundColor: colors.primaryMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  dateLine: { flex: 1, height: 1, backgroundColor: colors.primaryBorder, marginHorizontal: 10 },
-  dateTotal: { color: colors.textMuted, fontSize: 12 },
-  expenseCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: colors.card, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.primaryBorder, borderLeftWidth: 4 },
-  expenseIcon: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  expenseEmoji: { fontSize: 20 },
-  expenseInfo: { flex: 1, marginLeft: 12 },
-  expenseTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  expenseCategory: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  expenseSplitInfo: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 },
-  expensePaidBy: { color: colors.primary, fontSize: 11, fontWeight: '500' },
-  expenseSplitType: { color: colors.textMuted, fontSize: 11 },
-  expenseNotes: { color: colors.textMuted, fontSize: 11, marginTop: 6 },
-  expenseRight: { alignItems: 'flex-end' },
-  expenseAmount: { color: '#DC2626', fontSize: 16, fontWeight: 'bold' },
-  deleteBtn: { 
-    marginTop: 6, 
-    padding: 4,
-  },
-  deleteBtnText: { fontSize: 14 },
+  // Tabs
+  tabs: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 10, backgroundColor: colors.card, borderRadius: 12, padding: 4 },
+  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
+  tabActive: { backgroundColor: colors.bg },
+  tabText: { fontWeight: '600', color: colors.textMuted },
+  tabTextActive: { color: colors.text },
 
-  // FAB
-  fab: { position: 'absolute', bottom: 20, right: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 16, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
-  fabIcon: { color: colors.bg, fontSize: 20, fontWeight: 'bold', marginRight: 6 },
-  fabText: { color: colors.bg, fontSize: 15, fontWeight: 'bold' },
+  // Expenses
+  expenseCard: { flexDirection: 'row', backgroundColor: colors.card, padding: 16, borderRadius: 16, marginBottom: 12, alignItems: 'center' },
+  exIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  exEmoji: { fontSize: 20 },
+  exContent: { flex: 1 },
+  exTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  exSub: { fontSize: 12, color: colors.textMuted },
+  exRight: { alignItems: 'flex-end' },
+  exAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
+  exDelete: { marginTop: 4, padding: 4 },
+  exDeleteText: { color: colors.textMuted, fontSize: 12 },
 
-  // Debug styles
-  debugCard: { marginHorizontal: 20, marginBottom: 16, backgroundColor: '#FEF3C7', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#F59E0B' },
-  debugTitle: { fontSize: 14, fontWeight: 'bold', color: '#92400E', marginBottom: 8 },
-  debugText: { fontSize: 12, color: '#78350F', marginBottom: 4 },
-  debugBtn: { marginTop: 12, backgroundColor: '#F59E0B', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center' },
-  debugBtnText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+  emptyState: { alignItems: 'center', marginTop: 50 },
+  emptyEmoji: { fontSize: 48, marginBottom: 16 },
+  emptyText: { color: colors.textMuted },
 
-  // ========== MODAL STYLES ==========
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalContent: { backgroundColor: colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', paddingTop: 8 },
-  modalHandle: { width: 36, height: 4, backgroundColor: colors.textMuted + '40', borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
-  modalScrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12, marginBottom: 12 },
-  modalHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
-  modalIconCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primaryMuted, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  modalIconText: { fontSize: 18 },
-  modalTitle: { color: colors.text, fontSize: 17, fontWeight: 'bold' },
-  modalSubtitle: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
-  modalClose: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.cardLight, justifyContent: 'center', alignItems: 'center' },
-  modalCloseText: { color: colors.textMuted, fontSize: 16 },
+  // Balances
+  balCard: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.card, padding: 16, borderRadius: 16, marginBottom: 12, alignItems: 'center' },
+  balUser: { flexDirection: 'row', alignItems: 'center' },
+  balAvatar: { fontSize: 20, marginRight: 8 },
+  balName: { fontWeight: '600', color: colors.text },
+  balAmount: { fontWeight: '700' },
 
-  // Amount - Inline Row
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  amountLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  amountInputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-  },
-  amountSymbol: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.primary,
-    marginRight: 4,
-  },
-  amountInput: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-    minWidth: 80,
-    padding: 0,
-  },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, height: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 24, fontWeight: '800', color: colors.text },
+  closeBtn: { padding: 8, backgroundColor: colors.bg, borderRadius: 20 },
+  closeText: { fontSize: 16, color: colors.text },
 
-  // Form Sections
-  formSection: { marginBottom: 14 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
-  descriptionInput: {
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 14,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-  },
-  notesInput: {
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 13,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    minHeight: 50,
-    textAlignVertical: 'top',
-  },
+  amtContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  amtSymbol: { fontSize: 32, fontWeight: '700', color: colors.primary, marginRight: 8 },
+  amtInput: { fontSize: 48, fontWeight: '800', color: colors.text, minWidth: 100, textAlign: 'center', padding: 0 },
 
-  // Category
-  categoryScroll: { gap: 6 },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    gap: 4,
-  },
-  categoryChipEmoji: { fontSize: 13 },
-  categoryChipLabel: { fontSize: 11, fontWeight: '500', color: colors.text },
+  inputLabel: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 8, marginTop: 16 },
+  textInput: { backgroundColor: colors.bg, padding: 16, borderRadius: 16, fontSize: 16, color: colors.text, fontWeight: '600' },
 
-  // Split Section
-  splitSection: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-  },
-  splitRow: { marginBottom: 12 },
-  splitLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
+  catChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.primaryBorder },
+  catEmoji: { marginRight: 6 },
+  catLabel: { fontWeight: '600', color: colors.text },
 
-  // Paid By
-  paidByScroll: { gap: 6 },
-  paidByChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardLight,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  paidByChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-  },
-  paidByAvatar: { fontSize: 14 },
-  paidByName: { fontSize: 12, color: colors.text },
-  paidByNameActive: { color: colors.primary, fontWeight: '600' },
+  splitSection: { marginTop: 24, padding: 16, backgroundColor: colors.bg, borderRadius: 20 },
+  userChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: colors.card, marginRight: 8 },
+  userChipSelected: { backgroundColor: colors.primary + '20', borderWidth: 1, borderColor: colors.primary },
 
-  // Split Type
-  splitTypeRow: { flexDirection: 'row', gap: 6 },
-  splitTypeChip: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    backgroundColor: colors.cardLight,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  splitTypeChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-  },
-  splitTypeText: { fontSize: 11, color: colors.text },
-  splitTypeTextActive: { color: colors.primary, fontWeight: '600' },
+  splitHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 12 },
+  splitToggle: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 10, padding: 2 },
+  splitOpt: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
+  splitOptActive: { backgroundColor: colors.primary },
+  splitText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+  splitTextActive: { color: 'white' },
 
-  // Transfer To
-  transferToRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  transferToChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardLight,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  transferToChipActive: {
-    backgroundColor: '#2563EB10',
-    borderColor: '#2563EB',
-  },
-  transferToAvatar: { fontSize: 14 },
-  transferToName: { fontSize: 12, color: colors.text },
-  transferToNameActive: { color: '#2563EB', fontWeight: '600' },
+  checkList: { gap: 8 },
+  checkRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+  checkName: { fontWeight: '600', color: colors.text },
+  checkBox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.textMuted, alignItems: 'center', justifyContent: 'center' },
+  checkBoxActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkIcon: { color: 'white', fontSize: 14, fontWeight: '800' },
 
-  // Beneficiaries
-  beneficiarySection: { marginTop: 4 },
-  beneficiaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  selectAllText: { fontSize: 11, color: colors.primary, fontWeight: '600' },
-  beneficiaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primaryBorder,
-  },
-  beneficiaryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: colors.textMuted,
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkmark: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
-  beneficiaryAvatar: { fontSize: 16, marginRight: 6 },
-  beneficiaryName: { fontSize: 13, color: colors.text },
-  beneficiaryRight: { alignItems: 'flex-end' },
-  equalAmount: { fontSize: 12, color: colors.primary, fontWeight: '600' },
-  customInput: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    backgroundColor: colors.cardLight,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    minWidth: 60,
-    textAlign: 'right',
-  },
+  customSplitList: { gap: 12 },
+  customRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  customName: { fontWeight: '600', color: colors.text },
+  customInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.primaryBorder },
+  customSymbol: { color: colors.text, marginRight: 8, fontSize: 16, fontWeight: '700' },
+  customInput: { flex: 1, fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'right', padding: 0 },
 
-  // Submit Button
-  submitButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  submitButtonDisabled: { opacity: 0.5 },
-  submitButtonText: { fontSize: 15, fontWeight: 'bold', color: '#FFF' },
+  valMsg: { padding: 8, borderRadius: 8, marginBottom: 12, alignItems: 'center' },
+  valSuccess: { backgroundColor: '#10B98120' },
+  valError: { backgroundColor: '#EF444420' },
+  valText: { fontWeight: '700', fontSize: 12, color: colors.text },
+
+  saveBtn: { backgroundColor: colors.primary, padding: 18, borderRadius: 20, alignItems: 'center', marginTop: 32 },
+  saveBtnText: { color: 'white', fontSize: 16, fontWeight: '800' },
 });
