@@ -141,7 +141,7 @@ const createStyles = (colors) => StyleSheet.create({
   dayCellInRange: { backgroundColor: colors.primaryMuted },
   dayCellDisabled: { opacity: 0.3 },
   dayText: { color: colors.text, fontSize: 15, fontWeight: '500' },
-  dayTextSelected: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16 },
+  dayTextSelected: { color: 'black', fontWeight: 'bold', fontSize: 16 },
   dayTextToday: { color: colors.primary },
   dayTextDisabled: { color: colors.textMuted },
   selectedDisplay: { marginTop: 20, alignItems: 'center', padding: 16, backgroundColor: colors.primaryMuted, borderRadius: 16, borderWidth: 1, borderColor: colors.primaryBorder },

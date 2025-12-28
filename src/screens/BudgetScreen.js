@@ -238,7 +238,7 @@ export default function BudgetScreen() {
             const remaining = allocated - spent;
 
             return (
-              <TouchableOpacity key={cat.key} style={styles.catCard} onLongPress={() => handleEditCategory(cat)} delayLongPress={200}>
+              <TouchableOpacity key={cat.key} style={styles.catCard} onPress={() => handleEditCategory(cat)} onLongPress={() => handleEditCategory(cat)} delayLongPress={200}>
                 <View style={styles.catIconContainer}>
                   <View style={[styles.catIconBg, { backgroundColor: cat.color + '20' }]}>
                     <Text style={styles.catEmoji}>{cat.emoji}</Text>
@@ -428,7 +428,7 @@ const createStyles = (colors) => StyleSheet.create({
   checkMark: { color: 'black', fontSize: 16, fontWeight: 'bold' },
 
   saveBtn: { backgroundColor: colors.primary, padding: 18, borderRadius: 20, alignItems: 'center', marginTop: 32 },
-  saveBtnText: { color: 'white', fontSize: 16, fontWeight: '800' },
+  saveBtnText: { color: 'black', fontSize: 16, fontWeight: '800' },
   deleteBtn: { backgroundColor: '#EF444415', padding: 18, borderRadius: 20, alignItems: 'center', marginTop: 16 },
   deleteBtnText: { color: '#EF4444', fontSize: 16, fontWeight: '700' },
 });

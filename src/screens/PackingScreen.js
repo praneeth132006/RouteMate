@@ -246,7 +246,10 @@ export default function PackingScreen() {
                         </View>
                         <TouchableOpacity
                           style={styles.itemDelete}
-                          onPress={() => handleDeleteItem(item.id, item.name)}
+                          onPress={(e) => {
+                            e?.stopPropagation();
+                            handleDeleteItem(item.id, item.name);
+                          }}
                         >
                           <Text style={styles.itemDeleteText}>🗑️</Text>
                         </TouchableOpacity>

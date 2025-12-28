@@ -658,7 +658,7 @@ export default function HomeScreen({ onBackToHome }) {
               <View style={styles.budgetInputRow}>
                 <Text style={styles.budgetCurrency}>{currency.symbol}</Text>
                 <TextInput
-                  style={styles.budgetInputField}
+                  style={[styles.budgetInputField, { outlineStyle: 'none' }]}
                   value={newBudget}
                   onChangeText={(text) => setNewBudget(text.replace(/[^0-9]/g, ''))}
                   keyboardType="numeric"
@@ -695,7 +695,7 @@ export default function HomeScreen({ onBackToHome }) {
             <View style={styles.addTravelerSection}>
               <View style={styles.addTravelerInput}>
                 <TextInput
-                  style={styles.travelerInput}
+                  style={[styles.travelerInput, { outlineStyle: 'none' }]}
                   placeholder="Add traveler name..."
                   placeholderTextColor={colors.textMuted}
                   value={newTravelerName}

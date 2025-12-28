@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  View, Text, ScrollView, TextInput, TouchableOpacity, 
-  Modal, StyleSheet, Animated, Dimensions 
+import {
+  View, Text, ScrollView, TextInput, TouchableOpacity,
+  Modal, StyleSheet, Animated, Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
@@ -87,11 +87,11 @@ export default function MapScreen() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [activeDay, setActiveDay] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [newStop, setNewStop] = useState({ 
-    name: '', type: 'attraction', dayNumber: 1, time: '', notes: '', location: '', 
+  const [newStop, setNewStop] = useState({
+    name: '', type: 'attraction', dayNumber: 1, time: '', notes: '', location: '',
     duration: '', cost: ''
   });
-  
+
   const scrollViewRef = useRef(null);
   const floatAnim = useState(new Animated.Value(0))[0];
   const pulseAnim = useState(new Animated.Value(1))[0];
@@ -121,14 +121,14 @@ export default function MapScreen() {
     }
   };
 
-  const openAddModal = (day) => { 
-    setSelectedDay(day); 
-    setNewStop({ ...newStop, dayNumber: day.dayNumber }); 
-    setModalVisible(true); 
+  const openAddModal = (day) => {
+    setSelectedDay(day);
+    setNewStop({ ...newStop, dayNumber: day.dayNumber });
+    setModalVisible(true);
   };
 
   const getStopType = (key) => STOP_TYPES.find(t => t.key === key) || STOP_TYPES[11];
-  
+
   // Sort stops by time
   const getStopsForDay = (dayNumber) => {
     return itinerary
@@ -149,8 +149,8 @@ export default function MapScreen() {
   const totalStops = itinerary.length;
   const participantCount = (tripInfo.participants?.length || 0) + 1;
 
-  const filteredTypes = selectedCategory === 'all' 
-    ? STOP_TYPES 
+  const filteredTypes = selectedCategory === 'all'
+    ? STOP_TYPES
     : STOP_TYPES.filter(t => t.category === selectedCategory);
 
   return (
@@ -221,9 +221,9 @@ export default function MapScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView 
-        ref={scrollViewRef} 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
         style={styles.mainScroll}
         contentContainerStyle={styles.mainScrollContent}
         bounces={true}
@@ -255,7 +255,7 @@ export default function MapScreen() {
             const hasStops = dayStops.length > 0;
             const isLastDay = dayIndex === tripDays.length - 1;
             const stats = getCategoryStats(day.dayNumber);
-            
+
             return (
               <View key={day.dayNumber} style={styles.daySection}>
                 <View style={styles.dayCard}>
@@ -266,7 +266,7 @@ export default function MapScreen() {
                     </View>
                     {!isLastDay && <View style={styles.dayConnector} />}
                   </View>
-                  
+
                   {/* Day Content */}
                   <View style={styles.dayCardContent}>
                     {/* Day Header */}
@@ -304,7 +304,7 @@ export default function MapScreen() {
                         {dayStops.map((stop, stopIndex) => {
                           const type = getStopType(stop.type);
                           const isLast = stopIndex === dayStops.length - 1;
-                          
+
                           return (
                             <View key={stop.id} style={styles.stopWrapper}>
                               {/* Time Column */}
@@ -312,7 +312,7 @@ export default function MapScreen() {
                                 <Text style={styles.stopTimeText}>{stop.time || '--:--'}</Text>
                                 {!isLast && <View style={[styles.stopTimeLine, { backgroundColor: type.color + '40' }]} />}
                               </View>
-                              
+
                               {/* Stop Card */}
                               <View style={[styles.stopCard, { borderLeftColor: type.color }]}>
                                 {/* Category Tag */}
@@ -337,7 +337,7 @@ export default function MapScreen() {
                                     <Text style={styles.stopDeleteIcon}>×</Text>
                                   </TouchableOpacity>
                                 </View>
-                                
+
                                 {stop.location && (
                                   <View style={styles.stopDetailRow}>
                                     <Text style={styles.stopDetailIcon}>📍</Text>
@@ -351,7 +351,7 @@ export default function MapScreen() {
                                     <Text style={styles.stopDetailText}>${stop.cost}</Text>
                                   </View>
                                 )}
-                                
+
                                 {stop.notes && (
                                   <View style={styles.stopNotesContainer}>
                                     <Text style={styles.stopNotes}>{stop.notes}</Text>
@@ -384,7 +384,7 @@ export default function MapScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
-            
+
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderInfo}>
                 <Text style={styles.modalTitle}>Add to Itinerary</Text>
@@ -417,7 +417,7 @@ export default function MapScreen() {
                 <Text style={styles.inputLabel}>Type</Text>
                 <View style={styles.typeGrid}>
                   {filteredTypes.map(type => (
-                    <TouchableOpacity key={type.key} style={[styles.typeChip, newStop.type === type.key && { backgroundColor: type.color, borderColor: type.color }]} onPress={() => setNewStop({...newStop, type: type.key})}>
+                    <TouchableOpacity key={type.key} style={[styles.typeChip, newStop.type === type.key && { backgroundColor: type.color, borderColor: type.color }]} onPress={() => setNewStop({ ...newStop, type: type.key })}>
                       <Text style={styles.typeChipIcon}>{type.icon}</Text>
                       <Text style={[styles.typeChipText, newStop.type === type.key && { color: colors.bg }]}>{type.label}</Text>
                     </TouchableOpacity>
@@ -428,7 +428,7 @@ export default function MapScreen() {
               {/* Name */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Name / Description *</Text>
-                <TextInput style={styles.input} placeholder="e.g., Flight to Paris, Eiffel Tower Visit" placeholderTextColor={colors.textMuted} value={newStop.name} onChangeText={(t) => setNewStop({...newStop, name: t})} />
+                <TextInput style={[styles.input, { outlineStyle: 'none' }]} placeholder="e.g., Flight to Paris, Eiffel Tower Visit" placeholderTextColor={colors.textMuted} value={newStop.name} onChangeText={(t) => setNewStop({ ...newStop, name: t })} />
               </View>
 
               {/* Time - Tap to open picker */}
@@ -447,24 +447,24 @@ export default function MapScreen() {
               <View style={styles.inputRow}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.inputLabel}>⏱️ Duration</Text>
-                  <TextInput style={styles.input} placeholder="2 hours" placeholderTextColor={colors.textMuted} value={newStop.duration} onChangeText={(t) => setNewStop({...newStop, duration: t})} />
+                  <TextInput style={[styles.input, { outlineStyle: 'none' }]} placeholder="2 hours" placeholderTextColor={colors.textMuted} value={newStop.duration} onChangeText={(t) => setNewStop({ ...newStop, duration: t })} />
                 </View>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.inputLabel}>💰 Cost (optional)</Text>
-                  <TextInput style={styles.input} placeholder="$50" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={newStop.cost} onChangeText={(t) => setNewStop({...newStop, cost: t})} />
+                  <TextInput style={[styles.input, { outlineStyle: 'none' }]} placeholder="$50" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={newStop.cost} onChangeText={(t) => setNewStop({ ...newStop, cost: t })} />
                 </View>
               </View>
 
               {/* Location */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>📍 Location</Text>
-                <TextInput style={styles.input} placeholder="Address or place name" placeholderTextColor={colors.textMuted} value={newStop.location} onChangeText={(t) => setNewStop({...newStop, location: t})} />
+                <TextInput style={[styles.input, { outlineStyle: 'none' }]} placeholder="Address or place name" placeholderTextColor={colors.textMuted} value={newStop.location} onChangeText={(t) => setNewStop({ ...newStop, location: t })} />
               </View>
 
               {/* Notes */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>📝 Notes (optional)</Text>
-                <TextInput style={[styles.input, styles.notesInput]} placeholder="Tips, reminders, details..." placeholderTextColor={colors.textMuted} value={newStop.notes} onChangeText={(t) => setNewStop({...newStop, notes: t})} multiline />
+                <TextInput style={[styles.input, styles.notesInput, { outlineStyle: 'none' }]} placeholder="Tips, reminders, details..." placeholderTextColor={colors.textMuted} value={newStop.notes} onChangeText={(t) => setNewStop({ ...newStop, notes: t })} multiline />
               </View>
 
               <TouchableOpacity style={[styles.submitButton, !newStop.name.trim() && styles.submitButtonDisabled]} onPress={handleAddStop} disabled={!newStop.name.trim()}>
@@ -479,7 +479,7 @@ export default function MapScreen() {
       <TimePickerModal
         visible={timePickerVisible}
         onClose={() => setTimePickerVisible(false)}
-        onSelect={(time) => setNewStop({...newStop, time})}
+        onSelect={(time) => setNewStop({ ...newStop, time })}
         selectedTime={newStop.time}
         title="Select Time"
       />
@@ -488,11 +488,11 @@ export default function MapScreen() {
 }
 
 const createStyles = (colors) => StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     backgroundColor: colors.bg,
   },
-  
+
   // Header
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
   headerTitle: { color: colors.text, fontSize: 28, fontWeight: 'bold' },
@@ -523,7 +523,7 @@ const createStyles = (colors) => StyleSheet.create({
   dayPillBadgeText: { color: colors.bg, fontSize: 10, fontWeight: 'bold' },
   dayPillBadgeTextActive: { color: colors.primary },
 
-  mainScroll: { 
+  mainScroll: {
     flex: 1,
   },
   mainScrollContent: {
@@ -581,7 +581,7 @@ const createStyles = (colors) => StyleSheet.create({
   stopTimeContainer: { width: 48, alignItems: 'center' },
   stopTimeText: { color: colors.primary, fontSize: 10, fontWeight: '600' },
   stopTimeLine: { width: 2, flex: 1, marginTop: 4, marginBottom: -4, borderRadius: 1 },
-  
+
   stopCard: { flex: 1, backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.primaryBorder, borderLeftWidth: 3, marginLeft: 6 },
   categoryTag: { position: 'absolute', top: 8, right: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   categoryTagText: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
@@ -632,7 +632,7 @@ const createStyles = (colors) => StyleSheet.create({
   inputRow: { flexDirection: 'row' },
   input: { backgroundColor: colors.cardLight, color: colors.text, padding: 14, borderRadius: 10, fontSize: 14, borderWidth: 1, borderColor: colors.primaryBorder },
   notesInput: { height: 70, textAlignVertical: 'top' },
-  
+
   // Time Picker Button
   timePickerButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardLight, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.primaryBorder },
   timePickerIcon: { fontSize: 20, marginRight: 10 },
