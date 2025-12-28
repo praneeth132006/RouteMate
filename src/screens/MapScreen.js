@@ -199,27 +199,7 @@ export default function MapScreen() {
         )}
       </View>
 
-      {/* Day Selector */}
-      <View style={styles.daySelectorContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daySelectorScroll}>
-          {tripDays.map((day) => {
-            const isActive = activeDay === day.dayNumber;
-            const dayStops = getStopsForDay(day.dayNumber);
-            const hasStops = dayStops.length > 0;
-            return (
-              <TouchableOpacity key={day.dayNumber} style={[styles.dayPill, isActive && styles.dayPillActive]} onPress={() => setActiveDay(day.dayNumber)}>
-                <Text style={[styles.dayPillNumber, isActive && styles.dayPillNumberActive]}>{day.dayNumber}</Text>
-                <Text style={[styles.dayPillLabel, isActive && styles.dayPillLabelActive]}>{day.shortDay || 'Day'}</Text>
-                {hasStops && (
-                  <View style={[styles.dayPillBadge, isActive && styles.dayPillBadgeActive]}>
-                    <Text style={[styles.dayPillBadgeText, isActive && styles.dayPillBadgeTextActive]}>{dayStops.length}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+
 
       <ScrollView
         ref={scrollViewRef}
@@ -373,11 +353,7 @@ export default function MapScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity style={styles.fab} onPress={() => openAddModal(tripDays.find(d => d.dayNumber === activeDay) || tripDays[0])}>
-        <Text style={styles.fabIcon}>+</Text>
-        <Text style={styles.fabText}>Add Activity</Text>
-      </TouchableOpacity>
+
 
       {/* Add Stop Modal */}
       <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>

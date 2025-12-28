@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity, Dimensions, Modal, Animated } from 'react-native';
+import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity, Dimensions, Modal, Animated, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
@@ -231,51 +231,22 @@ export default function BudgetScreen() {
         <View style={styles.categoriesSection}>
           <Text style={styles.sectionTitle}>CATEGORIES</Text>
 
-          {CATEGORIES.map((cat) => {
-            const allocated = parseFloat(budget.categories?.[cat.key]) || 0;
-            const spent = parseFloat(expensesByCategory[cat.key]) || 0;
-            const percentage = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
-            const remaining = allocated - spent;
-
-            return (
-              <TouchableOpacity key={cat.key} style={styles.catCard} onPress={() => handleEditCategory(cat)} onLongPress={() => handleEditCategory(cat)} delayLongPress={200}>
-                <View style={styles.catIconContainer}>
-                  <View style={[styles.catIconBg, { backgroundColor: cat.color + '20' }]}>
-                    <Text style={styles.catEmoji}>{cat.emoji}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.catContent}>
-                  <View style={styles.catHeader}>
-                    <Text style={styles.catName}>{cat.label}</Text>
-                    <View style={styles.catInputWrapper}>
-                      <Text style={styles.catCurrency}>{currency.symbol}</Text>
-                      <TextInput
-                        style={[styles.catInput, { outlineStyle: 'none' }]}
-                        value={categoryInputs[cat.key]}
-                        onChangeText={(t) => handleCategoryChange(cat.key, t)}
-                        onBlur={() => handleCategoryBlur(cat.key)}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                      />
-                    </View>
-                  </View>
-
-                  {/* Mini Progress */}
-                  <View style={styles.miniTrack}>
-                    <View style={[styles.miniFill, { width: `${percentage}%`, backgroundColor: cat.color }]} />
-                  </View>
-
-                  <View style={styles.catFooter}>
-                    <Text style={styles.catSpent}>Spent: {safeFormat(spent)}</Text>
-                    <Text style={[styles.catRemaining, { color: remaining < 0 ? '#EF4444' : colors.textMuted }]}>
-                      {remaining >= 0 ? `${safeFormat(remaining)} left` : `${safeFormat(Math.abs(remaining))} over`}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+          {CATEGORIES.map((cat) => (
+            <CategoryCard
+              key={cat.key}
+              cat={cat}
+              budget={budget}
+              expensesByCategory={expensesByCategory}
+              currency={currency}
+              categoryInputs={categoryInputs}
+              handleCategoryChange={handleCategoryChange}
+              handleCategoryBlur={handleCategoryBlur}
+              handleEditCategory={handleEditCategory}
+              safeFormat={safeFormat}
+              styles={styles}
+              colors={colors}
+            />
+          ))}
 
           <TouchableOpacity style={styles.newCatBtn} onPress={() => { setEditingCategory(null); setNewCategory({ key: '', label: '', emoji: '📦', color: '#6B7280', tip: '5-10%' }); setShowCategoryModal(true); }}>
             <Text style={styles.newCatIcon}>+</Text>
@@ -347,6 +318,72 @@ export default function BudgetScreen() {
   );
 }
 
+const CategoryCard = ({ cat, budget, expensesByCategory, currency, categoryInputs, handleCategoryChange, handleCategoryBlur, handleEditCategory, safeFormat, styles, colors }) => {
+  const [inputWidth, setInputWidth] = useState(20);
+  const allocated = parseFloat(budget.categories?.[cat.key]) || 0;
+  const spent = parseFloat(expensesByCategory[cat.key]) || 0;
+  const percentage = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
+  const remaining = allocated - spent;
+  const inputValue = categoryInputs[cat.key];
+
+  return (
+    <View style={styles.catCard}>
+      {/* Background/Card Press Handler */}
+      <Pressable
+        style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
+        onPress={() => handleEditCategory(cat)}
+        onLongPress={() => handleEditCategory(cat)}
+        delayLongPress={200}
+      />
+
+      <View pointerEvents="none" style={styles.catIconContainer}>
+        <View style={[styles.catIconBg, { backgroundColor: cat.color + '20' }]}>
+          <Text style={styles.catEmoji}>{cat.emoji}</Text>
+        </View>
+      </View>
+
+      <View pointerEvents="box-none" style={styles.catContent}>
+        <View pointerEvents="box-none" style={styles.catHeader}>
+          {/* Allow clicks on name to trigger card edit (pass-through) */}
+          <Text pointerEvents="none" style={styles.catName}>{cat.label}</Text>
+          <View style={styles.catInputWrapper}>
+            <Text style={styles.catCurrency}>{currency.symbol}</Text>
+            {/* Hidden Text for measurement */}
+            <Text
+              style={[styles.catInput, { position: 'absolute', opacity: 0, zIndex: -1 }]}
+              onLayout={(e) => setInputWidth(e.nativeEvent.layout.width)}
+            >
+              {inputValue || '0'}
+            </Text>
+            <TextInput
+              style={[styles.catInput, { width: Math.max(20, inputWidth + 5), outlineStyle: 'none' }]}
+              value={inputValue}
+              onChangeText={(t) => handleCategoryChange(cat.key, t)}
+              onBlur={() => handleCategoryBlur(cat.key)}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor={colors.textMuted + '50'}
+              // Ensure input captures touches
+              onPressIn={(e) => e.stopPropagation()}
+            />
+          </View>
+        </View>
+
+        <View pointerEvents="none" style={styles.miniTrack}>
+          <View style={[styles.miniFill, { width: `${percentage}%`, backgroundColor: cat.color }]} />
+        </View>
+
+        <View pointerEvents="none" style={styles.catFooter}>
+          <Text style={styles.catSpent}>Spent: {safeFormat(spent)}</Text>
+          <Text style={[styles.catRemaining, { color: remaining < 0 ? '#EF4444' : colors.textMuted }]}>
+            {remaining >= 0 ? `${safeFormat(remaining)} left` : `${safeFormat(Math.abs(remaining))} over`}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { padding: 20 },
@@ -389,11 +426,11 @@ const createStyles = (colors) => StyleSheet.create({
   catEmoji: { fontSize: 24 },
 
   catContent: { flex: 1 },
-  catHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  catName: { fontSize: 16, fontWeight: '700', color: colors.text },
-  catInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  catCurrency: { fontSize: 12, color: colors.textMuted, marginRight: 4 },
-  catInput: { fontSize: 14, fontWeight: '700', color: colors.text, minWidth: 40, textAlign: 'right', padding: 0 },
+  catHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', rowGap: 8 },
+  catName: { fontSize: 16, fontWeight: '700', color: colors.text, flexShrink: 1, marginRight: 8, maxWidth: '100%' },
+  catInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  catCurrency: { fontSize: 14, color: colors.textMuted, marginRight: 2 },
+  catInput: { fontSize: 16, fontWeight: '700', color: colors.text, padding: 0, textAlign: 'right', minWidth: 20 },
 
   miniTrack: { height: 6, backgroundColor: colors.bg, borderRadius: 3, marginBottom: 6 },
   miniFill: { height: '100%', borderRadius: 3 },
