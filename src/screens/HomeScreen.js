@@ -5,11 +5,13 @@ import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import DatePickerModal from '../components/DatePickerModal';
+import { auth } from '../config/firebase';
 
 export default function HomeScreen({ onBackToHome }) {
   const {
     tripInfo, setTripInfo, budget, setBudget, getTotalExpenses, getRemainingBudget,
-    packingItems, itinerary, expenses, clearTrip, endTrip, formatCurrency, currency, isLoading, deleteTrip
+    packingItems, itinerary, expenses, clearTrip, endTrip, formatCurrency, currency, isLoading, deleteTrip,
+    getAllTravelers, localParticipantId
   } = useTravelContext();
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -27,7 +29,13 @@ export default function HomeScreen({ onBackToHome }) {
   // Edit states
   const [newBudget, setNewBudget] = useState(budget.total.toString());
   const [newTravelerName, setNewTravelerName] = useState('');
-  const [travelers, setTravelers] = useState(tripInfo.participants || []);
+  const [travelers, setTravelers] = useState([]);
+
+  useEffect(() => {
+    // Only show buddies (not 'You') in the manageable list to avoid confusion
+    const all = getAllTravelers();
+    setTravelers(all.filter(t => t.id !== localParticipantId));
+  }, [tripInfo.participants, localParticipantId]);
   const [editStartDate, setEditStartDate] = useState(tripInfo.startDate || '');
   const [editEndDate, setEditEndDate] = useState(tripInfo.endDate || '');
 
@@ -73,7 +81,7 @@ export default function HomeScreen({ onBackToHome }) {
   const totalItems = packingItems.length;
   const packingProgress = totalItems > 0 ? (packedCount / totalItems) * 100 : 0;
   const spentPercentage = budget.total > 0 ? (getTotalExpenses() / budget.total) * 100 : 0;
-  const participantCount = (tripInfo.participants?.length || 0) + 1;
+  const participantCount = tripInfo.participants?.length || 1;
   const remainingBudget = getRemainingBudget();
   const lastExpense = expenses.length > 0 ? expenses[expenses.length - 1] : null;
   const recentExpenses = expenses.slice(-2).reverse();
@@ -151,22 +159,27 @@ export default function HomeScreen({ onBackToHome }) {
   const handleAddTraveler = () => {
     if (newTravelerName.trim()) {
       const isFamilyTrip = tripInfo.tripType === 'family';
-      const newTraveler = {
+      const newParticipant = {
+        id: `p_${Date.now()}`,
         name: newTravelerName.trim(),
         type: 'member',
         familyGroup: isFamilyTrip ? 'Family 1' : null
       };
-      const updatedTravelers = [...travelers, newTraveler];
-      setTravelers(updatedTravelers);
-      setTripInfo(prev => ({ ...prev, participants: updatedTravelers }));
+
+      setTripInfo(prev => ({
+        ...prev,
+        participants: [...(prev.participants || []), newParticipant]
+      }));
       setNewTravelerName('');
     }
   };
 
-  const handleRemoveTraveler = (index) => {
-    const updatedTravelers = travelers.filter((_, i) => i !== index);
-    setTravelers(updatedTravelers);
-    setTripInfo(prev => ({ ...prev, participants: updatedTravelers }));
+  const handleRemoveTraveler = (id) => {
+    if (!id) return;
+    setTripInfo(prev => ({
+      ...prev,
+      participants: (prev.participants || []).filter(p => p.id !== id)
+    }));
   };
 
   const handleAutoEndTrip = async () => {
@@ -475,12 +488,9 @@ export default function HomeScreen({ onBackToHome }) {
                   // Grouped View for Family
                   (() => {
                     const groups = {};
-                    const allTravelers = [
-                      { name: 'You', familyGroup: 'Family 1', isOrganizer: true },
-                      ...travelers
-                    ];
+                    const allParticipants = getAllTravelers();
 
-                    allTravelers.forEach(t => {
+                    allParticipants.forEach(t => {
                       const gName = t.familyGroup || 'Family 1';
                       if (!groups[gName]) groups[gName] = [];
                       groups[gName].push(t.name);
@@ -495,22 +505,14 @@ export default function HomeScreen({ onBackToHome }) {
                   })()
                 ) : (
                   // Original View for Friends/Others
-                  <>
-                    <View style={styles.participantItem}>
-                      <View style={[styles.participantAvatar, { backgroundColor: colors.primary }]}>
-                        <Text style={styles.participantInitial}>You</Text>
+                  getAllTravelers().map((p, index) => (
+                    <View key={index} style={styles.participantItem}>
+                      <View style={[styles.participantAvatar, p.isMe && { backgroundColor: colors.primary }]}>
+                        <Text style={styles.participantInitial}>{p.name === 'You' ? 'You' : (p.name?.charAt(0) || '?')}</Text>
                       </View>
-                      <Text style={styles.participantName}>You (Organizer)</Text>
+                      <Text style={styles.participantName}>{p.name}{p.type === 'owner' ? ' (Organizer)' : ''}</Text>
                     </View>
-                    {travelers.map((p, index) => (
-                      <View key={index} style={styles.participantItem}>
-                        <View style={styles.participantAvatar}>
-                          <Text style={styles.participantInitial}>{p.name?.charAt(0) || '?'}</Text>
-                        </View>
-                        <Text style={styles.participantName}>{p.name}</Text>
-                      </View>
-                    ))}
-                  </>
+                  ))
                 )}
               </View>
             </View>
@@ -746,28 +748,20 @@ export default function HomeScreen({ onBackToHome }) {
 
             {/* Travelers List */}
             <ScrollView style={styles.travelersList}>
-              <View style={styles.travelerCard}>
-                <View style={[styles.travelerAvatar, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.travelerAvatarText}>You</Text>
-                </View>
-                <View style={styles.travelerInfo}>
-                  <Text style={styles.travelerName}>You</Text>
-                  <Text style={styles.travelerRole}>Organizer</Text>
-                </View>
-              </View>
-
-              {travelers.map((traveler, index) => (
+              {getAllTravelers().map((traveler, index) => (
                 <View key={index} style={styles.travelerCard}>
-                  <View style={styles.travelerAvatar}>
-                    <Text style={styles.travelerAvatarText}>{traveler.name?.charAt(0)?.toUpperCase()}</Text>
+                  <View style={[styles.travelerAvatar, traveler.isMe && { backgroundColor: colors.primary }]}>
+                    <Text style={styles.travelerAvatarText}>{traveler.name === 'You' ? 'You' : (traveler.name?.charAt(0)?.toUpperCase() || '👤')}</Text>
                   </View>
                   <View style={styles.travelerInfo}>
                     <Text style={styles.travelerName}>{traveler.name}</Text>
-                    <Text style={styles.travelerRole}>{traveler.relation || traveler.type || 'Member'}</Text>
+                    <Text style={styles.travelerRole}>{traveler.type === 'owner' ? 'Organizer' : (traveler.relation || traveler.type || 'Member')}</Text>
                   </View>
-                  <Pressable style={styles.removeTravelerBtn} onPress={() => handleRemoveTraveler(index)}>
-                    <Text style={styles.removeTravelerBtnText}>✕</Text>
-                  </Pressable>
+                  {!traveler.isMe && (
+                    <Pressable style={styles.removeTravelerBtn} onPress={() => handleRemoveTraveler(traveler.id)}>
+                      <Text style={styles.removeTravelerBtnText}>✕</Text>
+                    </Pressable>
+                  )}
                 </View>
               ))}
             </ScrollView>

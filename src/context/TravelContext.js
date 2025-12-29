@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { generateUniqueTripCode } from '../utils/tripCodeGenerator';
 import { useAuth } from './AuthContext';
 import * as DB from '../services/databaseService';
+import { auth } from '../config/firebase';
 
 const DEFAULT_CATEGORIES = [
   { key: 'accommodation', label: 'Stay', emoji: '🏨', color: '#8B5CF6', tip: '30-40%' },
@@ -54,6 +55,7 @@ export const useTravelContext = () => {
 export const TravelProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
 
+  // --- State ---
   const [tripInfo, setTripInfoState] = useState({
     destination: '',
     startDate: '',
@@ -74,18 +76,24 @@ export const TravelProvider = ({ children }) => {
   const [currency, setCurrencyState] = useState(currencies[0]);
   const [customCategories, setCustomCategories] = useState(DEFAULT_CATEGORIES);
   const [isLoading, setIsLoading] = useState(false);
+  const [tripOwnerId, setTripOwnerId] = useState(null);
 
-  // Wrapper for setCurrency to save to Firebase
-  const setCurrency = async (newCurrency) => {
-    setCurrencyState(newCurrency);
-    if (isAuthenticated && user) {
-      try {
-        await DB.saveUserSettings({ currency: newCurrency.code });
-      } catch (error) {
-        console.error('Error saving currency:', error);
-      }
-    }
-  };
+  // --- Derived ---
+  const localParticipantId = useMemo(() => {
+    if (!user || !tripInfo.participants) return 'main_user';
+
+    // Safety check for participants type
+    const participantsList = Array.isArray(tripInfo.participants)
+      ? tripInfo.participants
+      : Object.values(tripInfo.participants || {});
+
+    const me = participantsList.find(p => p.userId === user.uid);
+    if (me) return me.id;
+    if (tripInfo.ownerId === user.uid) return 'owner';
+    return 'main_user';
+  }, [user, tripInfo.participants, tripInfo.ownerId]);
+
+  // --- Actions ---
 
   // Load data from Firebase when user logs in
   useEffect(() => {
@@ -94,7 +102,6 @@ export const TravelProvider = ({ children }) => {
         checkAndAutoEndTrips();
       });
     } else {
-      // Clear local state when user logs out
       resetLocalState();
     }
   }, [isAuthenticated, user]);
@@ -139,6 +146,7 @@ export const TravelProvider = ({ children }) => {
     setTripHistory([]);
     setAllTrips([]);
     setCurrencyState(currencies[0]);
+    setTripOwnerId(null);
   };
 
   const getUniqueTripCode = async () => {
@@ -171,22 +179,23 @@ export const TravelProvider = ({ children }) => {
       const currentTrip = await DB.getCurrentTripInfo();
       if (currentTrip) {
         setTripInfoState(currentTrip);
+        setTripOwnerId(currentTrip.ownerId || user?.uid);
       }
 
       // Load budget
-      const savedBudget = await DB.getBudget();
+      const savedBudget = await DB.getBudget(currentTrip?.id, currentTrip?.ownerId || user?.uid);
       setBudgetState(savedBudget);
 
       // Load expenses
-      const savedExpenses = await DB.getExpenses();
+      const savedExpenses = await DB.getExpenses(currentTrip?.id, currentTrip?.ownerId || user?.uid);
       setExpenses(savedExpenses);
 
       // Load packing items
-      const savedPackingItems = await DB.getPackingItems();
+      const savedPackingItems = await DB.getPackingItems(currentTrip?.id, currentTrip?.ownerId || user?.uid);
       setPackingItems(savedPackingItems);
 
       // Load itinerary
-      const savedItinerary = await DB.getItinerary();
+      const savedItinerary = await DB.getItinerary(currentTrip?.id, currentTrip?.ownerId || user?.uid);
       setItinerary(savedItinerary);
 
       // Load all trips
@@ -247,20 +256,39 @@ export const TravelProvider = ({ children }) => {
     const newExpense = {
       ...expense,
       id: expense.id || Date.now().toString(),
-      paidBy: expense.paidBy || 'main_user',
+      paidBy: expense.paidBy || localParticipantId,
       splitType: expense.splitType || 'equal',
       splitAmounts: expense.splitAmounts || {},
       beneficiaries: expense.beneficiaries || [],
       createdAt: Date.now(),
     };
 
-    setExpenses(prev => [...prev, newExpense]);
+    setExpenses(prev => {
+      const updated = [...prev, newExpense];
+      return updated.sort((a, b) => (b.dateTimestamp || b.createdAt) - (a.dateTimestamp || a.createdAt));
+    });
 
     if (isAuthenticated) {
       try {
-        await DB.saveExpense(newExpense);
+        await DB.saveExpense(newExpense, tripInfo.id, tripOwnerId);
       } catch (error) {
         console.error('Error saving expense:', error);
+      }
+    }
+  };
+
+  // Update expense
+  const updateExpense = async (id, updatedData) => {
+    setExpenses(prev => {
+      const updated = prev.map(exp => exp.id === id ? { ...exp, ...updatedData } : exp);
+      return updated.sort((a, b) => (b.dateTimestamp || b.createdAt) - (a.dateTimestamp || a.createdAt));
+    });
+
+    if (isAuthenticated) {
+      try {
+        await DB.saveExpense({ ...updatedData, id }, tripInfo.id, tripOwnerId);
+      } catch (error) {
+        console.error('Error updating expense:', error);
       }
     }
   };
@@ -271,7 +299,7 @@ export const TravelProvider = ({ children }) => {
 
     if (isAuthenticated) {
       try {
-        await DB.deleteExpenseFromDB(id);
+        await DB.deleteExpenseFromDB(id, tripInfo.id, tripOwnerId);
       } catch (error) {
         console.error('Error deleting expense:', error);
       }
@@ -285,7 +313,7 @@ export const TravelProvider = ({ children }) => {
 
     if (isAuthenticated) {
       try {
-        await DB.savePackingItem(newItem);
+        await DB.savePackingItem(newItem, tripInfo.id, tripOwnerId);
       } catch (error) {
         console.error('Error saving packing item:', error);
       }
@@ -299,7 +327,7 @@ export const TravelProvider = ({ children }) => {
 
     if (isAuthenticated && item) {
       try {
-        await DB.updatePackingItem(id, { packed: !item.packed });
+        await DB.updatePackingItem(id, { packed: !item.packed }, tripInfo.id, tripOwnerId);
       } catch (error) {
         console.error('Error updating packing item:', error);
       }
@@ -312,7 +340,7 @@ export const TravelProvider = ({ children }) => {
 
     if (isAuthenticated) {
       try {
-        await DB.deletePackingItemFromDB(id);
+        await DB.deletePackingItemFromDB(id, tripInfo.id, tripOwnerId);
       } catch (error) {
         console.error('Error deleting packing item:', error);
       }
@@ -326,7 +354,7 @@ export const TravelProvider = ({ children }) => {
 
     if (isAuthenticated) {
       try {
-        await DB.saveItineraryItem(newItem);
+        await DB.saveItineraryItem(newItem, tripInfo.id, tripOwnerId);
       } catch (error) {
         console.error('Error saving itinerary item:', error);
       }
@@ -339,7 +367,7 @@ export const TravelProvider = ({ children }) => {
 
     if (isAuthenticated) {
       try {
-        await DB.deleteItineraryItemFromDB(id);
+        await DB.deleteItineraryItemFromDB(id, tripInfo.id, tripOwnerId);
       } catch (error) {
         console.error('Error deleting itinerary item:', error);
       }
@@ -354,7 +382,7 @@ export const TravelProvider = ({ children }) => {
       try {
         const item = itinerary.find(i => i.id === id);
         if (item) {
-          await DB.saveItineraryItem({ ...item, ...updates });
+          await DB.saveItineraryItem({ ...item, ...updates }, tripInfo.id, tripOwnerId);
         }
       } catch (error) {
         console.error('Error updating itinerary item:', error);
@@ -439,16 +467,30 @@ export const TravelProvider = ({ children }) => {
     }
   };
 
-  const [tripOwnerId, setTripOwnerId] = useState(null);
-
   // Switch to a specific trip
   const switchToTrip = async (trip) => {
+    if (!trip) {
+      console.warn('switchToTrip called with null trip');
+      return;
+    }
     try {
       setIsLoading(true);
 
       // Determine owner
       const owner = trip.ownerId || user?.uid;
       setTripOwnerId(owner);
+
+      // Refetch from shared node if it's a shared trip to get latest participants/info
+      if (trip.tripCode) {
+        try {
+          const latestTrip = await DB.getTripByCode(trip.tripCode);
+          if (latestTrip) {
+            trip = { ...trip, ...latestTrip };
+          }
+        } catch (err) {
+          console.warn('Failed to fetch latest trip info, using local data:', err);
+        }
+      }
 
       // Update trip info state
       setTripInfoState(trip);
@@ -462,10 +504,10 @@ export const TravelProvider = ({ children }) => {
           DB.getItinerary(trip.id, owner)
         ]);
 
-        setBudgetState(savedBudget);
-        setExpenses(savedExpenses);
-        setPackingItems(savedPacking);
-        setItinerary(savedItinerary);
+        setBudgetState(savedBudget || { total: 0, categories: {} });
+        setExpenses(savedExpenses || []);
+        setPackingItems(savedPacking || []);
+        setItinerary(savedItinerary || []);
       }
 
       setIsLoading(false);
@@ -476,18 +518,17 @@ export const TravelProvider = ({ children }) => {
   };
 
   // Save current trip to all trips list
-  const saveCurrentTripToList = async () => {
-    if (!tripInfo.destination) return;
+  const saveCurrentTripToList = async (passedTrip) => {
+    const dataToSave = passedTrip || tripInfo;
+    if (!dataToSave.destination) return;
 
-    // Ensure we are the owner if we are saving "Current List"
-    // Actually, saveCurrentTripToList is legacy for "Creating New".
     const newTrip = {
-      ...tripInfo,
-      id: tripInfo.id || Date.now().toString(),
+      ...dataToSave,
+      id: dataToSave.id || Date.now().toString(),
       totalExpenses: getTotalExpenses(),
-      ownerId: user?.uid, // I am the owner
-      tripCode: tripInfo.tripCode || await getUniqueTripCode(),
-      createdAt: Date.now(),
+      ownerId: user?.uid,
+      tripCode: dataToSave.tripCode || await getUniqueTripCode(),
+      createdAt: dataToSave.createdAt || Date.now(),
     };
 
     setTripOwnerId(user?.uid);
@@ -506,7 +547,6 @@ export const TravelProvider = ({ children }) => {
 
     return newTrip;
   };
-
   const getTotalExpenses = () => expenses
     .filter(e => !e.type || e.type === 'expense')
     .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
@@ -530,8 +570,70 @@ export const TravelProvider = ({ children }) => {
   const isMultiUserTrip = () => tripInfo.tripType && tripInfo.tripType !== 'solo';
 
   const getAllTravelers = () => {
-    const mainUser = { id: 'main_user', name: 'You', avatar: '👤' };
-    return [mainUser, ...(tripInfo.participants || [])];
+    // Handle case where participants is an object (Firebase quirk)
+    let participantsList = [];
+
+    if (tripInfo && tripInfo.participants) {
+      participantsList = Array.isArray(tripInfo.participants)
+        ? [...tripInfo.participants]  // Clone to avoid mutation
+        : Object.values(tripInfo.participants || {});
+    }
+
+    // Debug log to trace issues
+    console.log('[getAllTravelers] participantsList:', JSON.stringify(participantsList));
+    console.log('[getAllTravelers] tripInfo.ownerId:', tripInfo.ownerId);
+    console.log('[getAllTravelers] current user.uid:', user?.uid);
+
+    // Check if the owner is already in the participants list
+    const ownerInList = participantsList.find(p => p.id === 'owner' || p.type === 'owner');
+
+    // If no owner in list, we need to add one
+    if (!ownerInList) {
+      const isCurrentUserOwner = tripInfo.ownerId === user?.uid || !tripInfo.ownerId;
+
+      if (isCurrentUserOwner && user) {
+        // Current user is owner - add themselves
+        participantsList.unshift({
+          id: 'owner',
+          name: user.displayName || 'Organizer',
+          userId: user.uid,
+          type: 'owner',
+          familyGroup: tripInfo.tripType === 'family' ? 'Family 1' : null
+        });
+      } else if (tripInfo.ownerId) {
+        // Someone else is owner - add placeholder with their ownerId
+        participantsList.unshift({
+          id: 'owner',
+          name: 'Trip Owner', // Will be updated when we get their info
+          userId: tripInfo.ownerId,
+          type: 'owner',
+          familyGroup: tripInfo.tripType === 'family' ? 'Family 1' : null
+        });
+      }
+    }
+
+    const isFamilyTrip = tripInfo.tripType === 'family';
+
+    return participantsList.map(p => {
+      // Determine the display name
+      let displayName = p.name || 'Unknown';
+
+      // If this participant is the current user, show "You"
+      if (p.userId === user?.uid) {
+        displayName = 'You';
+      }
+      // If name is missing or just 'owner', use a fallback
+      else if (!p.name || p.name === 'owner') {
+        displayName = (p.type === 'owner' || p.id === 'owner') ? 'Trip Owner' : 'Unknown';
+      }
+
+      return {
+        ...p,
+        name: displayName,
+        isMe: p.userId === user?.uid,
+        familyGroup: isFamilyTrip ? (p.familyGroup || 'Family 1') : null
+      };
+    });
   };
 
   const deleteTripFromHistory = async (id) => {
@@ -578,7 +680,17 @@ export const TravelProvider = ({ children }) => {
 
 
   // Join trip by code - Fix: Store as reference, don't copy
-  const joinTripByCode = async (code) => {
+  const findTripByCode = async (code) => {
+    try {
+      const trip = await DB.getTripByCode(code);
+      return trip;
+    } catch (error) {
+      console.error('Find trip error:', error);
+      return null;
+    }
+  };
+
+  const joinTripByCode = async (code, participantId = null) => {
     try {
       setIsLoading(true);
 
@@ -596,18 +708,54 @@ export const TravelProvider = ({ children }) => {
         return { success: true, trip, message: 'You have already joined this trip' };
       }
 
-      // Add ref to my trips
-      await DB.addMeToTrip(trip);
+      // Add ref to my trips with chosen identity
+      await DB.addMeToTrip(trip, participantId);
+
+      // Fetch the updated trip data (to ensure we have the claimed identity locally)
+      const updatedTrip = await DB.getTripByCode(code);
 
       // Update local state
-      setAllTrips(prev => [trip, ...prev]);
+      setAllTrips(prev => [updatedTrip, ...prev]);
 
       setIsLoading(false);
-      return { success: true, trip };
+      return { success: true, trip: updatedTrip };
     } catch (error) {
       console.error('Join trip error:', error);
       setIsLoading(false);
       return { success: false, error: 'Failed to join trip' };
+    }
+  };
+
+  const joinAsNewTraveler = async (trip, name) => {
+    try {
+      setIsLoading(true);
+      const userId = auth.currentUser?.uid;
+
+      const newParticipant = {
+        id: `p_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        name: name || 'New Traveler',
+        userId: userId,
+        type: 'friend' // Default
+      };
+
+      // 1. Add to owner's trip
+      await DB.addNewParticipantToTrip(trip.ownerId, trip.id, newParticipant);
+
+      // 2. Add to my trips
+      await DB.addMeToTrip(trip, newParticipant.id);
+
+      // 3. Fetch updated trip
+      const updatedTrip = await DB.getTripByCode(trip.tripCode);
+
+      // Update local state
+      setAllTrips(prev => [updatedTrip, ...prev]);
+
+      setIsLoading(false);
+      return { success: true, trip: updatedTrip };
+    } catch (error) {
+      console.error('Join as new traveler error:', error);
+      setIsLoading(false);
+      return { success: false, error: 'Failed to join as new traveler' };
     }
   };
 
@@ -619,78 +767,56 @@ export const TravelProvider = ({ children }) => {
   const getBalances = () => ({});
   const getSettlements = () => [];
 
+  const setCurrency = async (newCurrency) => {
+    setCurrencyState(newCurrency);
+    if (isAuthenticated) {
+      try {
+        await DB.saveUserSettings({ currency: newCurrency.code });
+      } catch (error) {
+        console.error('Error saving currency preference:', error);
+      }
+    }
+  };
+
   // Update trip info in DB
   const updateTripInfo = async (updates) => {
     const newInfo = { ...tripInfo, ...updates };
     setTripInfoState(newInfo);
-    if (isAuthenticated) {
-      // If shared, we need a way to update shared info? 
-      // For now, assume mainly local updates or owner updates.
-      // But actually, saving current trip info handles the current path.
-      // We need to ensure saveCurrentTripInfo writes to the correct place if we want that sync too.
-      // BUT databaseService.saveCurrentTripInfo is hardcoded to users/me/currentTrip.
-      // We should likely STOP using saveCurrentTripInfo for shared trips and write directly.
-      // However, for this task, sticking to Expenses/Itinerary sync being priority.
-    }
+    // ... existing logic ...
   };
 
   return (
     <TravelContext.Provider value={{
-      tripInfo, setTripInfo,
-      budget, setBudget: async (newBudget) => {
-        setBudgetState(newBudget);
-        if (isAuthenticated) await DB.saveBudget(newBudget, tripInfo.id, tripOwnerId);
+      tripInfo: tripInfo || { // Fallback if tripInfo somehow becomes null
+        destination: '', startDate: '', endDate: '', name: '',
+        participants: [], tripCode: '', tripType: '', isCompleted: false,
       },
+      setTripInfo,
+      budget, setBudget,
       expenses, setExpenses,
-      addExpense: async (expense) => {
-        const newExpense = { ...expense, id: Date.now().toString() };
-        setExpenses(prev => [...prev, newExpense]);
-        if (isAuthenticated) await DB.saveExpense(newExpense, tripInfo.id, tripOwnerId);
-      },
-      deleteExpense: async (expenseId) => {
-        setExpenses(prev => prev.filter(e => e.id !== expenseId));
-        if (isAuthenticated) await DB.deleteExpenseFromDB(expenseId, tripInfo.id, tripOwnerId);
-      },
+      addExpense,
+      updateExpense,
+      deleteExpense,
       getTotalExpenses, getExpensesByCategory,
       packingItems,
-      addPackingItem: async (item) => {
-        setPackingItems(prev => [...prev, item]);
-        if (isAuthenticated) await DB.savePackingItem(item, tripInfo.id, tripOwnerId);
-      },
-      togglePackingItem: async (itemId) => {
-        const item = packingItems.find(i => i.id === itemId);
-        if (item) {
-          const updates = { packed: !item.packed };
-          setPackingItems(prev => prev.map(i => i.id === itemId ? { ...i, ...updates } : i));
-          if (isAuthenticated) await DB.updatePackingItem(itemId, updates, tripInfo.id, tripOwnerId);
-        }
-      },
-      deletePackingItem: async (itemId) => {
-        setPackingItems(prev => prev.filter(i => i.id !== itemId));
-        if (isAuthenticated) await DB.deletePackingItemFromDB(itemId, tripInfo.id, tripOwnerId);
-      },
+      addPackingItem,
+      togglePackingItem,
+      deletePackingItem,
       itinerary,
-      addItineraryItem: async (item) => {
-        setItinerary(prev => [...prev, item]);
-        if (isAuthenticated) await DB.saveItineraryItem(item, tripInfo.id, tripOwnerId);
-      },
-      deleteItineraryItem: async (itemId) => {
-        setItinerary(prev => prev.filter(i => i.id !== itemId));
-        if (isAuthenticated) await DB.deleteItineraryItemFromDB(itemId, tripInfo.id, tripOwnerId);
-      },
-      updateItineraryItem: async (itemId, updates) => {
-        // Need DB update support for this if simple set/update
-        // DB.saveItineraryItem usually does set.
-      },
+      addItineraryItem,
+      deleteItineraryItem,
+      updateItineraryItem,
       getRemainingBudget,
       clearTrip, endTrip,
-      tripHistory, setTripHistory, deleteTripFromHistory,
+      tripHistory, setTripHistory,
       currency, setCurrency, currencies,
       formatCurrency,
       customCategories, setCustomCategories,
       isMultiUserTrip, getAllTravelers, getBalances, getSettlements,
-      allTrips, deleteTrip, createNewTrip, saveCurrentTripToList, getTripByCode, joinTripByCode, switchToTrip,
-      getUniqueTripCode,
+      localParticipantId,
+      deleteTripFromHistory, deleteTrip, resetLocalState, findTripByCode,
+      joinTripByCode, joinAsNewTraveler, switchToTrip, tripOwnerId, getUniqueTripCode,
+      saveCurrentTripToList,
       isLoading,
     }}>
       {children}

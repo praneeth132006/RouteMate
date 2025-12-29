@@ -13,6 +13,7 @@ import MapScreen from '../screens/MapScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import TripSetupScreen from '../screens/TripSetupScreen';
 import BudgetScreen from '../screens/BudgetScreen';
+import JoinSelectionScreen from '../screens/JoinSelectionScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -97,6 +98,7 @@ function TabNavigator({ onBackToHome }) {
 // Main Navigator
 export default function MainNavigator() {
   const [currentScreen, setCurrentScreen] = React.useState('Welcome');
+  const [pendingJoinTrip, setPendingJoinTrip] = React.useState(null);
   const { setTripInfo, setBudget, tripInfo, saveCurrentTripToList, joinTripByCode, switchToTrip } = useTravelContext();
 
   // Check if there's an active trip
@@ -107,28 +109,21 @@ export default function MainNavigator() {
     setCurrentScreen('TripSetup');
   };
 
-  const handleJoinTrip = async (code) => {
-    console.log('Join trip with code:', code);
+  const handleJoinTrip = (trip) => {
+    setPendingJoinTrip(trip);
+    setCurrentScreen('JoinSelection');
+  };
 
-    // Attempt to join trip
-    const result = await joinTripByCode(code);
-
-    if (result.success) {
-      // Set as active trip info
-      if (result.trip) {
-        if (switchToTrip) {
-          switchToTrip(result.trip);
-        } else {
-          setTripInfo(result.trip);
-        }
+  const handleJoinComplete = (trip) => {
+    setPendingJoinTrip(null);
+    if (trip) {
+      if (switchToTrip) {
+        switchToTrip(trip);
+      } else {
+        setTripInfo(trip);
       }
-
-      // USER REQUEST: Stay on Welcome Screen
-      Alert.alert('Success', 'You have joined the trip! It is now visible in your trips list.');
-      // setCurrentScreen('TripDashboard'); // Removed per user request
-    } else {
-      Alert.alert('Error', `Could not join trip: ${result.error || 'Unknown error'}`);
     }
+    setCurrentScreen('Welcome');
   };
 
   const handleMyTrip = (trip, index) => {
@@ -161,10 +156,10 @@ export default function MainNavigator() {
     // Set budget
     setBudget(prev => ({ ...prev, total: parseFloat(tripData.budget) || 0 }));
 
-    // Save to allTrips list after a small delay to ensure tripInfo is updated
+    // Save to allTrips list
     setTimeout(() => {
       if (saveCurrentTripToList) {
-        saveCurrentTripToList();
+        saveCurrentTripToList(tripData);
       }
     }, 100);
 
@@ -194,6 +189,19 @@ export default function MainNavigator() {
 
   if (currentScreen === 'TripDashboard') {
     return <TabNavigator onBackToHome={handleBackToHome} />;
+  }
+
+  if (currentScreen === 'JoinSelection') {
+    return (
+      <JoinSelectionScreen
+        trip={pendingJoinTrip}
+        onBack={() => {
+          setPendingJoinTrip(null);
+          setCurrentScreen('Welcome');
+        }}
+        onJoinComplete={handleJoinComplete}
+      />
+    );
   }
 
   // Default: Welcome screen

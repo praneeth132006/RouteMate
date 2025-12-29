@@ -23,12 +23,31 @@ export const saveTrip = async (tripData) => {
 
   await set(tripRef, { ...tripData, id: tripId, updatedAt: Date.now(), createdAt: tripData.createdAt || Date.now() });
 
-  // If trip has a code, map it globally
+  // If trip has a code, map it globally and sync to shared node
   if (tripData.tripCode) {
     await saveTripCodeMapping(tripData.tripCode, userId, tripId);
+    await saveToSharedTrips(tripId, { ...tripData, id: tripId, ownerId: userId });
   }
 
   return { ...tripData, id: tripId };
+};
+
+export const saveToSharedTrips = async (tripId, tripData) => {
+  if (!tripId || !tripData) return;
+  // We only mirror essential info for joining: name, destination, dates, participants, tripCode, ownerId
+  const sharedData = {
+    id: tripId,
+    name: tripData.name || '',
+    destination: tripData.destination || '',
+    startDate: tripData.startDate || '',
+    endDate: tripData.endDate || '',
+    tripCode: tripData.tripCode || '',
+    tripType: tripData.tripType || 'friends',
+    ownerId: tripData.ownerId || getUserId(),
+    participants: tripData.participants || [],
+    updatedAt: Date.now()
+  };
+  await set(ref(database, `sharedTrips/${tripId}`), sharedData);
 };
 
 export const getTrips = async () => {
@@ -52,6 +71,7 @@ export const deleteTrip = async (tripId) => {
     // 2. If it has a tripCode, release it
     if (tripData.tripCode) {
       await deleteTripCodeMapping(tripData.tripCode);
+      await remove(ref(database, `sharedTrips/${tripId}`));
     }
   }
 
@@ -89,30 +109,111 @@ export const getTripByCode = async (code) => {
     const { userId, tripId } = codeSnapshot.val();
     console.log(`[DB] Code found. Owner: ${userId}, TripId: ${tripId}`);
 
-    // 2. Fetch trip data
-    const tripPath = `users/${userId}/trips/${tripId}`;
-    console.log(`[DB] Fetching trip data from: ${tripPath}`);
+    // 2. Fetch trip data from sharedTrips (Publicly accessible)
+    console.log(`[DB] Fetching trip data from sharedTrips/${tripId}`);
 
-    const tripSnapshot = await get(ref(database, tripPath));
+    const tripSnapshot = await get(ref(database, `sharedTrips/${tripId}`));
     if (!tripSnapshot.exists()) {
-      console.log(`[DB] Trip data not found at ${tripPath}`);
-      return null;
+      console.log(`[DB] Trip data not found in sharedTrips/${tripId}. Falling back to private node (may fail if not owner).`);
+
+      const tripPath = tripId === 'current'
+        ? `users/${userId}/currentTrip/info`
+        : `users/${userId}/trips/${tripId}`;
+
+      const fallbackSnapshot = await get(ref(database, tripPath));
+      if (!fallbackSnapshot.exists()) return null;
+      return { ...fallbackSnapshot.val(), ownerId: userId };
     }
 
-    return { ...tripSnapshot.val(), ownerId: userId };
+    const tripVal = tripSnapshot.val();
+    if (!tripVal) return null;
+
+    return tripVal;
   } catch (error) {
     console.error(`[DB] Permission/Network Error in getTripByCode:`, error);
-    throw error; // Re-throw so UI sees it
+    throw error;
   }
 };
 
-export const addMeToTrip = async (trip) => {
+export const claimParticipantIdentity = async (ownerId, tripId, participantId, userId) => {
+  if (!ownerId || !tripId || !participantId || !userId) return;
+
+  // 1. Update sharedTrips (Priority for joiners)
+  const sharedParticipantsRef = ref(database, `sharedTrips/${tripId}/participants`);
+  const sharedSnapshot = await get(sharedParticipantsRef);
+
+  if (sharedSnapshot.exists()) {
+    const participants = sharedSnapshot.val();
+    const updatedParticipants = participants.map(p =>
+      p.id === participantId ? { ...p, userId } : p
+    );
+    await set(sharedParticipantsRef, updatedParticipants);
+  }
+
+  // 2. Update owner's private node (Sync)
+  try {
+    const tripPath = tripId === 'current' ? `users/${ownerId}/currentTrip/info` : `users/${ownerId}/trips/${tripId}`;
+    const participantsRef = ref(database, `${tripPath}/participants`);
+    const snapshot = await get(participantsRef);
+
+    if (snapshot.exists()) {
+      const participants = snapshot.val();
+      const updatedParticipants = participants.map(p =>
+        p.id === participantId ? { ...p, userId } : p
+      );
+      await set(participantsRef, updatedParticipants);
+    }
+  } catch (e) {
+    console.log('[DB] Note: Could not update owner private node (expected for joiners)');
+  }
+};
+
+export const addNewParticipantToTrip = async (ownerId, tripId, participantData) => {
+  if (!ownerId || !tripId || !participantData) return;
+
+  // 1. Update sharedTrips
+  const sharedParticipantsRef = ref(database, `sharedTrips/${tripId}/participants`);
+  const sharedSnapshot = await get(sharedParticipantsRef);
+
+  // Safe array conversion
+  let sharedParticipants = [];
+  if (sharedSnapshot.exists()) {
+    const val = sharedSnapshot.val();
+    sharedParticipants = Array.isArray(val) ? val : Object.values(val);
+  }
+
+  await set(sharedParticipantsRef, [...sharedParticipants, participantData]);
+
+  // 2. Update owner's private node
+  try {
+    const tripPath = tripId === 'current' ? `users/${ownerId}/currentTrip/info` : `users/${ownerId}/trips/${tripId}`;
+    const participantsRef = ref(database, `${tripPath}/participants`);
+    const snapshot = await get(participantsRef);
+
+    // Safe array conversion
+    let currentParticipants = [];
+    if (snapshot.exists()) {
+      const val = snapshot.val();
+      currentParticipants = Array.isArray(val) ? val : Object.values(val);
+    }
+
+    const updatedParticipants = [...currentParticipants, participantData];
+    await set(participantsRef, updatedParticipants);
+  } catch (e) {
+    console.log('[DB] Note: Could not update owner private node for new participant (expected for joiners)');
+  }
+};
+
+export const addMeToTrip = async (trip, participantId = null) => {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  // Add trip to my trips
-  // Add trip KEY info to my trips (not the whole data if it's large, but here we keep it simple)
-  // We MUST ensure we save the ownership info
+  // 1. If a participant identity was chosen, claim it in the owner's trip
+  if (participantId && trip.ownerId) {
+    await claimParticipantIdentity(trip.ownerId, trip.id, participantId, userId);
+  }
+
+  // 2. Add trip reference to my user profile
   const myTripRef = {
     id: trip.id,
     destination: trip.destination,
@@ -120,7 +221,10 @@ export const addMeToTrip = async (trip) => {
     endDate: trip.endDate || '',
     name: trip.name || '',
     tripCode: trip.tripCode || '',
+    tripType: trip.tripType || 'friends',
     ownerId: trip.ownerId, // CRITICAL: Save who owns it
+    participantId: participantId, // Save which participant I am
+    participants: trip.participants || [],
     isShared: true,
     addedAt: Date.now()
   };
@@ -133,6 +237,12 @@ export const saveCurrentTripInfo = async (tripInfo) => {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
   await set(ref(database, `users/${userId}/currentTrip/info`), { ...tripInfo, updatedAt: Date.now() });
+
+  // Also ensure the trip code mapping exists globally for joining
+  if (tripInfo.tripCode && tripInfo.id) {
+    await saveTripCodeMapping(tripInfo.tripCode, userId, tripInfo.id);
+    await saveToSharedTrips(tripInfo.id, { ...tripInfo, ownerId: userId });
+  }
 };
 
 export const getCurrentTripInfo = async () => {

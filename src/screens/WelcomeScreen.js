@@ -33,6 +33,12 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
   } = useTravelContext();
 
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinStep, setJoinStep] = useState(1); // 1: Code, 2: Identity selection
+  const [foundTrip, setFoundTrip] = useState(null);
+  const [selectedParticipantId, setSelectedParticipantId] = useState(null);
+  const [joiningAsNew, setJoiningAsNew] = useState(false);
+  const [newTravelerName, setNewTravelerName] = useState('');
+
   const [showTripTypeModal, setShowTripTypeModal] = useState(false);
   const [tripCode, setTripCode] = useState('');
   const [showAllTrips, setShowAllTrips] = useState(false); // Default to collapsed
@@ -203,16 +209,43 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
     onPlanTrip(tripType);
   };
 
-  const handleJoinTrip = () => {
+  const { findTripByCode, joinTripByCode, joinAsNewTraveler } = useTravelContext();
+
+  const handleJoinTripNext = async () => {
     if (tripCode.trim()) {
       if (!isValidTripCode(tripCode)) {
-        Alert.alert('Invalid Code', 'Please enter a valid trip code (6-8 characters)');
+        Alert.alert('Invalid Code', 'Please enter a valid 6-digit trip code');
         return;
       }
-      setShowJoinModal(false);
-      setTripCode('');
-      onJoinTrip(tripCode.toUpperCase());
+
+      const trip = await findTripByCode(tripCode.toUpperCase());
+      if (trip) {
+        resetJoinModal();
+        if (onJoinTrip) {
+          onJoinTrip(trip);
+        }
+      } else {
+        Alert.alert('Error', 'Invalid trip code or trip not found');
+      }
     }
+  };
+
+  const handleConfirmJoin = () => {
+    // This is now handled in JoinSelectionScreen
+  };
+
+  const resetJoinModal = () => {
+    setShowJoinModal(false);
+    setJoinStep(1);
+    setFoundTrip(null);
+    setSelectedParticipantId(null);
+    setJoiningAsNew(false);
+    setNewTravelerName('');
+    setTripCode('');
+  };
+
+  const handleJoinTrip = () => {
+    handleJoinTripNext();
   };
 
   // Share trip code function
@@ -663,10 +696,11 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
       </Modal>
 
       {/* Join Modal */}
-      <Modal animationType="slide" transparent visible={showJoinModal} onRequestClose={() => setShowJoinModal(false)}>
+      <Modal animationType="slide" transparent visible={showJoinModal} onRequestClose={resetJoinModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
+
             <View style={styles.modalIconBg}><Text style={styles.modalIcon}>🔗</Text></View>
             <Text style={styles.modalTitle}>Join a Trip</Text>
             <Text style={styles.modalDescription}>Enter the trip code shared by your travel buddy</Text>
@@ -677,16 +711,16 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
               value={tripCode}
               onChangeText={setTripCode}
               autoCapitalize="characters"
-              maxLength={8}
+              maxLength={6}
             />
             <Pressable
               style={({ pressed }) => [styles.joinButton, !tripCode.trim() && styles.joinButtonDisabled, pressed && styles.buttonPressed]}
-              onPress={handleJoinTrip}
+              onPress={handleJoinTripNext}
               disabled={!tripCode.trim()}
             >
-              <Text style={styles.joinButtonText}>Join Trip</Text>
+              <Text style={styles.joinButtonText}>Find Trip</Text>
             </Pressable>
-            <Pressable style={styles.cancelButton} onPress={() => setShowJoinModal(false)}>
+            <Pressable style={styles.cancelButton} onPress={resetJoinModal}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </Pressable>
           </View>
@@ -978,17 +1012,29 @@ const createStyles = (colors) => StyleSheet.create({
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.8)' },
-  modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, alignItems: 'center' },
+  modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, alignItems: 'center', width: '100%' },
   modalHandle: { width: 40, height: 4, backgroundColor: colors.textMuted, borderRadius: 2, marginBottom: 24 },
   modalIconContainer: { marginBottom: 20 },
   modalIconBg: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.primaryBorder },
   modalIcon: { fontSize: 40 },
-  modalTitle: { fontSize: 28, fontWeight: 'bold', color: colors.text, marginBottom: 8 },
-  modalDescription: { fontSize: 15, color: colors.textMuted, textAlign: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 24, fontWeight: 'bold', color: colors.text, marginBottom: 8, textAlign: 'center' },
+  modalDescription: { fontSize: 14, color: colors.textMuted, textAlign: 'center', marginBottom: 24 },
   codeInput: { width: '100%', backgroundColor: colors.cardLight, borderRadius: 16, padding: 20, fontSize: 24, fontWeight: 'bold', color: colors.text, textAlign: 'center', letterSpacing: 8, borderWidth: 2, borderColor: colors.primaryBorder, marginBottom: 20 },
+
+  participantsList: { width: '100%', maxHeight: 300, marginBottom: 20 },
+  participantItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, backgroundColor: colors.cardLight, marginBottom: 10, borderWidth: 1, borderColor: colors.primaryBorder },
+  participantItemSelected: { borderColor: colors.primary, backgroundColor: colors.primary + '10' },
+  participantItemDisabled: { opacity: 0.5, backgroundColor: colors.bg },
+  participantEmoji: { fontSize: 20, marginRight: 12 },
+  participantName: { fontSize: 16, fontWeight: 'bold', color: colors.text, flex: 1 },
+  participantStatus: { fontSize: 12, color: colors.textMuted },
+
+  newTravelerInput: { width: '100%', backgroundColor: colors.cardLight, borderRadius: 16, padding: 16, fontSize: 16, color: colors.text, borderWidth: 1, borderColor: colors.primaryBorder, marginBottom: 20 },
+
   joinButton: { width: '100%', backgroundColor: colors.primary, borderRadius: 16, padding: 18, alignItems: 'center', marginBottom: 12 },
+  joinButtonDisabled: { backgroundColor: colors.textLight, opacity: 0.6 },
   joinButtonText: { fontSize: 18, fontWeight: 'bold', color: colors.bg },
-  cancelButton: { padding: 16 },
+  cancelButton: { padding: 12 },
   cancelButtonText: { fontSize: 16, color: colors.textMuted },
 
   // Trip Type Modal

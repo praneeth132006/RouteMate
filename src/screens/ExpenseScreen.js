@@ -3,6 +3,9 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, Modal, StyleSheet,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { auth } from '../config/firebase';
+import DatePickerModal from '../components/DatePickerModal';
 
 const { width } = Dimensions.get('window');
 
@@ -14,19 +17,11 @@ const DEFAULT_CATEGORIES = [
 
 export default function ExpenseScreen() {
   const {
-    expenses = [],
-    addExpense,
-    deleteExpense,
-    getTotalExpenses,
-    budget = { total: 0 },
-    getRemainingBudget,
-    formatCurrency,
-    currency = { symbol: '₹', code: 'INR' },
-    customCategories,
-    tripInfo = {},
-    setTripInfo,
+    tripInfo, budget, setBudget, expenses = [], addExpense, updateExpense, deleteExpense,
+    getTotalExpenses, formatCurrency, currency, getAllTravelers, localParticipantId, customCategories
   } = useTravelContext();
   const { colors } = useTheme();
+  const { user } = useAuth();
 
   // Use context categories
   const CATEGORIES = customCategories && customCategories.length > 0 ? customCategories : DEFAULT_CATEGORIES;
@@ -34,38 +29,47 @@ export default function ExpenseScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
   const [activeTab, setActiveTab] = useState('transactions');
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
 
   // New Expense State
   const [newExpense, setNewExpense] = useState({
     title: '',
     amount: '',
     category: CATEGORIES[0]?.key || 'food',
-    paidBy: 'main_user',
+    paidBy: localParticipantId || 'owner',
     type: 'expense', // 'expense', 'income', 'transfer'
     splitType: 'equal', // 'equal', 'custom'
     beneficiaries: [], // List of user IDs involved
     splitAmounts: {}, // For custom split: { userId: amount }
     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+    dateTimestamp: Date.now(),
   });
 
-  const getTravelerName = (id) => travelers.find(t => t.id === id)?.name || 'Unknown';
-  const getTravelerAvatar = (id) => travelers.find(t => t.id === id)?.avatar || '👤';
-
   const travelers = useMemo(() => {
-    const isFamilyTrip = tripInfo.tripType === 'family';
-    const mainUser = {
-      id: 'main_user',
-      name: 'You',
-      avatar: '👤',
-      familyGroup: isFamilyTrip ? 'Family 1' : null
-    };
-    const participants = (tripInfo.participants || []).map((p, i) => ({
-      ...p,
-      id: p.id || `part_${i}_${(p.name || '').replace(/\s+/g, '')}`,
-      familyGroup: isFamilyTrip ? (p.familyGroup || 'Family 1') : null
-    }));
-    return [mainUser, ...participants];
-  }, [tripInfo.participants, tripInfo.tripType]);
+    return getAllTravelers();
+  }, [tripInfo.participants, user?.uid]);
+
+  const getTravelerName = (id) => {
+    // Standard ID check
+    const traveler = travelers.find(t => t.id === id);
+    if (traveler) return traveler.name;
+
+    // Legacy 'main_user' mapping - usually refers to the owner
+    if (id === 'main_user') {
+      const owner = travelers.find(t => t.id === 'owner' || t.type === 'owner');
+      return owner ? owner.name : 'Organizer';
+    }
+
+    return 'Unknown';
+  };
+
+  const getTravelerAvatar = (id) => {
+    const traveler = travelers.find(t => t.id === id);
+    if (traveler) return traveler.avatar || '👤';
+    return '👤';
+  };
 
   // Grouped travelers for family trips
   const displayGroups = useMemo(() => {
@@ -142,27 +146,63 @@ export default function ExpenseScreen() {
 
     const expenseData = {
       ...newExpense,
-      id: `expense_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       amount: parseFloat(newExpense.amount),
-      timestamp: Date.now(),
       // Add tripType info to expense for future grouping stability
       isFamilyExpense: tripInfo.tripType === 'family'
     };
 
-    addExpense(expenseData);
+    if (editingExpenseId) {
+      updateExpense(editingExpenseId, expenseData);
+    } else {
+      addExpense({
+        ...expenseData,
+        id: `expense_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+      });
+    }
+
     setModalVisible(false);
+    setEditingExpenseId(null);
     // Reset form
     setNewExpense({
       title: '',
       amount: '',
       category: CATEGORIES[0]?.key,
-      paidBy: 'main_user',
+      paidBy: localParticipantId,
       splitType: 'equal',
       // Reset beneficiaries to match current grouping
       beneficiaries: displayGroups.map(t => t.id),
       splitAmounts: {},
       date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      dateTimestamp: Date.now(),
     });
+  };
+
+  const handleEditExpense = (expense) => {
+    setEditingExpenseId(expense.id);
+    setNewExpense({
+      ...expense,
+      amount: expense.amount.toString(),
+      splitAmounts: expense.splitAmounts || {},
+      beneficiaries: expense.beneficiaries || [],
+    });
+    setModalVisible(true);
+  };
+
+  const handleDateSelect = (formattedDate) => {
+    // Parse formattedDate to get timestamp
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const parts = formattedDate.split(' ');
+    const day = parseInt(parts[0]);
+    const month = MONTHS.indexOf(parts[1]);
+    const year = parseInt(parts[2]);
+    const dateObj = new Date(year, month, day);
+
+    setNewExpense(prev => ({
+      ...prev,
+      date: formattedDate,
+      dateTimestamp: dateObj.getTime()
+    }));
   };
 
   // --- Calculations for Balances ---
@@ -177,7 +217,10 @@ export default function ExpenseScreen() {
 
     expenses.forEach(e => {
       const amt = parseFloat(e.amount);
-      let payer = e.paidBy || 'main_user';
+      let payer = e.paidBy || 'owner';
+
+      // Resolve legacy IDs
+      if (payer === 'main_user') payer = 'owner';
 
       // If family trip, use the familyGroup of the payer
       if (isFamilyTrip) {
@@ -296,7 +339,10 @@ export default function ExpenseScreen() {
                       <Text style={styles.exEmoji}>{cat.emoji}</Text>
                     </View>
                     <View style={styles.exContent}>
-                      <Text style={styles.exTitle}>{expense.title}</Text>
+                      <View style={styles.exHeaderRow}>
+                        <Text style={styles.exTitle}>{expense.title}</Text>
+                        <Text style={styles.exDate}>{expense.date}</Text>
+                      </View>
                       <Text style={styles.exSub}>
                         {getTravelerName(expense.paidBy)} {expense.type === 'transfer' ? '→' : (expense.type === 'income' ? 'received' : 'paid')} • {expense.type === 'transfer' ? getTravelerName(expense.beneficiaries[0]) : cat.label}
                       </Text>
@@ -305,9 +351,14 @@ export default function ExpenseScreen() {
                       <Text style={[styles.exAmount, expense.type === 'income' && { color: '#10B981' }]}>
                         {expense.type === 'income' ? '+' : ''}{safeFormat(expense.amount)}
                       </Text>
-                      <TouchableOpacity onPress={() => deleteExpense && deleteExpense(expense.id)} style={styles.exDelete}>
-                        <Text style={styles.exDeleteText}>✕</Text>
-                      </TouchableOpacity>
+                      <View style={styles.exActions}>
+                        <TouchableOpacity onPress={() => handleEditExpense(expense)} style={styles.exEdit}>
+                          <Text style={styles.exEditText}>✏️</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => deleteExpense && deleteExpense(expense.id)} style={styles.exDelete}>
+                          <Text style={styles.exDeleteText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 );
@@ -317,12 +368,22 @@ export default function ExpenseScreen() {
         ) : (
           <View style={styles.balanceList}>
             {Object.entries(balances).map(([gid, bal]) => {
-              const group = displayGroups.find(g => g.id === gid) || { name: gid, avatar: '👤' };
+              // Try to find the group/traveler in displayGroups first
+              let group = displayGroups.find(g => g.id === gid);
+
+              // If not found, try to get the name from travelers list
+              if (!group) {
+                const traveler = travelers.find(t => t.id === gid);
+                group = traveler
+                  ? { name: traveler.name, avatar: getTravelerAvatar(gid) }
+                  : { name: getTravelerName(gid), avatar: '👤' };
+              }
+
               const isOwed = bal > 0;
               return (
                 <View key={gid} style={styles.balCard}>
                   <View style={styles.balUser}>
-                    <Text style={styles.balAvatar}>{group.avatar}</Text>
+                    <Text style={styles.balAvatar}>{group.avatar || '👤'}</Text>
                     <Text style={styles.balName}>{group.name}</Text>
                   </View>
                   <Text style={[styles.balAmount, { color: isOwed ? '#10B981' : '#EF4444' }]}>
@@ -347,8 +408,8 @@ export default function ExpenseScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Expense</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+              <Text style={styles.modalTitle}>{editingExpenseId ? 'Edit Expense' : 'Add Expense'}</Text>
+              <TouchableOpacity onPress={() => { setModalVisible(false); setEditingExpenseId(null); }} style={styles.closeBtn}>
                 <Text style={styles.closeText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -408,6 +469,19 @@ export default function ExpenseScreen() {
                   </ScrollView>
                 </>
               )}
+
+              {/* Date Selection */}
+              <Text style={styles.inputLabel}>When did this happen?</Text>
+              <TouchableOpacity
+                style={styles.dateSelector}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <View style={styles.dateSelectorLeft}>
+                  <Text style={styles.dateIcon}>📅</Text>
+                  <Text style={styles.dateValue}>{newExpense.date || "Today"}</Text>
+                </View>
+                <Text style={styles.dateArrow}>→</Text>
+              </TouchableOpacity>
 
               {/* Split / Paid By Section */}
               {isMultiUser && (
@@ -519,13 +593,23 @@ export default function ExpenseScreen() {
                 disabled={!newExpense.title || !newExpense.amount || (!splitStatus.isValid && isMultiUser)}
                 onPress={handleAddExpense}
               >
-                <Text style={styles.saveBtnText}>Save Expense</Text>
+                <Text style={styles.saveBtnText}>{editingExpenseId ? 'Save Changes' : 'Add Transaction'}</Text>
               </TouchableOpacity>
               <View style={{ height: 50 }} />
             </ScrollView>
           </View>
         </View>
       </Modal>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        onSelect={handleDateSelect}
+        selectedDate={newExpense.date}
+        title="Transaction Date"
+        minDate={tripInfo.startDate}
+        endDate={tripInfo.endDate}
+      />
     </SafeAreaView>
   );
 }
@@ -642,4 +726,17 @@ const createStyles = (colors) => StyleSheet.create({
 
   userChipText: { color: colors.text, fontWeight: '600', fontSize: 13 },
   userChipTextSelected: { color: colors.primary },
+
+  // New Styles
+  exHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 },
+  exDate: { fontSize: 10, color: colors.textMuted },
+  exActions: { flexDirection: 'row', gap: 12, marginTop: 4, alignItems: 'center' },
+  exEdit: { padding: 4 },
+  exEditText: { fontSize: 12 },
+
+  dateSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bg, padding: 16, borderRadius: 16, marginVertical: 8, borderWidth: 1, borderColor: colors.primaryBorder },
+  dateSelectorLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dateIcon: { fontSize: 18 },
+  dateValue: { fontSize: 16, color: colors.text, fontWeight: '600' },
+  dateArrow: { color: colors.textMuted, fontSize: 16 },
 });

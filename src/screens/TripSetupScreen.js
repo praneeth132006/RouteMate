@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import DatePickerModal from '../components/DatePickerModal';
 import { useTravelContext } from '../context/TravelContext';
+import { useAuth } from '../context/AuthContext';
 
 const TRIP_TYPES = [
   { key: 'solo', label: 'Solo Trip', emoji: '🧑', description: 'Just me, exploring the world', color: '#3B82F6' },
@@ -34,10 +35,12 @@ const BUDGET_PRESETS = [
 
 export default function TripSetupScreen({ onComplete, onBack }) {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [tempFamilyCount, setTempFamilyCount] = useState(1);
+  const [isCreating, setIsCreating] = useState(false);
 
 
   const [tripData, setTripData] = useState({
@@ -167,58 +170,74 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   };
 
   const handleComplete = async () => {
-    const tripCode = await getUniqueTripCode();
+    if (isCreating) return;
+    setIsCreating(true);
 
-    // Prepare participants based on trip type
-    let participants = [];
-    switch (tripData.tripType) {
-      case 'friends':
-        participants = tripData.friends.map(name => ({
-          id: `fr_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-          name,
-          type: 'friend'
-        }));
-        break;
-      case 'family':
-        participants = tripData.families.flatMap(family =>
-          family.members.map(member => ({
-            ...member,
-            id: `fam_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-            familyGroup: family.familyName
-          }))
-        );
-        break;
-      case 'couple':
-        if (tripData.partnerName) {
-          participants = [{
-            id: `pt_${Date.now()}`,
-            name: tripData.partnerName,
-            type: 'partner'
-          }];
+    try {
+      const tripCode = await getUniqueTripCode();
+
+      // Prepare participants based on trip type - Include owner as first participant
+      let participants = [
+        {
+          id: 'owner',
+          name: user?.displayName || 'Organizer',
+          userId: user?.uid,
+          type: 'owner',
+          familyGroup: tripData.tripType === 'family' ? 'Family 1' : null
         }
-        break;
-      case 'business':
-        participants = tripData.colleagues.map(name => ({
-          id: `col_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-          name,
-          type: 'colleague'
-        }));
-        break;
-      default:
-        participants = [];
+      ];
+
+      switch (tripData.tripType) {
+        case 'friends':
+          participants = [...participants, ...tripData.friends.map(name => ({
+            id: `fr_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name,
+            type: 'friend'
+          }))];
+          break;
+        case 'family':
+          participants = [...participants, ...tripData.families.flatMap(family =>
+            family.members.map(member => ({
+              ...member,
+              id: `fam_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+              familyGroup: family.familyName
+            }))
+          )];
+          break;
+        case 'couple':
+          if (tripData.partnerName) {
+            participants = [...participants, {
+              id: `pt_${Date.now()}`,
+              name: tripData.partnerName,
+              type: 'partner'
+            }];
+          }
+          break;
+        case 'business':
+          participants = [...participants, ...tripData.colleagues.map(name => ({
+            id: `col_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name,
+            type: 'colleague'
+          }))];
+          break;
+      }
+
+      // Log to verify data
+      console.log('TripSetupScreen - completing with tripType:', tripData.tripType);
+
+      onComplete({
+        ...tripData,
+        tripCode,
+        participants,
+        tripType: tripData.tripType,
+        name: tripData.name || `${tripData.destination} Trip`,
+      });
+    } catch (error) {
+      console.error('Trip Creation Error:', error);
+      Alert.alert('Error', 'Failed to create trip. Please try again.');
+    } finally {
+      setIsCreating(false);
     }
-
-    // Log to verify data
-    console.log('TripSetupScreen - completing with tripType:', tripData.tripType);
-    console.log('TripSetupScreen - participants:', participants);
-
-    onComplete({
-      ...tripData,
-      tripCode,
-      participants,
-      tripType: tripData.tripType, // MAKE SURE THIS IS INCLUDED
-      name: tripData.name || `${tripData.destination} Trip`,
-    });
   };
 
   const isStepValid = () => {
@@ -889,10 +908,10 @@ export default function TripSetupScreen({ onComplete, onBack }) {
               pressed && isStepValid() && { opacity: 0.9, transform: [{ scale: 0.98 }] }
             ]}
             onPress={handleNext}
-            disabled={!isStepValid()}
+            disabled={!isStepValid() || isCreating}
           >
             <Text style={styles.nextButtonText}>
-              {currentStep === STEPS.length - 1 ? '🚀 Create Trip' : 'Continue'}
+              {currentStep === STEPS.length - 1 ? (isCreating ? 'Creating...' : '🚀 Create Trip') : 'Continue'}
             </Text>
             {currentStep < STEPS.length - 1 && <Text style={styles.nextButtonIcon}>→</Text>}
           </Pressable>
