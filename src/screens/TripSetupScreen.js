@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import DatePickerModal from '../components/DatePickerModal';
-import { generateUniqueTripCode } from '../utils/tripCodeGenerator';
+import { useTravelContext } from '../context/TravelContext';
 
 const TRIP_TYPES = [
   { key: 'solo', label: 'Solo Trip', emoji: '🧑', description: 'Just me, exploring the world', color: '#3B82F6' },
@@ -148,6 +148,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     });
   };
 
+  const { getUniqueTripCode } = useTravelContext();
+
   const handleNext = () => {
     if (currentStep < STEPS.length - 1) {
       animateStepChange(() => setCurrentStep(currentStep + 1));
@@ -164,8 +166,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     }
   };
 
-  const handleComplete = () => {
-    const tripCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const handleComplete = async () => {
+    const tripCode = await getUniqueTripCode();
 
     // Prepare participants based on trip type
     let participants = [];

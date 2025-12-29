@@ -42,12 +42,37 @@ export const getTrips = async () => {
 export const deleteTrip = async (tripId) => {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
-  await remove(ref(database, `users/${userId}/trips/${tripId}`));
+
+  // 1. Fetch trip data to check for tripCode
+  const tripRef = ref(database, `users/${userId}/trips/${tripId}`);
+  const snapshot = await get(tripRef);
+
+  if (snapshot.exists()) {
+    const tripData = snapshot.val();
+    // 2. If it has a tripCode, release it
+    if (tripData.tripCode) {
+      await deleteTripCodeMapping(tripData.tripCode);
+    }
+  }
+
+  // 3. Delete the trip
+  await remove(tripRef);
 };
 
 // ============ TRIP CODES & SHARING ============
 export const saveTripCodeMapping = async (code, userId, tripId) => {
   await set(ref(database, `tripCodes/${code}`), { userId, tripId });
+};
+
+export const deleteTripCodeMapping = async (code) => {
+  if (!code) return;
+  await remove(ref(database, `tripCodes/${code}`));
+};
+
+export const checkTripCodeExists = async (code) => {
+  if (!code) return false;
+  const snapshot = await get(ref(database, `tripCodes/${code}`));
+  return snapshot.exists();
 };
 
 export const getTripByCode = async (code) => {

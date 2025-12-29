@@ -141,6 +141,20 @@ export const TravelProvider = ({ children }) => {
     setCurrencyState(currencies[0]);
   };
 
+  const getUniqueTripCode = async () => {
+    let code = '';
+    let exists = true;
+    let attempts = 0;
+
+    while (exists && attempts < 10) {
+      code = generateUniqueTripCode();
+      exists = await DB.checkTripCodeExists(code);
+      attempts++;
+    }
+
+    return code;
+  };
+
   const loadUserData = async () => {
     try {
       setIsLoading(true);
@@ -193,10 +207,10 @@ export const TravelProvider = ({ children }) => {
 
   // Set trip info and save to Firebase
   const setTripInfo = async (updater) => {
-    const newInfo = typeof updater === 'function' ? updater(tripInfo) : updater;
+    let newInfo = typeof updater === 'function' ? updater(tripInfo) : updater;
 
     if (newInfo.destination && !newInfo.tripCode) {
-      newInfo.tripCode = generateUniqueTripCode();
+      newInfo.tripCode = await getUniqueTripCode();
     }
     if (newInfo.destination && !newInfo.id) {
       newInfo.id = `trip-${Date.now()}`;
@@ -472,7 +486,7 @@ export const TravelProvider = ({ children }) => {
       id: tripInfo.id || Date.now().toString(),
       totalExpenses: getTotalExpenses(),
       ownerId: user?.uid, // I am the owner
-      tripCode: tripInfo.tripCode || generateUniqueTripCode(),
+      tripCode: tripInfo.tripCode || await getUniqueTripCode(),
       createdAt: Date.now(),
     };
 
@@ -676,6 +690,7 @@ export const TravelProvider = ({ children }) => {
       customCategories, setCustomCategories,
       isMultiUserTrip, getAllTravelers, getBalances, getSettlements,
       allTrips, deleteTrip, createNewTrip, saveCurrentTripToList, getTripByCode, joinTripByCode, switchToTrip,
+      getUniqueTripCode,
       isLoading,
     }}>
       {children}
