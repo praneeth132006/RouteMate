@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { 
-  View, Text, StyleSheet, ScrollView, Pressable, Share, Alert 
+import {
+  View, Text, StyleSheet, ScrollView, Pressable, Share, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -10,7 +10,7 @@ import { useTravelContext } from '../context/TravelContext';
 export default function DashboardScreen({ navigation, onBack }) {
   const { colors } = useTheme();
   const { tripInfo, getTotalExpenses, currency, packingItems, expenses, itinerary } = useTravelContext();
-  
+
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Copy trip code to clipboard
@@ -32,7 +32,7 @@ export default function DashboardScreen({ navigation, onBack }) {
     if (tripInfo?.tripCode) {
       try {
         await Share.share({
-          message: `Join my trip to ${tripInfo.destination}! 🌍✈️\n\nUse this code in TravelMate: ${tripInfo.tripCode}`,
+          message: `Join my trip to ${tripInfo.destination}! 🌍📍\n\nUse this code in RouteMate: ${tripInfo.tripCode}`,
         });
       } catch (error) {
         console.log('Share error:', error);
@@ -48,7 +48,7 @@ export default function DashboardScreen({ navigation, onBack }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -69,7 +69,7 @@ export default function DashboardScreen({ navigation, onBack }) {
             <Text style={styles.shareCodeTitle}>🔗 Share Your Trip</Text>
             <Text style={styles.shareCodeSubtitle}>Invite friends to join</Text>
           </View>
-          
+
           <View style={styles.shareCodeCard}>
             <View style={styles.shareCodeLeft}>
               <Text style={styles.shareCodeLabel}>Trip Code</Text>
@@ -77,17 +77,17 @@ export default function DashboardScreen({ navigation, onBack }) {
                 {tripInfo?.tripCode || 'NO CODE'}
               </Text>
             </View>
-            
+
             <View style={styles.shareCodeActions}>
-              <Pressable 
+              <Pressable
                 style={({ pressed }) => [styles.codeActionBtn, pressed && { opacity: 0.7 }]}
                 onPress={handleCopyCode}
               >
                 <Text style={styles.codeActionIcon}>📋</Text>
                 <Text style={styles.codeActionText}>Copy</Text>
               </Pressable>
-              
-              <Pressable 
+
+              <Pressable
                 style={({ pressed }) => [styles.codeActionBtn, styles.shareBtn, pressed && { opacity: 0.7 }]}
                 onPress={handleShareCode}
               >
@@ -118,7 +118,7 @@ export default function DashboardScreen({ navigation, onBack }) {
         </View>
 
         {/* Add more dashboard sections here */}
-        
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -135,7 +135,7 @@ const createStyles = (colors) => StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  
+
   // Header
   header: {
     paddingHorizontal: 20,

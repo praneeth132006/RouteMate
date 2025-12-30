@@ -10,6 +10,8 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   deleteUser,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import * as DB from '../services/databaseService';
@@ -91,6 +93,31 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      setLoading(true);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+
+      // Mirror user profile in database for persistence
+      if (result.user) {
+        await DB.saveUserProfile({
+          displayName: result.user.displayName || '',
+          photoURL: result.user.photoURL || '',
+          email: result.user.email || '',
+        });
+      }
+
+      console.log('signInWithGoogle success:', result.user.email);
+      return { success: true, user: result.user };
+    } catch (error) {
+      console.error('signInWithGoogle error:', error.code, error.message);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     console.log('AuthContext.signOut: Starting...');
     try {
@@ -164,6 +191,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     updateUserProfile,
     resetPassword,

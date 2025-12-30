@@ -515,7 +515,7 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
               <Icon name={rotationIcons[centerIconIndex]} size={60} color={colors.primary} />
             </View>
             <View style={[styles.floatingElement, styles.floatingElement1]}><Icon name="nature" size={24} color="#10B981" /></View>
-            <View style={[styles.floatingElement, styles.floatingElement2]}><Icon name="airplane" size={24} color="#3B82F6" /></View>
+            <View style={[styles.floatingElement, styles.floatingElement2]}><Icon name="route" size={24} color="#3B82F6" /></View>
             <View style={[styles.floatingElement, styles.floatingElement3]}><Icon name="beach" size={24} color="#F59E0B" /></View>
             <View style={[styles.floatingElement, styles.floatingElement4]}><Icon name="packing" size={24} color="#EC4899" /></View>
           </Animated.View>
@@ -609,7 +609,7 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
             {/* Empty state message when expanded but no trips */}
             {showAllTrips && upcomingTrips.length === 0 && (
               <View style={styles.emptyUpcomingContainer}>
-                <Icon name="flight" size={40} color={colors.textMuted} style={{ marginBottom: 8 }} />
+                <Icon name="route" size={40} color={colors.textMuted} style={{ marginBottom: 8 }} />
                 <Text style={styles.emptyUpcomingText}>No upcoming trips</Text>
                 <Text style={styles.emptyUpcomingHint}>Plan a new trip to see it here</Text>
               </View>
@@ -650,7 +650,7 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
 
         {/* Why Section */}
         <Animated.View style={[styles.whySection, { opacity: fadeAnim }]}>
-          <Text style={styles.whyTitle}>Why TravelMate?</Text>
+          <Text style={styles.whyTitle}>Why RouteMate?</Text>
           <View style={styles.whyList}>
             {[
               { icon: 'like', text: 'Easy trip planning', color: '#EF4444' },
@@ -668,8 +668,8 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Icon name="airplane" size={20} color={colors.textMuted} style={{ marginBottom: 8 }} />
-          <Text style={styles.footerText}>TravelMate</Text>
+          <Icon name="route" size={20} color={colors.textMuted} style={{ marginBottom: 8 }} />
+          <Text style={styles.footerText}>RouteMate</Text>
           <Text style={styles.footerVersion}>Version 1.0.0</Text>
         </View>
       </ScrollView>

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -19,7 +20,7 @@ import Icon from '../components/Icon';
 
 export default function AuthScreen() {
   const { colors } = useTheme();
-  const { signIn, signUp, resetPassword, loading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, loading } = useAuth();
 
   const [isLogin, setIsLogin] = useState(true);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -94,6 +95,13 @@ export default function AuthScreen() {
       if (!result.success) {
         Alert.alert('Sign Up Failed', result.error);
       }
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    const result = await signInWithGoogle();
+    if (!result.success) {
+      Alert.alert('Google Sign In Failed', result.error);
     }
   };
 
@@ -222,6 +230,28 @@ export default function AuthScreen() {
               )}
             </TouchableOpacity>
 
+            {!showForgotPassword && (
+              <>
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>OR</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.googleButton}
+                  onPress={handleGoogleSignIn}
+                  disabled={loading}
+                >
+                  <Image
+                    source={{ uri: 'https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png' }}
+                    style={styles.googleIcon}
+                  />
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
             {/* Back to Login (from Forgot Password) */}
             {showForgotPassword && (
               <TouchableOpacity
@@ -257,7 +287,7 @@ export default function AuthScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
@@ -392,6 +422,42 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.bg,
     fontSize: 17,
     fontWeight: 'bold',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.primaryBorder,
+  },
+  dividerText: {
+    paddingHorizontal: 12,
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.cardLight,
+    borderRadius: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  googleIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
+  },
+  googleButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
   backButton: {
     alignItems: 'center',

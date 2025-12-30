@@ -94,6 +94,8 @@ const ICON_PATHS = {
     user_circle: require('../../assets/icons/mycollection/png/057-user.png'),
     helping_hand: require('../../assets/icons/mycollection/png/043-helping-hand.png'),
     route: require('../../assets/icons/mycollection/png/route.png'),
+    email: require('../../assets/icons/mycollection/png/email.png'),
+    password: require('../../assets/icons/mycollection/png/password.png'),
 
     // New Avatars
     boy_1: require('../../assets/icons/mycollection/png/010-boy-1.png'),

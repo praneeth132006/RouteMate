@@ -8,11 +8,11 @@ import { useTravelContext } from '../context/TravelContext';
 export default function TripDashboardScreen({ route, navigation }) {
   const { colors } = useTheme();
   const { tripInfo, getTotalExpenses, currency, packingItems, itinerary } = useTravelContext();
-  
+
   // Get trip data passed from WelcomeScreen OR use tripInfo from context
   const { trip: routeTrip, tripIndex } = route?.params || {};
   const trip = routeTrip || tripInfo;
-  
+
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Copy trip code to clipboard
@@ -21,7 +21,7 @@ export default function TripDashboardScreen({ route, navigation }) {
       Alert.alert('No Code', 'This trip does not have a code yet.');
       return;
     }
-    
+
     try {
       await Clipboard.setStringAsync(trip.tripCode);
       Alert.alert('Copied!', `Trip code ${trip.tripCode} copied to clipboard`);
@@ -29,17 +29,17 @@ export default function TripDashboardScreen({ route, navigation }) {
       Alert.alert('Trip Code', trip.tripCode);
     }
   };
-  
+
   // Share trip code function
   const handleShareTripCode = async () => {
     if (!trip?.tripCode) {
       Alert.alert('No Code', 'This trip does not have a code yet.');
       return;
     }
-    
+
     try {
       await Share.share({
-        message: `Join my trip to ${trip.destination}! 🌍✈️\n\nUse this code in TravelMate: ${trip.tripCode}`,
+        message: `Join my trip to ${trip.destination}! 🌍📍\n\nUse this code in RouteMate: ${trip.tripCode}`,
         title: 'Share Trip Code',
       });
     } catch (error) {
@@ -53,7 +53,7 @@ export default function TripDashboardScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -75,7 +75,7 @@ export default function TripDashboardScreen({ route, navigation }) {
             <Text style={styles.shareCodeTitle}>🔗 Share Your Trip</Text>
             <Text style={styles.shareCodeSubtitle}>Invite friends to join your adventure</Text>
           </View>
-          
+
           <View style={styles.shareCodeCard}>
             <View style={styles.shareCodeLeft}>
               <Text style={styles.shareCodeLabel}>TRIP CODE</Text>
@@ -83,17 +83,17 @@ export default function TripDashboardScreen({ route, navigation }) {
                 {trip?.tripCode || 'NO CODE'}
               </Text>
             </View>
-            
+
             <View style={styles.shareCodeActions}>
-              <Pressable 
+              <Pressable
                 style={({ pressed }) => [styles.codeActionBtn, pressed && { opacity: 0.7 }]}
                 onPress={handleCopyTripCode}
               >
                 <Text style={styles.codeActionIcon}>📋</Text>
                 <Text style={styles.codeActionText}>Copy</Text>
               </Pressable>
-              
-              <Pressable 
+
+              <Pressable
                 style={({ pressed }) => [styles.codeActionBtn, styles.shareBtn, pressed && { opacity: 0.7 }]}
                 onPress={handleShareTripCode}
               >
@@ -122,7 +122,7 @@ export default function TripDashboardScreen({ route, navigation }) {
             ))}
           </View>
         </View>
-        
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -139,7 +139,7 @@ const createStyles = (colors) => StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  
+
   // Trip Header
   tripHeader: {
     paddingHorizontal: 20,
