@@ -6,11 +6,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import Icon from '../components/Icon';
 
 export default function SignInScreen({ onNavigateToSignUp, onNavigateToForgotPassword }) {
   const { colors } = useTheme();
   const { signIn, loading } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,10 +24,10 @@ export default function SignInScreen({ onNavigateToSignUp, onNavigateToForgotPas
       setError('Please enter email and password');
       return;
     }
-    
+
     setError('');
     const result = await signIn(email.trim(), password);
-    
+
     if (!result.success) {
       setError(result.error);
     }
@@ -38,8 +39,8 @@ export default function SignInScreen({ onNavigateToSignUp, onNavigateToForgotPas
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>✈️</Text>
-            <Text style={styles.appName}>TripNest</Text>
+            <Icon name="route" size={72} color={colors.primary} />
+            <Text style={styles.appName}>RouteMate</Text>
             <Text style={styles.title}>Welcome Back!</Text>
           </View>
 
@@ -114,7 +115,7 @@ const createStyles = (colors) => StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.primaryBorder },
   icon: { fontSize: 18, marginRight: 8 },
-  input: { flex: 1, paddingVertical: 14, fontSize: 16, color: colors.text },
+  input: { flex: 1, paddingVertical: 14, fontSize: 16, color: colors.text, outlineStyle: 'none' },
   forgot: { color: colors.primary, fontSize: 14, fontWeight: '600', textAlign: 'right', marginBottom: 20 },
   button: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },

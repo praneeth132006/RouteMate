@@ -54,8 +54,8 @@ function AppContent() {
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
-        <Text style={styles.loadingEmoji}>✈️</Text>
-        <Text style={[styles.loadingText, { color: colors.text }]}>TripNest</Text>
+        <Text style={styles.loadingEmoji}>📍</Text>
+        <Text style={[styles.loadingText, { color: colors.text }]}>RouteMate</Text>
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
         <Text style={[styles.loadingHint, { color: colors.textMuted }]}>Loading...</Text>
       </View>

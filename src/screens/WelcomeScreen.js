@@ -480,8 +480,8 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
       {/* Header with Profile */}
       <View style={styles.topBar}>
         <View style={styles.logoContainer}>
-          <Icon name="airplane" size={28} color={colors.primary} style={{ marginRight: 8 }} />
-          <Text style={styles.logoText}>TravelMate</Text>
+          <Icon name="route" size={28} color={colors.primary} style={{ marginRight: 8 }} />
+          <Text style={styles.logoText}>RouteMate</Text>
         </View>
         <Pressable style={({ pressed }) => [styles.profileButton, pressed && { opacity: 0.7 }]} onPress={handleProfilePress}>
           <View style={styles.profileAvatar}>

@@ -25,7 +25,7 @@ export default function AppNavigator() {
       <View style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
         <Text style={styles.loadingLogo}>✈️</Text>
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
-        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading TripNest...</Text>
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading RouteMate...</Text>
       </View>
     );
   }
@@ -43,11 +43,11 @@ export default function AppNavigator() {
   if (authScreen === 'signUp') {
     return <SignUpScreen onNavigateToSignIn={() => setAuthScreen('signIn')} />;
   }
-  
+
   if (authScreen === 'forgotPassword') {
     return <ForgotPasswordScreen onNavigateToSignIn={() => setAuthScreen('signIn')} />;
   }
-  
+
   return (
     <SignInScreen
       onNavigateToSignUp={() => setAuthScreen('signUp')}

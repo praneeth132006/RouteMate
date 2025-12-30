@@ -22,7 +22,8 @@ import Icon from '../components/Icon';
 
 const AVATARS = [
   'profile_avatar', 'man1', 'woman1', 'man2', 'woman2', 'man3', 'woman3',
-  'boy', 'girl', 'user_circle'
+  'boy', 'girl', 'boy_1', 'girl_1', 'boy_2', 'girl_2', 'man_1', 'woman_1',
+  'man_2', 'woman_2', 'user_circle'
 ];
 const TRIP_TYPES = [
   { key: 'solo', label: 'Solo Trip', icon: 'solo', color: '#3B82F6' },
@@ -476,7 +477,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
                   <Icon name="heart" size={20} color="#EC4899" />
                 </View>
                 <View style={styles.settingInfo}>
-                  <Text style={styles.settingLabel}>Rate TripNest</Text>
+                  <Text style={styles.settingLabel}>Rate RouteMate</Text>
                   <Text style={styles.settingValue}>Love the app? Leave a review!</Text>
                 </View>
               </View>
@@ -525,7 +526,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
           <View style={styles.footer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
               <Icon name="airplane" size={20} color={colors.textMuted} style={{ marginRight: 6 }} />
-              <Text style={styles.appLogo}>TravelMate</Text>
+              <Text style={styles.appLogo}>RouteMate</Text>
             </View>
             <Text style={styles.version}>Version 1.0.0</Text>
             <Text style={styles.copyright}>Made with ❤️ for travelers</Text>
@@ -826,11 +827,11 @@ const createStyles = (colors, isDark) => StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 26,
-    backgroundColor: colors.primary,
+    backgroundColor: isDark ? colors.primary + '30' : colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.bg,
+    borderWidth: 2,
+    borderColor: isDark ? colors.primary + '40' : colors.primaryBorder,
     ...Platform.select({
       ios: {
         shadowColor: colors.primary,
@@ -1156,7 +1157,7 @@ const createStyles = (colors, isDark) => StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 18,
-    backgroundColor: colors.cardLight,
+    backgroundColor: isDark ? colors.primary + '20' : '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,

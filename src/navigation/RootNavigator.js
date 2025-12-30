@@ -23,11 +23,11 @@ export default function RootNavigator() {
     }
   }, [user, initializing]);
 
-  console.log('RootNavigator render:', { 
-    hasUser: !!user, 
-    userEmail: user?.email || 'null', 
+  console.log('RootNavigator render:', {
+    hasUser: !!user,
+    userEmail: user?.email || 'null',
     initializing,
-    authScreen 
+    authScreen
   });
 
   // Loading state
@@ -36,7 +36,7 @@ export default function RootNavigator() {
       <View style={[styles.loading, { backgroundColor: colors.bg }]}>
         <Text style={styles.logo}>✈️</Text>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.text, { color: colors.textMuted }]}>Loading TripNest...</Text>
+        <Text style={[styles.text, { color: colors.textMuted }]}>Loading RouteMate...</Text>
       </View>
     );
   }
@@ -53,15 +53,15 @@ export default function RootNavigator() {
 
   // Not authenticated - show auth screens
   console.log('RootNavigator: No user, showing:', authScreen);
-  
+
   if (authScreen === 'signUp') {
     return <SignUpScreen onNavigateToSignIn={() => setAuthScreen('signIn')} />;
   }
-  
+
   if (authScreen === 'forgotPassword') {
     return <ForgotPasswordScreen onNavigateToSignIn={() => setAuthScreen('signIn')} />;
   }
-  
+
   return (
     <SignInScreen
       onNavigateToSignUp={() => setAuthScreen('signUp')}

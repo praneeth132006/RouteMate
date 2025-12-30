@@ -1,18 +1,26 @@
 {
   "expo": {
-    "name": "TripNest",
-    "slug": "tripnest",
+    "name": "RouteMate",
+    "slug": "routemate",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "platforms": ["ios", "android", "web"],
-    "assetBundlePatterns": ["**/*"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "icon": "./assets/icons/mycollection/png/route.png",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0D0D0D"
+        "backgroundColor": "#0D0D0D",
+        "foregroundImage": "./assets/icons/mycollection/png/route.png"
       },
       "package": "com.yourcompany.travelcompanion"
     },
@@ -20,6 +28,6 @@
       "bundler": "metro",
       "output": "single"
     },
-    "scheme": "tripnest"
+    "scheme": "routemate"
   }
 }

@@ -93,6 +93,17 @@ const ICON_PATHS = {
     profile_avatar: require('../../assets/icons/mycollection/png/056-profile-avatar.png'),
     user_circle: require('../../assets/icons/mycollection/png/057-user.png'),
     helping_hand: require('../../assets/icons/mycollection/png/043-helping-hand.png'),
+    route: require('../../assets/icons/mycollection/png/route.png'),
+
+    // New Avatars
+    boy_1: require('../../assets/icons/mycollection/png/010-boy-1.png'),
+    girl_1: require('../../assets/icons/mycollection/png/011-girl-1.png'),
+    boy_2: require('../../assets/icons/mycollection/png/015-boy-2.png'),
+    girl_2: require('../../assets/icons/mycollection/png/014-girl-2.png'),
+    man_1: require('../../assets/icons/mycollection/png/019-man-1.png'),
+    woman_1: require('../../assets/icons/mycollection/png/038-woman.png'),
+    man_2: require('../../assets/icons/mycollection/png/043-man-2.png'),
+    woman_2: require('../../assets/icons/mycollection/png/044-woman-2.png'),
 
     // Fallbacks
     other: require('../../assets/icons/mycollection/png/012-leaning-tower-of-pisa.png'),

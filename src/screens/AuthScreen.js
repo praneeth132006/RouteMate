@@ -15,11 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import Icon from '../components/Icon';
 
 export default function AuthScreen() {
   const { colors } = useTheme();
   const { signIn, signUp, resetPassword, loading } = useAuth();
-  
+
   const [isLogin, setIsLogin] = useState(true);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -106,7 +107,7 @@ export default function AuthScreen() {
   const renderInput = (field, placeholder, icon, options = {}) => (
     <View style={styles.inputContainer}>
       <View style={styles.inputIconBg}>
-        <Text style={styles.inputIcon}>{icon}</Text>
+        <View>{icon}</View>
       </View>
       <TextInput
         style={styles.input}
@@ -123,8 +124,8 @@ export default function AuthScreen() {
         editable={!loading}
       />
       {options.secureTextEntry && (
-        <TouchableOpacity 
-          style={styles.eyeButton} 
+        <TouchableOpacity
+          style={styles.eyeButton}
           onPress={() => setShowPassword(!showPassword)}
         >
           <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
@@ -147,9 +148,9 @@ export default function AuthScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Text style={styles.logoEmoji}>✈️</Text>
+              <Icon name="route" size={50} color={colors.primary} />
             </View>
-            <Text style={styles.appName}>TripNest</Text>
+            <Text style={styles.appName}>RouteMate</Text>
             <Text style={styles.tagline}>Your journey begins here</Text>
           </View>
 
@@ -159,9 +160,9 @@ export default function AuthScreen() {
               {showForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back!' : 'Create Account'}
             </Text>
             <Text style={styles.formSubtitle}>
-              {showForgotPassword 
+              {showForgotPassword
                 ? 'Enter your email to receive reset instructions'
-                : isLogin 
+                : isLogin
                   ? 'Sign in to continue your adventures'
                   : 'Start planning your dream trips'}
             </Text>
@@ -169,21 +170,21 @@ export default function AuthScreen() {
             {/* Name Input (Sign Up only) */}
             {!isLogin && !showForgotPassword && (
               <View style={styles.inputWrapper}>
-                {renderInput('name', 'Full Name', '👤', { autoCapitalize: 'words' })}
+                {renderInput('name', 'Full Name', <Icon name="user" size={18} color={colors.primary} />, { autoCapitalize: 'words' })}
                 {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
               </View>
             )}
 
             {/* Email Input */}
             <View style={styles.inputWrapper}>
-              {renderInput('email', 'Email Address', '✉️', { keyboardType: 'email-address' })}
+              {renderInput('email', 'Email Address', <Icon name="email" size={18} color={colors.primary} />, { keyboardType: 'email-address' })}
               {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
             {/* Password Input */}
             {!showForgotPassword && (
               <View style={styles.inputWrapper}>
-                {renderInput('password', 'Password', '🔒', { secureTextEntry: true })}
+                {renderInput('password', 'Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
                 {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
               </View>
             )}
@@ -191,14 +192,14 @@ export default function AuthScreen() {
             {/* Confirm Password (Sign Up only) */}
             {!isLogin && !showForgotPassword && (
               <View style={styles.inputWrapper}>
-                {renderInput('confirmPassword', 'Confirm Password', '🔐', { secureTextEntry: true })}
+                {renderInput('confirmPassword', 'Confirm Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
                 {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
               </View>
             )}
 
             {/* Forgot Password Link */}
             {isLogin && !showForgotPassword && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.forgotButton}
                 onPress={() => setShowForgotPassword(true)}
               >
@@ -223,7 +224,7 @@ export default function AuthScreen() {
 
             {/* Back to Login (from Forgot Password) */}
             {showForgotPassword && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => setShowForgotPassword(false)}
               >
@@ -353,6 +354,7 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.text,
     paddingVertical: 14,
     paddingHorizontal: 8,
+    outlineStyle: 'none',
   },
   eyeButton: {
     padding: 12,

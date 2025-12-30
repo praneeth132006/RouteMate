@@ -13,11 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import Icon from '../components/Icon';
 
 export default function SignUpScreen({ onNavigateToSignIn }) {
   const { colors } = useTheme();
   const { signUp } = useAuth();
-  
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,10 +43,10 @@ export default function SignUpScreen({ onNavigateToSignIn }) {
 
   const handleSignUp = async () => {
     if (!validate()) return;
-    
+
     setIsSubmitting(true);
     const result = await signUp(email.trim(), password, name.trim());
-    
+
     if (!result.success) {
       setErrors({ general: result.error });
     }
@@ -57,9 +58,9 @@ export default function SignUpScreen({ onNavigateToSignIn }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>✈️</Text>
+            <Icon name="route" size={64} color={colors.primary} />
             <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join TripNest and start planning</Text>
+            <Text style={styles.subtitle}>Join RouteMate and start planning</Text>
           </View>
 
           {errors.general && <Text style={styles.errorBanner}>{errors.general}</Text>}
@@ -131,8 +132,8 @@ export default function SignUpScreen({ onNavigateToSignIn }) {
             {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
           </View>
 
-          <TouchableOpacity 
-            style={[styles.button, isSubmitting && styles.buttonDisabled]} 
+          <TouchableOpacity
+            style={[styles.button, isSubmitting && styles.buttonDisabled]}
             onPress={handleSignUp}
             disabled={isSubmitting}
           >
@@ -164,7 +165,7 @@ const createStyles = (colors) => StyleSheet.create({
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.primaryBorder, paddingHorizontal: 14 },
   inputError: { borderColor: '#EF4444' },
   inputIcon: { fontSize: 18, marginRight: 10 },
-  input: { flex: 1, paddingVertical: 16, fontSize: 16, color: colors.text },
+  input: { flex: 1, paddingVertical: 16, fontSize: 16, color: colors.text, outlineStyle: 'none' },
   errorText: { color: '#EF4444', fontSize: 12, marginTop: 4 },
   button: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
   buttonDisabled: { opacity: 0.7 },
