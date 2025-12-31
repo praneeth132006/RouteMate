@@ -13,6 +13,7 @@ import {
   Animated,
   Dimensions,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, THEMES } from '../context/ThemeContext';
@@ -435,7 +436,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
           <Text style={styles.sectionTitle}>Account & Security</Text>
 
 
-          <AnimatedCard delay={325} onPress={() => { }}>
+          <AnimatedCard delay={325} onPress={() => Linking.openURL('https://sites.google.com/view/routemate-privacy-policy/home')}>
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
                 <View style={[styles.settingIconBg, { backgroundColor: isDark ? '#6B728040' : '#6B728020' }]}>
@@ -444,6 +445,21 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
                 <View style={styles.settingInfo}>
                   <Text style={styles.settingLabel}>Privacy Policy</Text>
                   <Text style={styles.settingValue}>How we handle your data</Text>
+                </View>
+              </View>
+              <Text style={styles.settingArrow}>›</Text>
+            </View>
+          </AnimatedCard>
+
+          <AnimatedCard delay={335} onPress={() => Linking.openURL('https://sites.google.com/view/routemate-terms-and-conditions/home')}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.settingIconBg, { backgroundColor: isDark ? '#6B728040' : '#6B728020' }]}>
+                  <Icon name="link" size={20} color="#6B7280" />
+                </View>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Terms and Conditions</Text>
+                  <Text style={styles.settingValue}>Rules for using RouteMate</Text>
                 </View>
               </View>
               <Text style={styles.settingArrow}>›</Text>

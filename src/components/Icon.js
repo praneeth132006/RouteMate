@@ -29,7 +29,7 @@ const ICON_PATHS = {
     location: require('../../assets/icons/mycollection/png/164-location-pin.png'),
     map: require('../../assets/icons/mycollection/png/121-map.png'),
     task: require('../../assets/icons/mycollection/png/107-schedule.png'),
-    check: require('../../assets/icons/mycollection/png/051-check.png'),
+    check: require('../../assets/icons/mycollection/png/049-link.png'),
     like: require('../../assets/icons/mycollection/png/020-stars.png'),
     heart: require('../../assets/icons/mycollection/png/020-stars.png'),
     message: require('../../assets/icons/mycollection/png/036-email.png'),

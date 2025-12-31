@@ -9,9 +9,9 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Animated,
   Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -32,6 +32,7 @@ export default function AuthScreen() {
   });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [isResetSent, setIsResetSent] = useState(false);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -75,11 +76,7 @@ export default function AuthScreen() {
       // Handle forgot password
       const result = await resetPassword(formData.email.trim());
       if (result.success) {
-        Alert.alert(
-          'Email Sent',
-          'Check your email for password reset instructions.',
-          [{ text: 'OK', onPress: () => setShowForgotPassword(false) }]
-        );
+        setIsResetSent(true);
       } else {
         Alert.alert('Error', result.error);
       }
@@ -108,8 +105,17 @@ export default function AuthScreen() {
   const switchMode = () => {
     setIsLogin(!isLogin);
     setShowForgotPassword(false);
+    setIsResetSent(false);
     setErrors({});
     setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+  };
+
+  const handleOpenPrivacy = () => {
+    Linking.openURL('https://sites.google.com/view/routemate-privacy-policy/home');
+  };
+
+  const handleOpenTerms = () => {
+    Linking.openURL('https://sites.google.com/view/routemate-terms-and-conditions/home');
   };
 
   const renderInput = (field, placeholder, icon, options = {}) => (
@@ -164,102 +170,128 @@ export default function AuthScreen() {
 
           {/* Form Card */}
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>
-              {showForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back!' : 'Create Account'}
-            </Text>
-            <Text style={styles.formSubtitle}>
-              {showForgotPassword
-                ? 'Enter your email to receive reset instructions'
-                : isLogin
-                  ? 'Sign in to continue your adventures'
-                  : 'Start planning your dream trips'}
-            </Text>
-
-            {/* Name Input (Sign Up only) */}
-            {!isLogin && !showForgotPassword && (
-              <View style={styles.inputWrapper}>
-                {renderInput('name', 'Full Name', <Icon name="user" size={18} color={colors.primary} />, { autoCapitalize: 'words' })}
-                {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-              </View>
-            )}
-
-            {/* Email Input */}
-            <View style={styles.inputWrapper}>
-              {renderInput('email', 'Email Address', <Icon name="email" size={18} color={colors.primary} />, { keyboardType: 'email-address' })}
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-            </View>
-
-            {/* Password Input */}
-            {!showForgotPassword && (
-              <View style={styles.inputWrapper}>
-                {renderInput('password', 'Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
-                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-              </View>
-            )}
-
-            {/* Confirm Password (Sign Up only) */}
-            {!isLogin && !showForgotPassword && (
-              <View style={styles.inputWrapper}>
-                {renderInput('confirmPassword', 'Confirm Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
-                {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-              </View>
-            )}
-
-            {/* Forgot Password Link */}
-            {isLogin && !showForgotPassword && (
-              <TouchableOpacity
-                style={styles.forgotButton}
-                onPress={() => setShowForgotPassword(true)}
-              >
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.bg} size="small" />
-              ) : (
-                <Text style={styles.submitButtonText}>
-                  {showForgotPassword ? 'Send Reset Link' : isLogin ? 'Sign In' : 'Create Account'}
+            {showForgotPassword && isResetSent ? (
+              <View style={styles.successContainer}>
+                <View style={styles.successIconBg}>
+                  <Icon name="check" size={40} color="#10B981" />
+                </View>
+                <Text style={styles.successTitle}>Check Your Email</Text>
+                <Text style={styles.successMessage}>
+                  We've sent password reset link to {formData.email}. Check your spam folder if you don't see it.
                 </Text>
-              )}
-            </TouchableOpacity>
-
-            {!showForgotPassword && (
+                <TouchableOpacity
+                  style={styles.backToLoginBtn}
+                  onPress={() => {
+                    setShowForgotPassword(false);
+                    setIsResetSent(false);
+                  }}
+                >
+                  <Text style={styles.backToLoginText}>Back to Sign In</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
               <>
-                <View style={styles.divider}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
+                <Text style={styles.formTitle}>
+                  {showForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back!' : 'Create Account'}
+                </Text>
+                <Text style={styles.formSubtitle}>
+                  {showForgotPassword
+                    ? 'Enter your email to receive reset instructions'
+                    : isLogin
+                      ? 'Sign in to continue your adventures'
+                      : 'Start planning your dream trips'}
+                </Text>
+
+                {/* Name Input (Sign Up only) */}
+                {!isLogin && !showForgotPassword && (
+                  <View style={styles.inputWrapper}>
+                    {renderInput('name', 'Full Name', <Icon name="user" size={18} color={colors.primary} />, { autoCapitalize: 'words' })}
+                    {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+                  </View>
+                )}
+
+                {/* Email Input */}
+                <View style={styles.inputWrapper}>
+                  {renderInput('email', 'Email Address', <Icon name="email" size={18} color={colors.primary} />, { keyboardType: 'email-address' })}
+                  {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
                 </View>
 
+                {/* Password Input */}
+                {!showForgotPassword && (
+                  <View style={styles.inputWrapper}>
+                    {renderInput('password', 'Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
+                    {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                  </View>
+                )}
+
+                {/* Confirm Password (Sign Up only) */}
+                {!isLogin && !showForgotPassword && (
+                  <View style={styles.inputWrapper}>
+                    {renderInput('confirmPassword', 'Confirm Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
+                    {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+                  </View>
+                )}
+
+                {/* Forgot Password Link */}
+                {isLogin && !showForgotPassword && (
+                  <TouchableOpacity
+                    style={styles.forgotButton}
+                    onPress={() => {
+                      setShowForgotPassword(true);
+                      setIsResetSent(false);
+                    }}
+                  >
+                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Submit Button */}
                 <TouchableOpacity
-                  style={styles.googleButton}
-                  onPress={handleGoogleSignIn}
+                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                  onPress={handleSubmit}
                   disabled={loading}
                 >
-                  <Image
-                    source={{ uri: 'https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png' }}
-                    style={styles.googleIcon}
-                  />
-                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  {loading ? (
+                    <ActivityIndicator color={colors.bg} size="small" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>
+                      {showForgotPassword ? 'Send Reset Link' : isLogin ? 'Sign In' : 'Create Account'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
-              </>
-            )}
 
-            {/* Back to Login (from Forgot Password) */}
-            {showForgotPassword && (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => setShowForgotPassword(false)}
-              >
-                <Text style={styles.backButtonText}>← Back to Sign In</Text>
-              </TouchableOpacity>
+                {!showForgotPassword && (
+                  <>
+                    <View style={styles.divider}>
+                      <View style={styles.dividerLine} />
+                      <Text style={styles.dividerText}>OR</Text>
+                      <View style={styles.dividerLine} />
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.googleButton}
+                      onPress={handleGoogleSignIn}
+                      disabled={loading}
+                    >
+                      <Image
+                        source={{ uri: 'https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png' }}
+                        style={styles.googleIcon}
+                      />
+                      <Text style={styles.googleButtonText}>Continue with Google</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {/* Back to Login (from Forgot Password) */}
+                {showForgotPassword && (
+                  <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => setShowForgotPassword(false)}
+                  >
+                    <Text style={styles.backButtonText}>← Back to Sign In</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
 
@@ -281,8 +313,8 @@ export default function AuthScreen() {
           {!isLogin && !showForgotPassword && (
             <Text style={styles.termsText}>
               By signing up, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
+              <Text style={styles.termsLink} onPress={handleOpenTerms}>Terms of Service</Text> and{' '}
+              <Text style={styles.termsLink} onPress={handleOpenPrivacy}>Privacy Policy</Text>
             </Text>
           )}
         </ScrollView>
@@ -493,5 +525,46 @@ const createStyles = (colors) => StyleSheet.create({
   termsLink: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  successContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  successIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  backToLoginBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    minHeight: 52,
+    width: '100%',
+    alignItems: 'center',
+  },
+  backToLoginText: {
+    color: colors.bg,
+    fontSize: 17,
+    fontWeight: 'bold',
   },
 });

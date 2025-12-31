@@ -157,7 +157,8 @@ export function AuthProvider({ children }) {
       await sendPasswordResetEmail(auth, email);
       return { success: true };
     } catch (error) {
-      return { success: false, error: 'Failed to send reset email' };
+      console.error('resetPassword error:', error.code, error.message);
+      return { success: false, error: error.message };
     }
   };
 
