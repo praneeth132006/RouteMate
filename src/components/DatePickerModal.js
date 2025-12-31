@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import Icon from './Icon';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -16,7 +17,7 @@ const parseDate = (dateString) => {
   return new Date(year, month, day);
 };
 
-export default function DatePickerModal({ visible, onClose, onSelect, selectedDate, title, minDate, startDate, endDate }) {
+export default function DatePickerModal({ visible, onClose, onSelect, selectedDate, title, minDate, maxDate, startDate, endDate }) {
   const { colors } = useTheme();
   const [currentDate, setCurrentDate] = useState(selectedDate ? parseDate(selectedDate) : new Date());
   const [viewDate, setViewDate] = useState(selectedDate ? parseDate(selectedDate) : new Date());
@@ -54,12 +55,14 @@ export default function DatePickerModal({ visible, onClose, onSelect, selectedDa
   };
 
   const handleDayPress = (date) => {
-    // Check if date is before minDate
+    // Check if date is before minDate or after maxDate
     if (minDate) {
       const minDateObj = parseDate(minDate);
-      if (date < minDateObj) {
-        return; // Don't allow selection
-      }
+      if (date < minDateObj) return;
+    }
+    if (maxDate) {
+      const maxDateObj = parseDate(maxDate);
+      if (date > maxDateObj) return;
     }
     setCurrentDate(date);
 
@@ -82,9 +85,16 @@ export default function DatePickerModal({ visible, onClose, onSelect, selectedDa
   const isToday = (date) => date && date.toDateString() === new Date().toDateString();
 
   const isDisabled = (date) => {
-    if (!date || !minDate) return false;
-    const minDateObj = parseDate(minDate);
-    return date < minDateObj;
+    if (!date) return false;
+    if (minDate) {
+      const minDateObj = parseDate(minDate);
+      if (date < minDateObj) return true;
+    }
+    if (maxDate) {
+      const maxDateObj = parseDate(maxDate);
+      if (date > maxDateObj) return true;
+    }
+    return false;
   };
 
   const isInRange = (date) => {
@@ -98,7 +108,12 @@ export default function DatePickerModal({ visible, onClose, onSelect, selectedDa
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <View style={styles.header}><Text style={styles.title}>{title || 'Select Date'}</Text><TouchableOpacity onPress={onClose} style={styles.closeButton}><Text style={styles.closeText}>×</Text></TouchableOpacity></View>
+          <View style={styles.header}>
+            <Text style={styles.title}>{title || 'Select Date'}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Icon name="close" size={24} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
           <View style={styles.monthNav}>
             <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navButton}><Text style={styles.navButtonText}>←</Text></TouchableOpacity>
             <Text style={styles.monthText}>{MONTHS[viewDate.getMonth()]} {viewDate.getFullYear()}</Text>

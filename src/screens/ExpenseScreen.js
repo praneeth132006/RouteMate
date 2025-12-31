@@ -269,6 +269,17 @@ export default function ExpenseScreen() {
     return bal; // Positive means "owed money", Negative means "owes money"
   }, [expenses, displayGroups, travelers, tripInfo.tripType]);
 
+  const groupedExpenses = useMemo(() => {
+    const groups = {};
+    const sorted = [...expenses].sort((a, b) => (b.dateTimestamp || 0) - (a.dateTimestamp || 0));
+    sorted.forEach(exp => {
+      const dateKey = exp.date || 'Other';
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(exp);
+    });
+    return groups;
+  }, [expenses]);
+
   // Styles
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -332,38 +343,46 @@ export default function ExpenseScreen() {
                 <Text style={styles.emptyText}>No expenses yet. Tap + to add one!</Text>
               </View>
             ) : (
-              expenses.slice().reverse().map(expense => {
-                const cat = CATEGORIES.find(c => c.key === expense.category) || CATEGORIES[0];
-                return (
-                  <View key={expense.id} style={styles.expenseCard}>
-                    <View style={[styles.exIcon, { backgroundColor: cat.color + '20' }]}>
-                      <Icon name={cat.icon || cat.key} size={20} color={cat.color} />
-                    </View>
-                    <View style={styles.exContent}>
-                      <View style={styles.exHeaderRow}>
-                        <Text style={styles.exTitle}>{expense.title}</Text>
-                        <Text style={styles.exDate}>{expense.date}</Text>
-                      </View>
-                      <Text style={styles.exSub}>
-                        {getTravelerName(expense.paidBy)} {expense.type === 'transfer' ? '→' : (expense.type === 'income' ? 'received' : 'paid')} • {expense.type === 'transfer' ? getTravelerName(expense.beneficiaries[0]) : cat.label}
-                      </Text>
-                    </View>
-                    <View style={styles.exRight}>
-                      <Text style={[styles.exAmount, expense.type === 'income' && { color: '#10B981' }]}>
-                        {expense.type === 'income' ? '+' : ''}{safeFormat(expense.amount)}
-                      </Text>
-                      <View style={styles.exActions}>
-                        <TouchableOpacity onPress={() => handleEditExpense(expense)} style={styles.exEdit}>
-                          <Text style={styles.exEditText}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => deleteExpense && deleteExpense(expense.id)} style={styles.exDelete}>
-                          <Text style={styles.exDeleteText}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+              Object.entries(groupedExpenses).map(([date, dateExpenses]) => (
+                <View key={date} style={styles.dateGroup}>
+                  <View style={styles.dateHeader}>
+                    <Icon name="calendar" size={14} color={colors.textMuted} />
+                    <Text style={styles.dateHeaderText}>{date}</Text>
+                    <View style={styles.dateLine} />
                   </View>
-                );
-              })
+                  {dateExpenses.map(expense => {
+                    const cat = CATEGORIES.find(c => c.key === expense.category) || CATEGORIES[0];
+                    return (
+                      <View key={expense.id} style={styles.expenseCard}>
+                        <View style={[styles.exIcon, { backgroundColor: cat.color + '20' }]}>
+                          <Icon name={cat.icon || cat.key} size={20} color={cat.color} />
+                        </View>
+                        <View style={styles.exContent}>
+                          <View style={styles.exHeaderRow}>
+                            <Text style={styles.exTitle}>{expense.title}</Text>
+                          </View>
+                          <Text style={styles.exSub}>
+                            {getTravelerName(expense.paidBy)} {expense.type === 'transfer' ? '→' : (expense.type === 'income' ? 'received' : 'paid')} • {expense.type === 'transfer' ? getTravelerName(expense.beneficiaries[0]) : cat.label}
+                          </Text>
+                        </View>
+                        <View style={styles.exRight}>
+                          <Text style={[styles.exAmount, expense.type === 'income' && { color: '#10B981' }]}>
+                            {expense.type === 'income' ? '+' : ''}{safeFormat(expense.amount)}
+                          </Text>
+                          <View style={styles.exActions}>
+                            <TouchableOpacity onPress={() => handleEditExpense(expense)} style={styles.exEdit}>
+                              <Text style={styles.exEditText}>✏️</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => deleteExpense && deleteExpense(expense.id)} style={styles.exDelete}>
+                              <Icon name="close" size={14} color={colors.textMuted} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ))
             )}
           </>
         ) : (
@@ -609,6 +628,8 @@ export default function ExpenseScreen() {
         selectedDate={newExpense.date}
         title="Transaction Date"
         minDate={tripInfo.startDate}
+        maxDate={tripInfo.endDate}
+        startDate={tripInfo.startDate}
         endDate={tripInfo.endDate}
       />
     </SafeAreaView>
@@ -740,4 +761,10 @@ const createStyles = (colors) => StyleSheet.create({
   dateIcon: { fontSize: 18 },
   dateValue: { fontSize: 16, color: colors.text, fontWeight: '600' },
   dateArrow: { color: colors.textMuted, fontSize: 16 },
+
+  // Grouping Styles
+  dateGroup: { marginBottom: 20 },
+  dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 },
+  dateHeaderText: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  dateLine: { flex: 1, height: 1, backgroundColor: colors.primaryBorder, opacity: 0.5 },
 });
