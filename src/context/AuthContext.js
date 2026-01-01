@@ -12,6 +12,7 @@ import {
   deleteUser,
   GoogleAuthProvider,
   signInWithRedirect,
+  signInWithPopup,
   getRedirectResult,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -112,14 +113,26 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       const provider = new GoogleAuthProvider();
-      // Using Redirect instead of Popup for better mobile PWA performance
-      await signInWithRedirect(auth, provider);
-      // The result is handled in the useEffect hook above
-      return { success: true, pending: true };
+      // Reverting to Popup as Redirect was causing issues on some devices
+      const result = await signInWithPopup(auth, provider);
+
+      // Mirror user profile in database for persistence
+      if (result.user) {
+        await DB.saveUserProfile({
+          displayName: result.user.displayName || '',
+          photoURL: result.user.photoURL || '',
+          email: result.user.email || '',
+        });
+      }
+
+      console.log('signInWithGoogle success:', result.user.email);
+      return { success: true, user: result.user };
     } catch (error) {
       console.error('signInWithGoogle error:', error.code, error.message);
       setLoading(false);
       return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
     }
   };
 
