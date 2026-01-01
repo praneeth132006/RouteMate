@@ -11,7 +11,8 @@ import {
   reauthenticateWithCredential,
   deleteUser,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import * as DB from '../services/databaseService';
@@ -50,6 +51,20 @@ export function AuthProvider({ children }) {
       }
 
       setInitializing(false);
+    });
+
+    // Handle Redirect Result (for Google Sign In)
+    getRedirectResult(auth).then(async (result) => {
+      if (result && result.user) {
+        console.log('Redirect Sign-In Successful:', result.user.email);
+        await DB.saveUserProfile({
+          displayName: result.user.displayName || '',
+          photoURL: result.user.photoURL || '',
+          email: result.user.email || '',
+        });
+      }
+    }).catch((error) => {
+      console.error('Redirect Sign-In Error:', error);
     });
 
     return unsubscribe;
@@ -97,24 +112,14 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-
-      // Mirror user profile in database for persistence
-      if (result.user) {
-        await DB.saveUserProfile({
-          displayName: result.user.displayName || '',
-          photoURL: result.user.photoURL || '',
-          email: result.user.email || '',
-        });
-      }
-
-      console.log('signInWithGoogle success:', result.user.email);
-      return { success: true, user: result.user };
+      // Using Redirect instead of Popup for better mobile PWA performance
+      await signInWithRedirect(auth, provider);
+      // The result is handled in the useEffect hook above
+      return { success: true, pending: true };
     } catch (error) {
       console.error('signInWithGoogle error:', error.code, error.message);
-      return { success: false, error: error.message };
-    } finally {
       setLoading(false);
+      return { success: false, error: error.message };
     }
   };
 
