@@ -46,6 +46,10 @@
         }
       }
     },
-    "scheme": "routemate"
+    "scheme": "routemate",
+    "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics"
+    ]
   }
 }
