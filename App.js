@@ -141,6 +141,7 @@ const styles = StyleSheet.create({
     default: {
       responsiveWrapper: {
         flex: 1,
+        backgroundColor: '#0D0D0D',
       }
     }
   })

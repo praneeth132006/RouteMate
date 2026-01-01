@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build": "npx expo export --platform web"
+    "build": "npx expo export --platform web && node scripts/patch-pwa.js"
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",

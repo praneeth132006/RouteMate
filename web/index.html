@@ -1,18 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Travel Companion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RouteMate</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RouteMate">
+  <meta name="theme-color" content="#0D0D0D">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/favicon.ico">
+
   <style>
-    html, body, #root {
-      height: 100%;
-      margin: 0;
-      background-color: #0D0D0D;
+    html,
+    body,
+    #root {
+      height: 100% !important;
+      margin: 0 !important;
+      background-color: #0D0D0D !important;
+      overscroll-behavior: none;
     }
   </style>
 </head>
+
 <body>
   <div id="root"></div>
 </body>
+
 </html>
