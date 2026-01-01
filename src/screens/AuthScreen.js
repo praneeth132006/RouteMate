@@ -98,7 +98,7 @@ export default function AuthScreen() {
 
   const handleGoogleSignIn = async () => {
     const result = await signInWithGoogle();
-    if (!result.success) {
+    if (!result.success && !result.cancelled && result.error) {
       Alert.alert('Google Sign In Failed', result.error);
     }
   };

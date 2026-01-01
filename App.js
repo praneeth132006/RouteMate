@@ -7,7 +7,6 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { TravelProvider } from './src/context/TravelContext';
 import MainNavigator from './src/navigation/MainNavigator';
 import AuthScreen from './src/screens/AuthScreen';
-import AddToHomeScreenPrompt from './src/components/AddToHomeScreenPrompt';
 import { Platform } from 'react-native';
 
 // Error Boundary Component
@@ -72,7 +71,6 @@ function AppContent() {
           backgroundColor={colors.bg}
         />
         {isAuthenticated ? <MainNavigator /> : <AuthScreen />}
-        <AddToHomeScreenPrompt />
       </View>
     </View>
   );

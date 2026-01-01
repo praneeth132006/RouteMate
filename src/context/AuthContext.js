@@ -113,7 +113,6 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       const provider = new GoogleAuthProvider();
-      // Reverting to Popup as Redirect was causing issues on some devices
       const result = await signInWithPopup(auth, provider);
 
       // Mirror user profile in database for persistence
@@ -126,13 +125,18 @@ export function AuthProvider({ children }) {
       }
 
       console.log('signInWithGoogle success:', result.user.email);
+      setLoading(false);
       return { success: true, user: result.user };
     } catch (error) {
       console.error('signInWithGoogle error:', error.code, error.message);
       setLoading(false);
+
+      // If user closed popup, don't show error - just silently return
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        return { success: false, cancelled: true };
+      }
+
       return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
     }
   };
 
