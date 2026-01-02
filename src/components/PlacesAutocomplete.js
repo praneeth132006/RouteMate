@@ -11,17 +11,19 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import Icon from './Icon';
-import GOOGLE_MAPS_CONFIG from '../config/googleMaps';
+import GOOGLE_MAPS_CONFIG, { MAP_DEFAULTS } from '../config/googleMaps';
 
 /**
  * PlacesAutocomplete Component
  * Google Places Autocomplete for destination search (Web only)
+ * Integrated with an interactive Google Map
  */
 const PlacesAutocomplete = ({
     value,
     onPlaceSelect,
     placeholder = 'Search destination...',
     style,
+    showMap = false,
 }) => {
     const { colors } = useTheme();
     const [query, setQuery] = useState(value || '');
@@ -30,7 +32,11 @@ const PlacesAutocomplete = ({
     const [showDropdown, setShowDropdown] = useState(false);
     const autocompleteService = useRef(null);
     const placesService = useRef(null);
+    const geocoder = useRef(null);
+    const mapInstance = useRef(null);
+    const markerInstance = useRef(null);
     const debounceTimer = useRef(null);
+    const mapRef = useRef(null);
 
     // Load Google Maps script dynamically and initialize services
     useEffect(() => {
@@ -40,22 +46,19 @@ const PlacesAutocomplete = ({
 
         const loadGoogleMapsScript = () => {
             return new Promise((resolve, reject) => {
-                // Check if already loaded
                 if (window.google && window.google.maps && window.google.maps.places) {
                     resolve();
                     return;
                 }
 
-                // Check if script is already being loaded
                 const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
                 if (existingScript) {
                     existingScript.addEventListener('load', resolve);
                     return;
                 }
 
-                // Create and load the script
                 const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,geometry`;
                 script.async = true;
                 script.defer = true;
                 script.onload = () => {
@@ -72,7 +75,25 @@ const PlacesAutocomplete = ({
                 autocompleteService.current = new window.google.maps.places.AutocompleteService();
                 const dummyDiv = document.createElement('div');
                 placesService.current = new window.google.maps.places.PlacesService(dummyDiv);
-                console.log('Google Places initialized successfully');
+                geocoder.current = new window.google.maps.Geocoder();
+
+                // Initialize Map if ref is ready
+                if (mapRef.current && !mapInstance.current) {
+                    mapInstance.current = new window.google.maps.Map(mapRef.current, {
+                        ...MAP_DEFAULTS,
+                        disableDefaultUI: false,
+                        mapTypeControl: false,
+                        fullscreenControl: false,
+                        streetViewControl: false,
+                    });
+
+                    // Add click listener to map
+                    mapInstance.current.addListener('click', (e) => {
+                        handleMapClick(e.latLng);
+                    });
+                }
+
+                console.log('Google Services initialized successfully');
                 return true;
             }
             return false;
@@ -80,7 +101,6 @@ const PlacesAutocomplete = ({
 
         loadGoogleMapsScript()
             .then(() => {
-                // Poll for Google services to be ready
                 const checkInterval = setInterval(() => {
                     if (initGoogleServices()) {
                         clearInterval(checkInterval);
@@ -96,6 +116,55 @@ const PlacesAutocomplete = ({
     useEffect(() => {
         setQuery(value || '');
     }, [value]);
+
+    const handleMapClick = (latLng) => {
+        if (!geocoder.current) return;
+
+        // Add marker immediately
+        updateMapMarker(latLng);
+
+        // Geocode to get address
+        geocoder.current.geocode({ location: latLng }, (results, status) => {
+            if (status === 'OK' && results[0]) {
+                const place = results[0];
+                const address = place.formatted_address;
+
+                // Extract city name roughly if possible, or use address
+                let mainText = address;
+
+                // Call onPlaceSelect with geocoded result
+                const selectedPlace = {
+                    name: mainText,
+                    fullAddress: address,
+                    placeId: place.place_id,
+                    latitude: latLng.lat(),
+                    longitude: latLng.lng(),
+                };
+
+                setQuery(address);
+                onPlaceSelect(selectedPlace);
+            } else {
+                console.error('Geocoder failed due to: ' + status);
+            }
+        });
+    };
+
+    const updateMapMarker = (location) => {
+        if (!mapInstance.current) return;
+
+        if (markerInstance.current) {
+            markerInstance.current.setMap(null);
+        }
+
+        markerInstance.current = new window.google.maps.Marker({
+            position: location,
+            map: mapInstance.current,
+            animation: window.google.maps.Animation.DROP,
+        });
+
+        mapInstance.current.panTo(location);
+        mapInstance.current.setZoom(12);
+    };
 
     const searchPlaces = async (searchQuery) => {
         if (!searchQuery || searchQuery.length < 2) {
@@ -123,6 +192,7 @@ const PlacesAutocomplete = ({
                         setPredictions(results.slice(0, 5));
                         setShowDropdown(true);
                     } else {
+                        console.error('Places API Error Status:', status);
                         setPredictions([]);
                     }
                 }
@@ -159,12 +229,16 @@ const PlacesAutocomplete = ({
                 },
                 (place, status) => {
                     if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+                        const location = place.geometry.location;
+
+                        updateMapMarker(location);
+
                         onPlaceSelect({
                             name: prediction.structured_formatting?.main_text || place.name,
                             fullAddress: prediction.description,
                             placeId: prediction.place_id,
-                            latitude: place.geometry?.location?.lat(),
-                            longitude: place.geometry?.location?.lng(),
+                            latitude: location.lat(),
+                            longitude: location.lng(),
                         });
                     } else {
                         onPlaceSelect({
@@ -251,6 +325,20 @@ const PlacesAutocomplete = ({
                     </View>
                 </View>
             )}
+
+            {/* Google Map Container - Only visible on web and if showMap is true */}
+            {Platform.OS === 'web' && showMap && (
+                <View style={styles.mapContainer}>
+                    <div
+                        ref={mapRef}
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: '14px'
+                        }}
+                    />
+                </View>
+            )}
         </View>
     );
 };
@@ -269,6 +357,7 @@ const createStyles = (colors) =>
             borderWidth: 1,
             borderColor: colors.primaryBorder,
             paddingHorizontal: 4,
+            marginBottom: 16, // Add margin for spacing above map
         },
         iconContainer: {
             width: 44,
@@ -296,18 +385,20 @@ const createStyles = (colors) =>
         dropdown: {
             position: 'absolute',
             top: '100%',
+            marginTop: 4,
             left: 0,
             right: 0,
-            backgroundColor: colors.card,
+            zIndex: 9999, // Ensure it sits on top of everything
+            backgroundColor: colors.card, // Ensure solid background
             borderRadius: 14,
-            marginTop: 8,
             borderWidth: 1,
             borderColor: colors.primaryBorder,
+            // Stronger shadow for depth
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
+            shadowOpacity: 0.5,
+            shadowRadius: 10,
+            elevation: 10,
             maxHeight: 250,
             overflow: 'hidden',
         },
@@ -350,6 +441,14 @@ const createStyles = (colors) =>
         poweredByText: {
             fontSize: 11,
             color: colors.textMuted,
+        },
+        mapContainer: {
+            height: 300,
+            borderRadius: 14,
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: colors.primaryBorder,
+            marginTop: 8,
         },
     });
 

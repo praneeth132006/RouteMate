@@ -2,7 +2,7 @@
 // This file contains the Google Maps API key and configuration
 
 const GOOGLE_MAPS_CONFIG = {
-    apiKey: 'AIzaSyC_GEIUomSDTh_WTMhGQ2HOKFnUonG_oSU',
+    apiKey: 'AIzaSyANRzgIniwwjDbW31gDIJ38iGpKdLng0yk',
     libraries: ['places', 'geometry'],
     region: 'IN',
     language: 'en',

@@ -9,6 +9,8 @@ import DatePickerModal from '../components/DatePickerModal';
 import { useTravelContext } from '../context/TravelContext';
 import { useAuth } from '../context/AuthContext';
 import Icon from '../components/Icon';
+import PlacesAutocomplete from '../components/PlacesAutocomplete';
+import TripMap from '../components/TripMap';
 
 const TRIP_TYPES = [
   { key: 'solo', label: 'Solo Trip', icon: 'solo', description: 'Just me, exploring the world', color: '#3B82F6' },
@@ -51,7 +53,10 @@ export default function TripSetupScreen({ onComplete, onBack }) {
 
 
   const [tripData, setTripData] = useState({
+    origin: null,
     destination: '',
+    destinationCoords: null,
+    endLocation: null, // NEW: End location state
     startDate: '',
     endDate: '',
     tripType: '',
@@ -79,7 +84,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   // Dynamic steps based on trip type
   const getSteps = () => {
     const baseSteps = [
-      { key: 'location', title: 'Trip Details', subtitle: 'Where and when are you going?', icon: 'route' },
+      { key: 'location', icon: 'route' }, // Removed title/subtitle to hide header
       { key: 'tripType', title: 'Trip Type', subtitle: 'Who are you traveling with?', icon: 'group' },
     ];
 
@@ -251,7 +256,13 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     const step = STEPS[currentStep];
     switch (step.key) {
       case 'location':
-        return tripData.destination.trim().length > 0 && tripData.startDate && tripData.endDate;
+        return (
+          tripData.origin &&
+          tripData.destination.trim().length > 0 &&
+          tripData.endLocation &&
+          tripData.startDate &&
+          tripData.endDate
+        );
       case 'tripType':
         return tripData.tripType !== '';
       case 'companions':
@@ -390,25 +401,70 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         return (
           <View style={styles.stepContent}>
             {/* Destination Input */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Destination</Text>
-              <View style={styles.inputContainer}>
-                <View style={styles.inputIconBg}>
-                  <Icon name="search" size={20} color={colors.textMuted} />
-                </View>
-                <TextInput
-                  style={[styles.mainInput, { outlineStyle: 'none' }]}
-                  placeholder="Search destination..."
-                  placeholderTextColor={colors.textMuted}
-                  value={tripData.destination}
-                  onChangeText={(text) => setTripData({ ...tripData, destination: text })}
+            {/* Origin & Destination Inputs */}
+            <View style={[styles.inputSection, { zIndex: 3000 }]}>
+              {/* Trip Start Location */}
+              <View style={{ marginBottom: 16, zIndex: 3000 }}>
+                <Text style={styles.inputLabel}>Trip Start Location</Text>
+                <PlacesAutocomplete
+                  value={tripData.origin?.name || tripData.origin?.fullAddress || ''}
+                  onPlaceSelect={(place) => {
+                    setTripData({ ...tripData, origin: place });
+                  }}
+                  placeholder="Where are you starting from?"
+                  showMap={false}
                 />
-                {tripData.destination.length > 0 && (
-                  <Pressable onPress={() => setTripData({ ...tripData, destination: '' })} style={styles.clearButton}>
-                    <Icon name="close" size={16} color={colors.textMuted} />
-                  </Pressable>
-                )}
               </View>
+
+              {/* Main Location to Visit */}
+              <View style={{ marginBottom: 16, zIndex: 2000 }}>
+                <Text style={styles.inputLabel}>Main Location to Visit</Text>
+                <Text style={styles.inputHelper}>
+                  You can add more locations after creating the trip.
+                </Text>
+                <PlacesAutocomplete
+                  value={tripData.destination}
+                  onPlaceSelect={(place) => {
+                    if (place) {
+                      setTripData({
+                        ...tripData,
+                        destination: place.name || place.fullAddress,
+                        destinationCoords: place // Store full place object
+                      });
+                    } else {
+                      setTripData({
+                        ...tripData,
+                        destination: '',
+                        destinationCoords: null
+                      });
+                    }
+                  }}
+                  placeholder="Search destination..."
+                  showMap={false} // Hide map in autocomplete
+                />
+              </View>
+            </View>
+
+            {/* Trip End Location */}
+            <View style={{ marginBottom: 16, zIndex: 1000 }}>
+              <Text style={styles.inputLabel}>Trip End Location</Text>
+              <PlacesAutocomplete
+                value={tripData.endLocation?.name || tripData.endLocation?.fullAddress || ''}
+                onPlaceSelect={(place) => {
+                  setTripData({ ...tripData, endLocation: place });
+                }}
+                placeholder="Where will the trip end?"
+                showMap={false}
+              />
+            </View>
+
+            {/* Trip Map Visualization */}
+            <View style={{ marginTop: 8, marginBottom: 24 }}>
+              <TripMap
+                start={tripData.origin}
+                visit={tripData.destinationCoords}
+                end={tripData.endLocation}
+              />
             </View>
 
             {/* Date Selection */}
@@ -421,7 +477,6 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                   style={({ pressed }) => [styles.dateCard, pressed && { opacity: 0.9 }]}
                   onPress={() => setShowStartDatePicker(true)}
                 >
-
                   <Icon name="calendar" size={28} color={colors.primary} style={{ marginBottom: 16 }} />
                   <View style={styles.dateCardContent}>
                     <Text style={styles.dateCardLabel}>Start</Text>
@@ -440,7 +495,6 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                   style={({ pressed }) => [styles.dateCard, pressed && { opacity: 0.9 }]}
                   onPress={() => setShowEndDatePicker(true)}
                 >
-
                   <Icon name="calendar" size={28} color={colors.primary} style={{ marginBottom: 16 }} />
                   <View style={styles.dateCardContent}>
                     <Text style={styles.dateCardLabel}>End</Text>
@@ -885,8 +939,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
           </View>
         </View>
 
-        {/* Step Header - Hidden for family companions as requested */}
-        {!(STEPS[currentStep].key === 'companions' && tripData.tripType === 'family') && (
+        {/* Step Header - Hidden for location step and family companions */}
+        {!((STEPS[currentStep].key === 'location') || (STEPS[currentStep].key === 'companions' && tripData.tripType === 'family')) && (
           <Animated.View style={[styles.stepHeader, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.stepIconBg}>
               <Icon name={STEPS[currentStep].icon} size={32} color={colors.primary} />
@@ -1395,6 +1449,12 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
+  },
+  inputHelper: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 8,
+    marginTop: -4,
   },
   changeCountText: {
     fontSize: 15,
