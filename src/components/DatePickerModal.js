@@ -8,12 +8,21 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const parseDate = (dateString) => {
   if (!dateString) return null;
+  if (dateString instanceof Date) return dateString; // Handle Date objects safely
+
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  if (typeof dateString !== 'string') return new Date(); // Fallback for other types
+
   const parts = dateString.split(' ');
   if (parts.length < 3) return new Date();
+
   const day = parseInt(parts[0]);
   const month = MONTHS.indexOf(parts[1]);
   const year = parseInt(parts[2]);
+
+  if (month === -1) return new Date(dateString); // Try standard parsing if format doesn't match
+
   return new Date(year, month, day);
 };
 

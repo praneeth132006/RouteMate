@@ -57,7 +57,9 @@ const Calendar = ({ visible, onClose, onSelect, mode = 'single', initialStartDat
 
         if (mode === 'single') {
             setStartDate(selectedDate);
-            onSelect(selectedDate);
+            const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const formatted = `${selectedDate.getDate()} ${monthsShort[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+            onSelect(formatted);
             onClose();
         } else {
             if (!startDate || (startDate && endDate)) {
@@ -76,7 +78,16 @@ const Calendar = ({ visible, onClose, onSelect, mode = 'single', initialStartDat
     };
 
     const handleConfirm = () => {
-        onSelect(startDate, endDate);
+        if (startDate && endDate) {
+            const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const startFormatted = `${startDate.getDate()} ${monthsShort[startDate.getMonth()]} ${startDate.getFullYear()}`;
+            const endFormatted = `${endDate.getDate()} ${monthsShort[endDate.getMonth()]} ${endDate.getFullYear()}`;
+            onSelect(startFormatted, endFormatted);
+        } else if (startDate) {
+            const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const startFormatted = `${startDate.getDate()} ${monthsShort[startDate.getMonth()]} ${startDate.getFullYear()}`;
+            onSelect(startFormatted, null);
+        }
         onClose();
     };
 

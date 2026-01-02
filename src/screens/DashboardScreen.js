@@ -58,7 +58,7 @@ export default function DashboardScreen({ navigation, onBack }) {
           <View>
             <Text style={styles.headerTitle}>{tripInfo?.destination || 'My Trip'}</Text>
             <Text style={styles.headerSubtitle}>
-              {tripInfo?.startDate} - {tripInfo?.endDate}
+              {typeof tripInfo?.startDate === 'string' ? tripInfo?.startDate : tripInfo?.startDate?.toLocaleDateString()} - {typeof tripInfo?.endDate === 'string' ? tripInfo?.endDate : tripInfo?.endDate?.toLocaleDateString()}
             </Text>
           </View>
         </View>

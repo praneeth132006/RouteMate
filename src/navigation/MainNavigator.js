@@ -3,6 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet, Alert, Image } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useTravelContext } from '../context/TravelContext';
+import * as DB from '../services/databaseService';
+import { useAuth } from '../context/AuthContext';
 
 // Import screens
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -14,6 +16,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import TripSetupScreen from '../screens/TripSetupScreen';
 import BudgetScreen from '../screens/BudgetScreen';
 import JoinSelectionScreen from '../screens/JoinSelectionScreen';
+import AIChatScreen from '../screens/AIChatScreen';
 import Icon from '../components/Icon';
 
 const Tab = createBottomTabNavigator();
@@ -93,6 +96,14 @@ function TabNavigator({ onBackToHome }) {
           tabBarIcon: ({ focused, color }) => <TabIcon name="packing" focused={focused} color={color} />,
         }}
       />
+      <Tab.Screen
+        name="Assistant"
+        component={AIChatScreen}
+        options={{
+          tabBarLabel: 'Assistant',
+          tabBarIcon: ({ focused, color }) => <TabIcon name="sparkles" focused={focused} color={color} />,
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -102,6 +113,7 @@ export default function MainNavigator() {
   const [currentScreen, setCurrentScreen] = React.useState('Welcome');
   const [pendingJoinTrip, setPendingJoinTrip] = React.useState(null);
   const { setTripInfo, setBudget, tripInfo, saveCurrentTripToList, joinTripByCode, switchToTrip } = useTravelContext();
+  const { user } = useAuth();
 
   // Check if there's an active trip
   const hasActiveTrip = !!(tripInfo.destination || tripInfo.startDate || tripInfo.name);
@@ -145,16 +157,67 @@ export default function MainNavigator() {
     console.log('Trip setup complete - saving:', tripData.destination);
 
     try {
+      // Extract AI Data if present
+      const { aiData, ...cleanTripData } = tripData;
+
       // 1. One single call to save everything
       // This will generate ID/code AND set the trip as "active" in the context
+      let newTrip;
       if (saveCurrentTripToList) {
-        await saveCurrentTripToList({
-          ...tripData,
+        newTrip = await saveCurrentTripToList({
+          ...cleanTripData,
           budget: { total: parseFloat(tripData.budget) || 0, categories: {} }
         });
       }
 
-      // 2. Navigate to dashboard
+      // 2. Process AI Data if available
+      if (aiData && newTrip && newTrip.id) {
+        console.log('Processing AI generated data for trip:', newTrip.id);
+
+        // Save Itinerary
+        if (aiData.itinerary && Array.isArray(aiData.itinerary)) {
+          for (const day of aiData.itinerary) {
+            if (day.activities) {
+              for (const activity of day.activities) {
+                const newItem = {
+                  id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                  dayNumber: day.day,
+                  name: activity.title,
+                  type: 'attraction', // Default type
+                  time: activity.time,
+                  notes: activity.description,
+                  location: '',
+                  duration: '2h',
+                  cost: ''
+                };
+                // Save directly to DB to ensure it goes to the correct trip ID immediately
+                await DB.saveItineraryItem(newItem, newTrip.id, newTrip.ownerId);
+              }
+            }
+          }
+        }
+
+        // Save Expenses
+        if (aiData.expenses && Array.isArray(aiData.expenses)) {
+          for (const exp of aiData.expenses) {
+            const newExpense = {
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+              title: exp.note || exp.category,
+              category: exp.category,
+              amount: exp.amount,
+              date: new Date().toISOString(),
+              paidBy: newTrip.ownerId || user?.uid,
+              splitType: 'equal',
+              splitAmounts: {},
+              beneficiaries: [],
+              createdAt: Date.now()
+            };
+            await DB.saveExpense(newExpense, newTrip.id, newTrip.ownerId);
+          }
+        }
+      }
+
+      // 3. Navigate to dashboard
       setCurrentScreen('TripDashboard');
     } catch (error) {
       console.error('Error in handleTripSetupComplete:', error);

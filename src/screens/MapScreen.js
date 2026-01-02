@@ -55,9 +55,15 @@ const generateDays = (startDate, endDate) => {
     return days;
   }
   const parseDate = (dateStr) => {
-    const parts = dateStr.split(' ');
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return new Date(parseInt(parts[2]), months.indexOf(parts[1]), parseInt(parts[0]));
+    if (!dateStr) return new Date();
+    if (dateStr instanceof Date) return dateStr;
+    try {
+      const parts = dateStr.split(' ');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return new Date(parseInt(parts[2]), months.indexOf(parts[1]), parseInt(parts[0]));
+    } catch (e) {
+      return new Date(dateStr);
+    }
   };
   try {
     const start = parseDate(startDate);
@@ -196,7 +202,7 @@ export default function MapScreen() {
         {tripInfo.startDate && tripInfo.endDate && (
           <View style={styles.dateRange}>
             <Text style={styles.dateRangeText}>
-              🛫 {tripInfo.startDate}  →  {tripInfo.endDate} 🛬
+              🛫 {typeof tripInfo.startDate === 'string' ? tripInfo.startDate : tripInfo.startDate?.toLocaleDateString()}  →  {typeof tripInfo.endDate === 'string' ? tripInfo.endDate : tripInfo.endDate?.toLocaleDateString()} 🛬
             </Text>
           </View>
         )}

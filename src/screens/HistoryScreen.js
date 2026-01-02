@@ -129,7 +129,7 @@ export default function HistoryScreen() {
                   <Text style={styles.tripDestination}>{trip.destination}</Text>
                   <View style={styles.tripMeta}>
                     <Icon name="calendar" size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
-                    <Text style={styles.tripDate}>{trip.completedDate || trip.startDate}</Text>
+                    <Text style={styles.tripDate}>{typeof (trip.completedDate || trip.startDate) === 'string' ? (trip.completedDate || trip.startDate) : (trip.completedDate || trip.startDate)?.toLocaleDateString()}</Text>
                     {tripDays > 0 && <Text style={styles.tripDays}>• {tripDays} days</Text>}
                   </View>
                   {trip.tripCode && (

@@ -64,7 +64,7 @@ export default function TripDashboardScreen({ route, navigation }) {
             <Text style={styles.tripBadge}>🧳 CURRENT TRIP</Text>
             <Text style={styles.tripName}>{trip?.destination || 'My Trip'}</Text>
             {trip?.startDate && trip?.endDate && (
-              <Text style={styles.tripDates}>{trip.startDate} - {trip.endDate}</Text>
+              <Text style={styles.tripDates}>{typeof trip.startDate === 'string' ? trip.startDate : trip.startDate?.toLocaleDateString()} - {typeof trip.endDate === 'string' ? trip.endDate : trip.endDate?.toLocaleDateString()}</Text>
             )}
           </View>
         </View>

@@ -73,11 +73,22 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
   const calculateTripDays = (startDate, endDate) => {
     if (!startDate || !endDate) return 0;
     try {
-      const parts1 = startDate.split(' ');
-      const parts2 = endDate.split(' ');
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const start = new Date(parseInt(parts1[2]), months.indexOf(parts1[1]), parseInt(parts1[0]));
-      const end = new Date(parseInt(parts2[2]), months.indexOf(parts2[1]), parseInt(parts2[0]));
+      let start, end;
+
+      if (startDate instanceof Date) start = startDate;
+      else {
+        const parts1 = startDate.split(' ');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        start = new Date(parseInt(parts1[2]), months.indexOf(parts1[1]), parseInt(parts1[0]));
+      }
+
+      if (endDate instanceof Date) end = endDate;
+      else {
+        const parts2 = endDate.split(' ');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        end = new Date(parseInt(parts2[2]), months.indexOf(parts2[1]), parseInt(parts2[0]));
+      }
+
       const diffTime = end - start;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
       return diffDays > 0 ? diffDays : 0;
@@ -89,6 +100,8 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
   // Helper function to parse date string to Date object
   const parseDate = (dateString) => {
     if (!dateString) return null;
+    if (dateString instanceof Date) return dateString;
+
     try {
       // 1. Try "DD MMM YYYY" format (e.g., "24 Dec 2025")
       const parts = dateString.split(' ');
@@ -374,12 +387,12 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
             <View style={styles.currentTripDates}>
               <View style={styles.dateChip}>
                 <Icon name="calendar" size={14} color={colors.textMuted} style={{ marginRight: 6 }} />
-                <Text style={styles.dateChipText}>{trip.startDate}</Text>
+                <Text style={styles.dateChipText}>{typeof trip.startDate === 'string' ? trip.startDate : trip.startDate?.toLocaleDateString()}</Text>
               </View>
               <Text style={styles.dateArrow}>→</Text>
               <View style={styles.dateChip}>
                 <Icon name="calendar" size={14} color={colors.textMuted} style={{ marginRight: 6 }} />
-                <Text style={styles.dateChipText}>{trip.endDate}</Text>
+                <Text style={styles.dateChipText}>{typeof trip.endDate === 'string' ? trip.endDate : trip.endDate?.toLocaleDateString()}</Text>
               </View>
             </View>
           )}
@@ -439,7 +452,7 @@ export default function WelcomeScreen({ onPlanTrip, onJoinTrip, onMyTrip, onProf
           <View style={styles.upcomingTripInfo}>
             <Text style={styles.upcomingTripName}>{trip.destination || trip.name || 'My Trip'}</Text>
             <Text style={styles.upcomingTripDates}>
-              {trip.startDate} • {tripDays} days
+              {typeof trip.startDate === 'string' ? trip.startDate : trip.startDate?.toLocaleDateString()} • {tripDays} days
             </Text>
             {trip.tripCode && (
               <Text style={styles.upcomingTripCode}>

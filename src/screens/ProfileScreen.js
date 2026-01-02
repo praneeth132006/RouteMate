@@ -282,7 +282,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
                       <View style={styles.historyInfo}>
                         <Text style={styles.historyDestination}>{trip.destination || trip.name}</Text>
                         <Text style={styles.historyDates}>
-                          {trip.startDate} • {days} days
+                          {typeof trip.startDate === 'string' ? trip.startDate : trip.startDate?.toLocaleDateString()} • {days} days
                         </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                           {trip.totalSpent !== undefined && (

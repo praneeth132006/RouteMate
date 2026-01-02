@@ -52,7 +52,7 @@ export default function ExpensesScreen() {
         {/* Expenses List */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Expenses</Text>
-          
+
           {expenses.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>💸</Text>
@@ -69,7 +69,7 @@ export default function ExpensesScreen() {
                   </View>
                   <View style={styles.expenseInfo}>
                     <Text style={styles.expenseName}>{expense.title}</Text>
-                    <Text style={styles.expenseDate}>{expense.date}</Text>
+                    <Text style={styles.expenseDate}>{typeof expense.date === 'string' ? expense.date : expense.date?.toLocaleDateString()}</Text>
                   </View>
                   <Text style={styles.expenseAmount}>-{formatCurrency(expense.amount)}</Text>
                   <TouchableOpacity onPress={() => deleteExpense(expense.id)} style={styles.deleteBtn}>

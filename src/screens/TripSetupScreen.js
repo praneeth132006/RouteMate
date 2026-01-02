@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import Icon from '../components/Icon';
 import PlacesAutocomplete from '../components/PlacesAutocomplete';
 import TripMap from '../components/TripMap';
+import { generateTripItinerary } from '../services/aiService';
 
 const TRIP_TYPES = [
   { key: 'solo', label: 'Solo Trip', icon: 'solo', description: 'Just me, exploring the world', color: '#3B82F6' },
@@ -43,6 +44,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   const [showCalendar, setShowCalendar] = useState(false);
   const [tempFamilyCount, setTempFamilyCount] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -180,7 +182,33 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     }
   };
 
-  const handleComplete = async () => {
+  const handleMagicBuild = async () => {
+    setIsGenerating(true);
+    try {
+      const result = await generateTripItinerary(
+        tripData.destination,
+        calculateDuration(tripData.startDate, tripData.endDate),
+        tripData.budget
+      );
+
+      if (result.success) {
+        // Here we would normally set the state with the result
+        // For now, we will just proceed to complete with this "enriched" data
+        // But since we are mocking, we will just call handleComplete and maybe pass extra data if possible
+        // Ideally, we populate the context. For this iteration, let's just complete the trip.
+        // In a real app, we would save the result.itinerary and result.expenses to the DB.
+
+        // We will pass the AI result to handleComplete to be saved
+        await handleComplete(result);
+      }
+    } catch (error) {
+      Alert.alert('AI Error', 'Failed to generate itinerary. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleComplete = async (aiData = null) => {
     if (isCreating) return;
     setIsCreating(true);
 
@@ -242,6 +270,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         participants,
         tripType: tripData.tripType,
         name: tripData.name || `${tripData.destination} Trip`,
+        aiData: aiData // Pass AI data
       });
     } catch (error) {
       console.error('Trip Creation Error:', error);
@@ -378,16 +407,31 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   };
 
   const calculateDuration = (start, end) => {
+    if (!start || !end) return 0;
     try {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const parts1 = start.split(' ');
-      const parts2 = end.split(' ');
-      const startDate = new Date(parseInt(parts1[2]), months.indexOf(parts1[1]), parseInt(parts1[0]));
-      const endDate = new Date(parseInt(parts2[2]), months.indexOf(parts2[1]), parseInt(parts2[0]));
+      let startDate, endDate;
+
+      // Handle Date objects
+      if (start instanceof Date) startDate = start;
+      else {
+        // Parse "12 Jan 2024" format
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const parts = start.split(' ');
+        startDate = new Date(parseInt(parts[2]), months.indexOf(parts[1]), parseInt(parts[0]));
+      }
+
+      if (end instanceof Date) endDate = end;
+      else {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const parts = end.split(' ');
+        endDate = new Date(parseInt(parts[2]), months.indexOf(parts[1]), parseInt(parts[0]));
+      }
+
       const diffTime = endDate - startDate;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return diffDays > 0 ? diffDays : 0;
-    } catch {
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays > 0 ? diffDays : 0; // Return diffDays directly (0-indexed duration usually +1 but logic varies)
+    } catch (e) {
+      console.warn('Error calculating duration:', e);
       return 0;
     }
   };
@@ -482,12 +526,12 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.dateInputHtml, !tripData.startDate && { color: colors.textMuted }]}>
                     {tripData.startDate && tripData.endDate
-                      ? `${tripData.startDate.toLocaleDateString()}  →  ${tripData.endDate.toLocaleDateString()}`
+                      ? `${typeof tripData.startDate === 'string' ? tripData.startDate : tripData.startDate.toLocaleDateString()}  →  ${typeof tripData.endDate === 'string' ? tripData.endDate : tripData.endDate.toLocaleDateString()}`
                       : 'Select Trip Duration'}
                   </Text>
                   {tripData.startDate && tripData.endDate && (
                     <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
-                      {Math.ceil((tripData.endDate - tripData.startDate) / (1000 * 60 * 60 * 24))} Days Trip
+                      {calculateDuration(tripData.startDate, tripData.endDate)} Days Trip
                     </Text>
                   )}
                 </View>
@@ -607,7 +651,9 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                 <Icon name="calendar" size={20} color={colors.primary} style={{ marginRight: 10 }} />
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Dates</Text>
-                  <Text style={styles.summaryValue}>{tripData.startDate} → {tripData.endDate}</Text>
+                  <Text style={styles.summaryValue}>
+                    {typeof tripData.startDate === 'string' ? tripData.startDate : tripData.startDate?.toLocaleDateString()} → {typeof tripData.endDate === 'string' ? tripData.endDate : tripData.endDate?.toLocaleDateString()}
+                  </Text>
                 </View>
               </View>
 
@@ -630,6 +676,25 @@ export default function TripSetupScreen({ onComplete, onBack }) {
                 Budget can be adjusted anytime during your trip planning.
               </Text>
             </View>
+
+            {/* AI Magic Build Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.aiButton,
+                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+              ]}
+              onPress={handleMagicBuild}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <Text style={styles.aiButtonText}>Generating Itinerary...</Text>
+              ) : (
+                <>
+                  <Text style={styles.aiButtonIcon}>✨</Text>
+                  <Text style={styles.aiButtonText}>Magic Build with AI</Text>
+                </>
+              )}
+            </Pressable>
           </View>
         );
 
@@ -1777,5 +1842,28 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: colors.text,
+  },
+  aiButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8B5CF6', // Violet color for AI
+    borderRadius: 16,
+    paddingVertical: 18,
+    marginTop: 20,
+    gap: 8,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  aiButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  aiButtonIcon: {
+    fontSize: 18,
   },
 });

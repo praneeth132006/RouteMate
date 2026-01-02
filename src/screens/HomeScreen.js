@@ -275,7 +275,9 @@ export default function HomeScreen({ onBackToHome }) {
               {tripInfo.startDate && tripInfo.endDate && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                   <Icon name="calendar" size={12} color="rgba(255,255,255,0.7)" style={{ marginRight: 4 }} />
-                  <Text style={styles.heroDates}>{tripInfo.startDate} → {tripInfo.endDate}</Text>
+                  <Text style={styles.heroDates}>
+                    {typeof tripInfo.startDate === 'string' ? tripInfo.startDate : tripInfo.startDate?.toLocaleDateString()} → {typeof tripInfo.endDate === 'string' ? tripInfo.endDate : tripInfo.endDate?.toLocaleDateString()}
+                  </Text>
                 </View>
               )}
             </View>
@@ -472,7 +474,7 @@ export default function HomeScreen({ onBackToHome }) {
                       </View>
                       <View style={styles.expenseInfo}>
                         <Text style={styles.expenseName} numberOfLines={1}>{expense.title}</Text>
-                        <Text style={styles.expenseDate}>{expense.date}</Text>
+                        <Text style={styles.expenseDate}>{typeof expense.date === 'string' ? expense.date : expense.date?.toLocaleDateString()}</Text>
                       </View>
                       <Text style={styles.expenseAmount}>-{formatCurrency(expense.amount)}</Text>
                     </TouchableOpacity>

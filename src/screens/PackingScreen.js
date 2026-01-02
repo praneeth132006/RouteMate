@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTravelContext } from '../context/TravelContext';
 import { useTheme } from '../context/ThemeContext';
 import Icon from '../components/Icon';
+import { generatePackingList } from '../services/aiService';
 
 const { width } = Dimensions.get('window');
 
@@ -45,6 +46,9 @@ export default function PackingScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
   const [newItem, setNewItem] = useState({ name: '', category: 'essentials', quantity: '1', notes: '' });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState([]);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -70,6 +74,52 @@ export default function PackingScreen() {
 
   const handleDeleteItem = (id) => {
     deletePackingItem(id);
+  };
+
+  const handleAiSuggest = async () => {
+    setIsGenerating(true);
+    try {
+      // Get month from tripInfo.startDate (format: "DD MMM YYYY")
+      const monthRegex = /[a-zA-Z]+/;
+      const monthMatch = tripInfo.startDate?.match(monthRegex);
+      const month = monthMatch ? monthMatch[0] : 'Jan';
+
+      const res = await generatePackingList(
+        tripInfo.destination || 'Selected Destination',
+        month,
+        1, // Hardcoded duration for now or calculate from tripInfo
+        tripInfo.tripType || 'solo'
+      );
+
+      if (res.success) {
+        setAiSuggestions(res.recommendations);
+        setShowAiModal(true);
+      }
+    } catch (error) {
+      Alert.alert('AI Error', 'Failed to get suggestions.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const addAllAiSuggestions = () => {
+    aiSuggestions.forEach(cat => {
+      cat.items.forEach(item => {
+        // Only add if not already in list
+        if (!packingItems.some(p => p.name.toLowerCase() === item.toLowerCase())) {
+          addPackingItem({
+            name: item,
+            category: cat.category.toLowerCase().includes('essential') ? 'essentials' :
+              cat.category.toLowerCase().includes('cloth') ? 'clothing' :
+                cat.category.toLowerCase().includes('toilet') ? 'toiletries' :
+                  cat.category.toLowerCase().includes('elect') ? 'electronics' : 'other',
+            quantity: 1,
+            notes: 'Suggested by AI'
+          });
+        }
+      });
+    });
+    setShowAiModal(false);
   };
 
   const getCategoryInfo = (key) => PACKING_CATEGORIES.find(c => c.key === key) || PACKING_CATEGORIES[7];
@@ -108,6 +158,20 @@ export default function PackingScreen() {
             {tripInfo.destination ? `For ${tripInfo.destination}` : 'Pack smart, travel light'}
           </Text>
         </View>
+        <TouchableOpacity
+          style={[styles.aiSuggestBtn, isGenerating && { opacity: 0.7 }]}
+          onPress={handleAiSuggest}
+          disabled={isGenerating}
+        >
+          {isGenerating ? (
+            <Text style={styles.aiBtnText}>Thinking...</Text>
+          ) : (
+            <>
+              <Text style={styles.aiBtnIcon}>✨</Text>
+              <Text style={styles.aiBtnText}>AI Suggest</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -406,6 +470,53 @@ export default function PackingScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* AI Suggestions Modal */}
+      <Modal visible={showAiModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>AI Smart Suggestions ✨</Text>
+                <Text style={styles.modalSubtitle}>Based on {tripInfo.destination || 'your destination'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAiModal(false)} style={styles.modalClose}>
+                <Icon name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {aiSuggestions.map((cat, idx) => (
+                <View key={idx} style={styles.aiCatGroup}>
+                  <Text style={styles.aiCatTitle}>{cat.category}</Text>
+                  <View style={styles.aiSuggestGrid}>
+                    {cat.items.map((item, iIdx) => {
+                      const exists = packingItems.some(p => p.name.toLowerCase() === item.toLowerCase());
+                      return (
+                        <TouchableOpacity
+                          key={iIdx}
+                          style={[styles.aiItemPill, exists && styles.aiItemPillDisabled]}
+                          onPress={() => !exists && handleQuickAdd(item, cat.category.toLowerCase().includes('essential') ? 'essentials' : 'other')}
+                        >
+                          <Text style={[styles.aiItemText, exists && styles.aiItemTextDisabled]}>
+                            {exists ? '✅ ' : '+ '}{item}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+
+              <TouchableOpacity style={styles.addAllBtn} onPress={addAllAiSuggestions}>
+                <Text style={styles.addAllText}>Add All Suggested Items</Text>
+              </TouchableOpacity>
+              <View style={{ height: 30 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -535,4 +646,30 @@ const createStyles = (colors) => StyleSheet.create({
   // Submit
   submitBtn: { backgroundColor: colors.primary, padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 10 },
   submitBtnText: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
+
+  // AI Buttons & Suggestions
+  aiSuggestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  aiBtnIcon: { fontSize: 14, marginRight: 6 },
+  aiBtnText: { color: '#8B5CF6', fontSize: 13, fontWeight: 'bold' },
+
+  modalSubtitle: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  aiCatGroup: { marginBottom: 20 },
+  aiCatTitle: { color: colors.text, fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  aiSuggestGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  aiItemPill: { backgroundColor: colors.cardLight, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: colors.primaryBorder },
+  aiItemPillDisabled: { opacity: 0.6, borderColor: 'transparent' },
+  aiItemText: { color: colors.text, fontSize: 13 },
+  aiItemTextDisabled: { color: colors.textMuted },
+
+  addAllBtn: { backgroundColor: colors.text, padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 20 },
+  addAllText: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
 });
