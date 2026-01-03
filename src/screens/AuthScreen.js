@@ -34,6 +34,8 @@ export default function AuthScreen() {
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [isResetSent, setIsResetSent] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [legalType, setLegalType] = useState('terms'); // 'terms' or 'privacy'
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -112,11 +114,13 @@ export default function AuthScreen() {
   };
 
   const handleOpenPrivacy = () => {
-    Linking.openURL('https://sites.google.com/view/routemate-privacy-policy/home');
+    setLegalType('privacy');
+    setShowTermsModal(true);
   };
 
   const handleOpenTerms = () => {
-    Linking.openURL('https://sites.google.com/view/routemate-terms-and-conditions/home');
+    setLegalType('terms');
+    setShowTermsModal(true);
   };
 
   const renderInput = (field, placeholder, icon, options = {}) => (
@@ -160,155 +164,157 @@ export default function AuthScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
+          {/* Header (Premium Logo) */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Icon name="route" size={50} color={colors.primary} />
+            <View style={styles.logoBadge}>
+              <Icon name="route" size={42} color={colors.primary} />
             </View>
             <Text style={styles.appName}>RouteMate</Text>
-            <Text style={styles.tagline}>Your journey begins here</Text>
+            <Text style={styles.tagline}>Discover your next adventure</Text>
           </View>
 
-          {/* Form Card */}
-          <View style={styles.formCard}>
-            {showForgotPassword && isResetSent ? (
-              <View style={styles.successContainer}>
-                <View style={styles.successIconBg}>
-                  <Icon name="check" size={40} color="#10B981" />
-                </View>
-                <Text style={styles.successTitle}>Check Your Email</Text>
-                <Text style={styles.successMessage}>
-                  We've sent password reset link to {formData.email}. Check your spam folder if you don't see it.
-                </Text>
-                <TouchableOpacity
-                  style={styles.backToLoginBtn}
-                  onPress={() => {
-                    setShowForgotPassword(false);
-                    setIsResetSent(false);
-                  }}
-                >
-                  <Text style={styles.backToLoginText}>Back to Sign In</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                <Text style={styles.formTitle}>
-                  {showForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back!' : 'Create Account'}
-                </Text>
-                <Text style={styles.formSubtitle}>
-                  {showForgotPassword
-                    ? 'Enter your email to receive reset instructions'
-                    : isLogin
-                      ? 'Sign in to continue your adventures'
-                      : 'Start planning your dream trips'}
-                </Text>
-
-                {/* Name Input (Sign Up only) */}
-                {!isLogin && !showForgotPassword && (
-                  <View style={styles.inputWrapper}>
-                    {renderInput('name', 'Full Name', <Icon name="user" size={18} color={colors.primary} />, { autoCapitalize: 'words' })}
-                    {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+          {/* Centered Dialog Container */}
+          <View style={styles.dialogWrapper}>
+            <View style={styles.formCard}>
+              {showForgotPassword && isResetSent ? (
+                <View style={styles.successContainer}>
+                  <View style={styles.successIconBg}>
+                    <Icon name="check" size={40} color="#10B981" />
                   </View>
-                )}
-
-                {/* Email Input */}
-                <View style={styles.inputWrapper}>
-                  {renderInput('email', 'Email Address', <Icon name="email" size={18} color={colors.primary} />, { keyboardType: 'email-address' })}
-                  {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-                </View>
-
-                {/* Password Input */}
-                {!showForgotPassword && (
-                  <View style={styles.inputWrapper}>
-                    {renderInput('password', 'Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
-                    {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-                  </View>
-                )}
-
-                {/* Confirm Password (Sign Up only) */}
-                {!isLogin && !showForgotPassword && (
-                  <View style={styles.inputWrapper}>
-                    {renderInput('confirmPassword', 'Confirm Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
-                    {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-                  </View>
-                )}
-
-                {/* Forgot Password Link */}
-                {isLogin && !showForgotPassword && (
+                  <Text style={styles.successTitle}>Check Your Email</Text>
+                  <Text style={styles.successMessage}>
+                    We've sent password reset link to {formData.email}. Check your spam folder if you don't see it.
+                  </Text>
                   <TouchableOpacity
-                    style={styles.forgotButton}
+                    style={styles.backToLoginBtn}
                     onPress={() => {
-                      setShowForgotPassword(true);
+                      setShowForgotPassword(false);
                       setIsResetSent(false);
                     }}
                   >
-                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                    <Text style={styles.backToLoginText}>Back to Sign In</Text>
                   </TouchableOpacity>
-                )}
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.formTitle}>
+                    {showForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back!' : 'Create Account'}
+                  </Text>
+                  <Text style={styles.formSubtitle}>
+                    {showForgotPassword
+                      ? 'Enter your email to receive reset instructions'
+                      : isLogin
+                        ? 'Sign in to continue your adventures'
+                        : 'Start planning your dream trips'}
+                  </Text>
 
-                {/* Submit Button */}
-                <TouchableOpacity
-                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                  onPress={handleSubmit}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color={colors.bg} size="small" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>
-                      {showForgotPassword ? 'Send Reset Link' : isLogin ? 'Sign In' : 'Create Account'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-
-                {!showForgotPassword && (
-                  <>
-                    <View style={styles.divider}>
-                      <View style={styles.dividerLine} />
-                      <Text style={styles.dividerText}>OR</Text>
-                      <View style={styles.dividerLine} />
+                  {/* Name Input (Sign Up only) */}
+                  {!isLogin && !showForgotPassword && (
+                    <View style={styles.inputWrapper}>
+                      {renderInput('name', 'Full Name', <Icon name="user" size={18} color={colors.primary} />, { autoCapitalize: 'words' })}
+                      {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
                     </View>
+                  )}
 
+                  {/* Email Input */}
+                  <View style={styles.inputWrapper}>
+                    {renderInput('email', 'Email Address', <Icon name="email" size={18} color={colors.primary} />, { keyboardType: 'email-address' })}
+                    {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+                  </View>
+
+                  {/* Password Input */}
+                  {!showForgotPassword && (
+                    <View style={styles.inputWrapper}>
+                      {renderInput('password', 'Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
+                      {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                    </View>
+                  )}
+
+                  {/* Confirm Password (Sign Up only) */}
+                  {!isLogin && !showForgotPassword && (
+                    <View style={styles.inputWrapper}>
+                      {renderInput('confirmPassword', 'Confirm Password', <Icon name="password" size={18} color={colors.primary} />, { secureTextEntry: true })}
+                      {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+                    </View>
+                  )}
+
+                  {/* Forgot Password Link */}
+                  {isLogin && !showForgotPassword && (
                     <TouchableOpacity
-                      style={styles.googleButton}
-                      onPress={handleGoogleSignIn}
-                      disabled={loading}
+                      style={styles.forgotButton}
+                      onPress={() => {
+                        setShowForgotPassword(true);
+                        setIsResetSent(false);
+                      }}
                     >
-                      <Image
-                        source={{ uri: 'https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png' }}
-                        style={styles.googleIcon}
-                      />
-                      <Text style={styles.googleButtonText}>Continue with Google</Text>
+                      <Text style={styles.forgotText}>Forgot Password?</Text>
                     </TouchableOpacity>
-                  </>
-                )}
+                  )}
 
-                {/* Back to Login (from Forgot Password) */}
-                {showForgotPassword && (
+                  {/* Submit Button */}
                   <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => setShowForgotPassword(false)}
+                    style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={loading}
                   >
-                    <Text style={styles.backButtonText}>← Back to Sign In</Text>
+                    {loading ? (
+                      <ActivityIndicator color={colors.bg} size="small" />
+                    ) : (
+                      <Text style={styles.submitButtonText}>
+                        {showForgotPassword ? 'Send Reset Link' : isLogin ? 'Sign In' : 'Create Account'}
+                      </Text>
+                    )}
                   </TouchableOpacity>
-                )}
-              </>
+
+                  {!showForgotPassword && (
+                    <>
+                      <View style={styles.divider}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>OR</Text>
+                        <View style={styles.dividerLine} />
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.googleButton}
+                        onPress={handleGoogleSignIn}
+                        disabled={loading}
+                      >
+                        <Image
+                          source={{ uri: 'https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png' }}
+                          style={styles.googleIcon}
+                        />
+                        <Text style={styles.googleButtonText}>Continue with Google</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {/* Back to Login (from Forgot Password) */}
+                  {showForgotPassword && (
+                    <TouchableOpacity
+                      style={styles.backButton}
+                      onPress={() => setShowForgotPassword(false)}
+                    >
+                      <Text style={styles.backButtonText}>← Back to Sign In</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </View>
+
+            {/* Switch Mode (Inside Dialog Wrapper) */}
+            {!showForgotPassword && (
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchText}>
+                  {isLogin ? "Don't have an account?" : 'Already have an account?'}
+                </Text>
+                <TouchableOpacity onPress={switchMode}>
+                  <Text style={styles.switchButton}>
+                    {isLogin ? 'Sign Up' : 'Sign In'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
-
-          {/* Switch Mode */}
-          {!showForgotPassword && (
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchText}>
-                {isLogin ? "Don't have an account?" : 'Already have an account?'}
-              </Text>
-              <TouchableOpacity onPress={switchMode}>
-                <Text style={styles.switchButton}>
-                  {isLogin ? 'Sign Up' : 'Sign In'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
 
           {/* Terms */}
           {!isLogin && !showForgotPassword && (
@@ -320,6 +326,60 @@ export default function AuthScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Legal Dialog (dialog-08) - Web Compatible */}
+      {showTermsModal && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%', width: '90%', maxWidth: 400 }]}>
+            <View style={styles.dialogHeader}>
+              <View style={[styles.dialogIconContainer, { backgroundColor: colors.primaryMuted }]}>
+                <Icon name={legalType === 'terms' ? 'link' : 'lock'} size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.dialogTitle}>
+                {legalType === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+              </Text>
+              <Text style={styles.dialogDescription}>
+                {legalType === 'terms'
+                  ? 'Please review our rules and guidelines for using RouteMate.'
+                  : 'Learn how we collect, use, and protect your personal data.'}
+              </Text>
+            </View>
+
+            <ScrollView style={styles.legalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.legalContent}>
+                {legalType === 'terms' ? (
+                  `Welcome to RouteMate. By using our application, you agree to:
+\n• Use the service responsibly for personal travel planning.
+• Provide accurate information for trip synchronization.
+• Respect international travel laws and local regulations.
+• Not attempt to reverse engineer or disrupt the service.
+\nRouteMate is designed to simplify your travel, but we are not responsible for delays, cancellations, or external service failures.`
+                ) : (
+                  `Your privacy is our priority. RouteMate collects:
+\n• Account details (Email, Name) for personalization.
+• Trip data (Destinations, Budgets) for persistence.
+• Device information for performance monitoring.
+\nWe do NOT sell your data to third parties. All synchronization is handled through secure Firebase services. You can delete your account and all associated data at any time from the profile settings.`
+                )}
+              </Text>
+
+              <TouchableOpacity
+                style={styles.fullLegalLink}
+                onPress={() => Linking.openURL(legalType === 'terms' ? 'https://sites.google.com/view/routemate-terms-and-conditions/home' : 'https://sites.google.com/view/routemate-privacy-policy/home')}
+              >
+                <Text style={styles.fullLegalLinkText}>View Full Document →</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.dialogCloseBtn}
+              onPress={() => setShowTermsModal(false)}
+            >
+              <Text style={styles.dialogCloseText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView >
   );
 }
@@ -341,6 +401,27 @@ const createStyles = (colors) => StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 32,
+  },
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    backgroundColor: colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder,
+    ...Platform.select({
+      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+      android: { elevation: 8 },
+      web: { boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }
+    }),
+  },
+  dialogWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoContainer: {
     width: 100,
@@ -568,4 +649,54 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 17,
     fontWeight: 'bold',
   },
+  // Modal & Dialog Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20 },
+      android: { elevation: 10 },
+      web: { boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }
+    }),
+  },
+  dialogHeader: { alignItems: 'center', marginBottom: 24 },
+  dialogIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  dialogTitle: { fontSize: 22, fontWeight: 'bold', color: colors.text, marginBottom: 12, textAlign: 'center' },
+  dialogDescription: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 22, paddingHorizontal: 8 },
+  legalScroll: { marginVertical: 20, maxHeight: 300 },
+  legalContent: { fontSize: 14, color: colors.text, lineHeight: 24, opacity: 0.9, marginBottom: 8 },
+  fullLegalLink: { marginTop: 20, paddingVertical: 12, alignItems: 'center' },
+  fullLegalLinkText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
+  dialogCloseBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  dialogCloseText: { color: colors.bg, fontWeight: 'bold', fontSize: 16 },
 });

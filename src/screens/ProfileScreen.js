@@ -7,14 +7,20 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  Modal,
   Image,
   Switch,
   Animated,
   Dimensions,
   Platform,
   Linking,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, THEMES } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -101,10 +107,100 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [legalType, setLegalType] = useState('terms'); // 'terms' or 'privacy'
+  const [showFaqModal, setShowFaqModal] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingForm, setRatingForm] = useState({ rating: 5, message: '' });
+  const [expandedFaq, setExpandedFaq] = useState(null);
+  const faqRotations = useRef({
+    0: new Animated.Value(0),
+    1: new Animated.Value(0),
+    2: new Animated.Value(0),
+    3: new Animated.Value(0),
+    4: new Animated.Value(0),
+  }).current;
   const [editForm, setEditForm] = useState({
     displayName: user?.displayName || '',
     avatar: 'profile',
   });
+
+  // FAQ Data
+  const faqData = [
+    {
+      question: 'How do I create a new trip?',
+      answer: 'From the home screen, tap "Plan a Trip" to start creating your journey. Choose your trip type (solo, friends, family, couple, or business), select your destination, set dates, and budget. Your trip will be saved automatically!'
+    },
+    {
+      question: 'How do I share my trip with friends?',
+      answer: 'Each trip has a unique trip code. Share this code with your travel companions, and they can join by selecting "Join a Trip" on their RouteMate app and entering the code.'
+    },
+    {
+      question: 'Can I use RouteMate offline?',
+      answer: 'Yes! Your trip data is stored locally on your device. You can view and edit your trips offline. Changes will sync to the cloud when you\'re back online.'
+    },
+    {
+      question: 'How do I track my expenses?',
+      answer: 'Navigate to the Expenses tab in your active trip. Tap the + button to add expenses. You can categorize them, split costs between travelers, and see spending breakdowns by category.'
+    },
+    {
+      question: 'How can I contact support?',
+      answer: 'You can reach us at praneeth132006b@gmail.com. We typically respond within 24-48 hours. For urgent issues, include "URGENT" in your subject line.'
+    },
+  ];
+
+  const handleOpenLegal = (type) => {
+    setLegalType(type);
+    setShowLegalModal(true);
+  };
+
+  const handleOpenFaq = () => {
+    setShowFaqModal(true);
+  };
+
+  const handleOpenRating = () => {
+    setRatingForm({ rating: 5, message: '' });
+    setShowRatingModal(true);
+  };
+
+  const toggleFaq = (index) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const newExpanded = expandedFaq === index ? null : index;
+
+    // Animate chevron rotation
+    if (expandedFaq !== null && expandedFaq !== index) {
+      Animated.timing(faqRotations[expandedFaq], {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+
+    Animated.timing(faqRotations[index], {
+      toValue: newExpanded === index ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+
+    setExpandedFaq(newExpanded);
+  };
+
+  const handleSubmitRating = () => {
+    const email = 'praneeth132006@gmail.com';
+    const subject = `RouteMate Rating: ${ratingForm.rating} Stars`;
+    const body = `Rating: ${ratingForm.rating}/5 Stars\n\nFeedback:\n${ratingForm.message}\n\n---\nSent from RouteMate App`;
+
+    if (Platform.OS === 'web') {
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      Linking.openURL(gmailUrl);
+    } else {
+      Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    }
+
+    setShowRatingModal(false);
+    showAlert('Thank you for your feedback!', 'success');
+  };
   const [selectedAvatar, setSelectedAvatar] = useState(user?.photoURL || 'man7');
 
   const handleHelpSupport = () => {
@@ -187,12 +283,15 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
       const result = await deleteAccount();
       if (result.success) {
         console.log('Account deleted successfully');
-        // User will be automatically signed out and redirected
+        setShowDeleteModal(false);
+        showAlert('Account deleted successfully.', 'success');
       } else {
         console.error('Delete account failed:', result.error);
+        showAlert(result.error || 'Failed to delete account.', 'destructive');
       }
     } catch (error) {
       console.error('Delete account error:', error);
+      showAlert('An unexpected error occurred.', 'destructive');
     }
   };
 
@@ -250,9 +349,9 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
   };
 
   const renderTripListModal = (visible, setVisible, title, trips, emptyMessage, emptyEmoji) => (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { maxHeight: '90%', height: '90%' }]}>
+    visible && (
+      <View style={styles.fullScreenOverlay}>
+        <View style={[styles.dialogContainer, { maxHeight: '90%', height: '90%', padding: 0 }]}>
           <View style={styles.modalHeader}>
             <View>
               <Text style={styles.modalTitle}>{title}</Text>
@@ -317,7 +416,206 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
           </ScrollView>
         </View>
       </View>
-    </Modal>
+    )
+  );
+
+  const renderDeleteModal = () => (
+    showDeleteModal && (
+      <View style={styles.fullScreenOverlay}>
+        <View style={[styles.dialogContainer, { maxWidth: 360 }]}>
+          <View style={styles.dialogHeader}>
+            <View style={[styles.dialogIconContainer, { backgroundColor: '#FEF2F2' }]}>
+              <Icon name="delete" size={24} color="#EF4444" />
+            </View>
+            <Text style={styles.dialogTitle}>Delete Account?</Text>
+            <Text style={styles.dialogDescription}>
+              This action is permanent and cannot be undone. All your trips, expenses, and data will be lost forever.
+            </Text>
+          </View>
+
+          <View style={styles.dialogFooter}>
+            <TouchableOpacity
+              style={styles.dialogCancelBtn}
+              onPress={() => setShowDeleteModal(false)}
+            >
+              <Text style={styles.dialogCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dialogDeleteBtn}
+              onPress={handleDeleteAccount}
+            >
+              <Text style={styles.dialogDeleteText}>Delete Permanently</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    )
+  );
+
+  const renderLegalModal = () => (
+    showLegalModal && (
+      <View style={styles.fullScreenOverlay}>
+        <View style={[styles.dialogContainer, { maxWidth: 400, maxHeight: '80%' }]}>
+          <View style={styles.dialogHeader}>
+            <View style={[styles.dialogIconContainer, { backgroundColor: colors.primaryMuted }]}>
+              <Icon name={legalType === 'terms' ? 'link' : 'lock'} size={24} color={colors.primary} />
+            </View>
+            <Text style={styles.dialogTitle}>
+              {legalType === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+            </Text>
+            <Text style={styles.dialogDescription}>
+              {legalType === 'terms'
+                ? 'Please review our rules and guidelines for using RouteMate.'
+                : 'Learn how we collect, use, and protect your personal data.'}
+            </Text>
+          </View>
+
+          <ScrollView style={styles.legalScroll} showsVerticalScrollIndicator={false}>
+            <Text style={styles.legalContent}>
+              {legalType === 'terms' ? (
+                `Welcome to RouteMate. By using our application, you agree to:\n\n• Use the service responsibly for personal travel planning.\n\n• Provide accurate information for trip synchronization.\n\n• Respect international travel laws and local regulations.\n\n• Not attempt to reverse engineer or disrupt the service.\n\nRouteMate is designed to simplify your travel, but we are not responsible for delays, cancellations, or external service failures.`
+              ) : (
+                `Your privacy is our priority. RouteMate collects:\n\n• Account details (Email, Name) for personalization.\n\n• Trip data (Destinations, Budgets) for persistence.\n\n• Device information for performance monitoring.\n\nWe do NOT sell your data to third parties. All synchronization is handled through secure Firebase services. You can delete your account and all associated data at any time from the profile settings.`
+              )}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.fullLegalLink}
+              onPress={() => Linking.openURL(legalType === 'terms' ? 'https://sites.google.com/view/routemate-terms-and-conditions/home' : 'https://sites.google.com/view/routemate-privacy-policy/home')}
+            >
+              <Text style={styles.fullLegalLinkText}>View Full Document →</Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.legalCloseBtn}
+            onPress={() => setShowLegalModal(false)}
+          >
+            <Text style={styles.legalCloseText}>Got it</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
+  );
+
+  const renderFaqModal = () => (
+    showFaqModal && (
+      <View style={styles.fullScreenOverlay}>
+        <View style={[styles.dialogContainer, { maxWidth: 450, maxHeight: '85%' }]}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>Help & Support</Text>
+              <Text style={styles.modalSubtitle}>Frequently Asked Questions</Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowFaqModal(false)}>
+              <Icon name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.faqScroll} showsVerticalScrollIndicator={false}>
+            {faqData.map((faq, index) => {
+              const rotation = faqRotations[index].interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0deg', '180deg'],
+              });
+
+              return (
+                <View key={index} style={styles.faqItem}>
+                  <TouchableOpacity
+                    style={styles.faqHeader}
+                    onPress={() => toggleFaq(index)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.faqQuestion}>{faq.question}</Text>
+                    <Animated.View style={{ transform: [{ rotate: rotation }] }}>
+                      <Icon name="back" size={18} color={colors.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                    </Animated.View>
+                  </TouchableOpacity>
+                  {expandedFaq === index && (
+                    <View style={styles.faqAnswerContainer}>
+                      <Text style={styles.faqAnswer}>{faq.answer}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+
+            <View style={styles.faqContactSection}>
+              <Text style={styles.faqContactTitle}>Still need help?</Text>
+              <TouchableOpacity style={styles.faqContactBtn} onPress={handleHelpSupport}>
+                <Icon name="email" size={18} color={colors.primary} style={{ marginRight: 8 }} />
+                <Text style={styles.faqContactText}>Contact Support</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    )
+  );
+
+  const renderRatingModal = () => (
+    showRatingModal && (
+      <View style={styles.fullScreenOverlay}>
+        <View style={[styles.dialogContainer, { maxWidth: 380 }]}>
+          <View style={styles.dialogHeader}>
+            <View style={[styles.dialogIconContainer, { backgroundColor: '#EC489920' }]}>
+              <Icon name="heart" size={28} color="#EC4899" />
+            </View>
+            <Text style={styles.dialogTitle}>Rate RouteMate</Text>
+            <Text style={styles.dialogDescription}>
+              Your feedback helps us improve! How would you rate your experience?
+            </Text>
+          </View>
+
+          <View style={styles.ratingStarsContainer}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity
+                key={star}
+                onPress={() => setRatingForm({ ...ratingForm, rating: star })}
+                style={styles.ratingStar}
+              >
+                <Text style={[
+                  styles.ratingStarText,
+                  { opacity: star <= ratingForm.rating ? 1 : 0.3 }
+                ]}>
+                  ⭐
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.ratingLabel}>{ratingForm.rating}/5 Stars</Text>
+
+          <View style={styles.ratingInputContainer}>
+            <Text style={styles.ratingInputLabel}>Your feedback (optional)</Text>
+            <TextInput
+              style={styles.ratingInput}
+              placeholder="Tell us what you think..."
+              placeholderTextColor={colors.textMuted}
+              value={ratingForm.message}
+              onChangeText={(text) => setRatingForm({ ...ratingForm, message: text })}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+
+          <View style={styles.ratingFooter}>
+            <TouchableOpacity
+              style={styles.ratingCancelBtn}
+              onPress={() => setShowRatingModal(false)}
+            >
+              <Text style={styles.ratingCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.ratingSubmitBtn}
+              onPress={handleSubmitRating}
+            >
+              <Text style={styles.ratingSubmitText}>Submit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    )
   );
 
   return (
@@ -457,7 +755,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
           <Text style={styles.sectionTitle}>Account & Security</Text>
 
 
-          <AnimatedCard delay={325} onPress={() => Linking.openURL('https://sites.google.com/view/routemate-privacy-policy/home')}>
+          <AnimatedCard delay={325} onPress={() => handleOpenLegal('privacy')}>
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
                 <View style={[styles.settingIconBg, { backgroundColor: isDark ? '#6B728040' : '#6B728020' }]}>
@@ -472,7 +770,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
             </View>
           </AnimatedCard>
 
-          <AnimatedCard delay={335} onPress={() => Linking.openURL('https://sites.google.com/view/routemate-terms-and-conditions/home')}>
+          <AnimatedCard delay={335} onPress={() => handleOpenLegal('terms')}>
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
                 <View style={[styles.settingIconBg, { backgroundColor: isDark ? '#6B728040' : '#6B728020' }]}>
@@ -492,7 +790,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
 
-          <AnimatedCard delay={350} onPress={handleHelpSupport}>
+          <AnimatedCard delay={350} onPress={handleOpenFaq}>
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
                 <View style={[styles.settingIconBg, { backgroundColor: isDark ? '#06B6D440' : '#06B6D420' }]}>
@@ -507,7 +805,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
             </View>
           </AnimatedCard>
 
-          <AnimatedCard delay={375} onPress={handleRateApp}>
+          <AnimatedCard delay={375} onPress={handleOpenRating}>
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
                 <View style={[styles.settingIconBg, { backgroundColor: isDark ? '#EC489940' : '#EC489920' }]}>
@@ -542,7 +840,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
             </View>
           </AnimatedCard>
 
-          <AnimatedCard delay={425} onPress={handleDeleteAccount}>
+          <AnimatedCard delay={425} onPress={() => setShowDeleteModal(true)}>
             <View style={[styles.settingItem, styles.dangerItem]}>
               <View style={styles.settingLeft}>
                 <View style={[styles.settingIconBg, { backgroundColor: '#EF444420' }]}>
@@ -572,9 +870,9 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
       </ScrollView>
 
       {/* Edit Profile Modal */}
-      <Modal visible={showEditModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+      {showEditModal && (
+        <View style={styles.fullScreenOverlay}>
+          <View style={[styles.dialogContainer, { maxWidth: 400 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Profile</Text>
               <TouchableOpacity onPress={() => setShowEditModal(false)}>
@@ -615,12 +913,12 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
             </View>
           </View>
         </View>
-      </Modal>
+      )}
 
       {/* Currency Picker Modal */}
-      <Modal visible={showCurrencyPicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '70%' }]}>
+      {showCurrencyPicker && (
+        <View style={styles.fullScreenOverlay}>
+          <View style={[styles.dialogContainer, { maxHeight: '70%', maxWidth: 400 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Currency</Text>
               <TouchableOpacity onPress={() => setShowCurrencyPicker(false)}>
@@ -657,12 +955,12 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      )}
 
       {/* Avatar Picker Modal */}
-      <Modal visible={showAvatarPicker} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+      {showAvatarPicker && (
+        <View style={styles.fullScreenOverlay}>
+          <View style={[styles.dialogContainer, { maxWidth: 400 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Choose Avatar</Text>
               <TouchableOpacity onPress={() => setShowAvatarPicker(false)}>
@@ -694,12 +992,12 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
             </View>
           </View>
         </View>
-      </Modal>
+      )}
 
       {/* Theme Picker Modal */}
-      <Modal visible={showThemePicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '70%', height: '70%' }]}>
+      {showThemePicker && (
+        <View style={styles.fullScreenOverlay}>
+          <View style={[styles.dialogContainer, { maxHeight: '70%', height: '70%', maxWidth: 400 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Choose Theme</Text>
               <TouchableOpacity onPress={() => setShowThemePicker(false)}>
@@ -743,7 +1041,7 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      )}
 
       {renderTripListModal(
         showHistoryModal,
@@ -753,6 +1051,11 @@ export default function ProfileScreen({ onBack, onOpenTrip }) {
         'No completed trips yet.',
         '🏝️'
       )}
+
+      {renderDeleteModal()}
+      {renderLegalModal()}
+      {renderFaqModal()}
+      {renderRatingModal()}
     </SafeAreaView>
   );
 }
@@ -1267,4 +1570,219 @@ const createStyles = (colors, isDark) => StyleSheet.create({
     marginLeft: 10,
   },
   themeCheckText: { color: colors.bg, fontSize: 16, fontWeight: 'bold' },
+
+  // Dialog Styles
+  dialogHeader: { alignItems: 'center', marginBottom: 24, paddingHorizontal: 8 },
+  dialogIconContainer: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  dialogTitle: { fontSize: 24, fontWeight: 'bold', color: colors.text, marginBottom: 8, textAlign: 'center' },
+  dialogDescription: { fontSize: 16, color: colors.textMuted, textAlign: 'center', lineHeight: 22, paddingHorizontal: 4 },
+  dialogFooter: { gap: 12, paddingTop: 8 },
+  dialogCancelBtn: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.primaryBorder },
+  dialogCancelText: { fontSize: 16, fontWeight: '700', color: colors.text },
+  dialogDeleteBtn: { paddingVertical: 16, borderRadius: 12, alignItems: 'center', backgroundColor: '#EF4444' },
+  dialogDeleteText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
+  // Full Screen Overlay (for web compatibility)
+  fullScreenOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    zIndex: 1000,
+  },
+  dialogContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+      },
+      android: { elevation: 10 },
+      web: { boxShadow: '0 10px 50px rgba(0,0,0,0.3)' }
+    }),
+  },
+
+  // Legal Modal Styles
+  legalScroll: {
+    maxHeight: 280,
+    marginBottom: 16,
+  },
+  legalContent: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 24,
+    opacity: 0.9,
+  },
+  fullLegalLink: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  fullLegalLinkText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  legalCloseBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  legalCloseText: {
+    color: colors.bg,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+
+  // FAQ Accordion Styles
+  faqScroll: {
+    maxHeight: 450,
+  },
+  faqItem: {
+    backgroundColor: colors.cardLight,
+    borderRadius: 14,
+    marginBottom: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  faqHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  faqQuestion: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+    marginRight: 12,
+  },
+  faqAnswerContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 0,
+    borderTopWidth: 1,
+    borderTopColor: colors.primaryBorder,
+    backgroundColor: isDark ? colors.card : '#F9FAFB',
+  },
+  faqAnswer: {
+    fontSize: 14,
+    color: colors.textMuted,
+    lineHeight: 22,
+    paddingTop: 12,
+  },
+  faqContactSection: {
+    marginTop: 16,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.primaryBorder,
+    alignItems: 'center',
+  },
+  faqContactTitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginBottom: 12,
+  },
+  faqContactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryMuted,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  faqContactText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+
+  // Rating Modal Styles
+  ratingStarsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 8,
+    gap: 8,
+  },
+  ratingStar: {
+    padding: 4,
+  },
+  ratingStarText: {
+    fontSize: 36,
+  },
+  ratingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  ratingInputContainer: {
+    marginBottom: 20,
+  },
+  ratingInputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: 8,
+  },
+  ratingInput: {
+    backgroundColor: colors.cardLight,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    minHeight: 100,
+    outlineStyle: 'none',
+  },
+  ratingFooter: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  ratingCancelBtn: {
+    flex: 1,
+    backgroundColor: colors.cardLight,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  ratingCancelText: {
+    color: colors.text,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  ratingSubmitBtn: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  ratingSubmitText: {
+    color: colors.bg,
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
 });
+
