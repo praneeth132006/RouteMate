@@ -47,6 +47,10 @@ export const useTravelContext = () => {
       setCurrency: () => { },
       clearTrip: async () => { },
       deleteTripFromHistory: () => { },
+      tripPreferences: {},
+      userPlan: 'free',
+      saveTripPreferences: () => { },
+      toggleUserPlan: () => { },
     };
   }
   return context;
@@ -77,6 +81,12 @@ export const TravelProvider = ({ children }) => {
   const [customCategories, setCustomCategories] = useState(DEFAULT_CATEGORIES);
   const [isLoading, setIsLoading] = useState(false);
   const [tripOwnerId, setTripOwnerId] = useState(null);
+
+  // New State for AI Personalization
+  const [tripPreferences, setTripPreferences] = useState({});
+  const [userPlan, setUserPlan] = useState('free'); // 'free' or 'pro'
+
+
 
   // --- Derived ---
   const localParticipantId = useMemo(() => {
@@ -752,6 +762,29 @@ export const TravelProvider = ({ children }) => {
 
 
 
+  // --- AI Personalization & Subscription ---
+
+  const toggleUserPlan = () => {
+    setUserPlan(prev => prev === 'free' ? 'pro' : 'free');
+  };
+
+  const saveTripPreferences = async (preferences) => {
+    setTripPreferences(preferences);
+
+    // Update local trip info state with preferences
+    setTripInfoState(prev => ({ ...prev, preferences }));
+
+    if (isAuthenticated && tripInfo.id) {
+      try {
+        await DB.saveTripPreferences(tripInfo.id, preferences);
+        // Also update the main trip record to include these preferences
+        await DB.saveTrip({ ...tripInfo, preferences });
+      } catch (error) {
+        console.error('Error saving trip preferences:', error);
+      }
+    }
+  };
+
   // Join trip by code - Fix: Store as reference, don't copy
   const findTripByCode = async (code) => {
     try {
@@ -893,6 +926,10 @@ export const TravelProvider = ({ children }) => {
       deleteTripFromHistory, deleteTrip, resetLocalState, findTripByCode,
       joinTripByCode, joinAsNewTraveler, switchToTrip, tripOwnerId, getUniqueTripCode,
       saveCurrentTripToList,
+      tripPreferences,
+      userPlan,
+      saveTripPreferences,
+      toggleUserPlan,
       allTrips, setAllTrips,
       isLoading,
     }}>

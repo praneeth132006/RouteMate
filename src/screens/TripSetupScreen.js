@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView,
   StyleSheet, Animated, Pressable, KeyboardAvoidingView, Platform, Alert, Image
@@ -19,6 +19,11 @@ const TRIP_TYPES = [
   { key: 'family', label: 'Family Trip', icon: 'family', description: 'Quality time with family', color: '#F59E0B' },
   { key: 'couple', label: 'Couple Trip', icon: 'couple', description: 'Romantic getaway for two', color: '#EC4899' },
   { key: 'business', label: 'Business Trip', icon: 'business', description: 'Work travel with leisure', color: '#8B5CF6' },
+];
+
+const TRIP_MODES = [
+  { key: 'single-base', label: 'Single-Base Trip', icon: 'home', description: 'Stay in one city/location and explore around.' },
+  { key: 'multi-city', label: 'Multi-City Trip', icon: 'map', description: 'Hopping between multiple cities or countries.' },
 ];
 
 const POPULAR_DESTINATIONS = [
@@ -52,12 +57,16 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
   }, []);
 
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+
 
   const [tripData, setTripData] = useState({
+    mode: null, // 'multi-city' | 'single-base'
+    stops: [], // For multi-city: [{id, name, ...}]
     origin: null,
     destination: '',
     destinationCoords: null,
-    endLocation: null, // NEW: End location state
+    endLocation: null,
     startDate: '',
     endDate: '',
     tripType: '',
@@ -79,17 +88,29 @@ export default function TripSetupScreen({ onComplete, onBack }) {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(30))[0];
   const progressAnim = useState(new Animated.Value(0))[0];
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Dynamic steps based on trip type
   const getSteps = () => {
+    // Step 0: Mode Selection
+    if (!tripData.mode) {
+      return [{ key: 'mode', title: 'Trip Style' }];
+    }
+
     const baseSteps = [
-      { key: 'location', icon: 'route' }, // Removed title/subtitle to hide header
-      { key: 'tripType', title: 'Trip Type', subtitle: 'Who are you traveling with?', icon: 'group' },
+      { key: 'mode', title: 'Trip Style' },
+      { key: 'location', title: tripData.mode === 'multi-city' ? 'Destinations' : 'Route' },
+      { key: 'details', title: 'Details' }, // Merged Type & Dates
     ];
 
-    // Add companions step based on trip type (skip for solo)
+    // Add companions step based on trip type
     if (tripData.tripType && tripData.tripType !== 'solo') {
       baseSteps.push({
         key: 'companions',
@@ -98,8 +119,6 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         icon: getCompanionsIcon()
       });
     }
-
-    // Budget step removed - users can add budget manually in home page
 
     return baseSteps;
   };
@@ -155,6 +174,7 @@ export default function TripSetupScreen({ onComplete, onBack }) {
       Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: -30, duration: 200, useNativeDriver: true }),
     ]).start(() => {
+      if (!isMounted.current) return;
       callback();
       slideAnim.setValue(30);
       Animated.parallel([
@@ -213,6 +233,21 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     setIsCreating(true);
 
     try {
+      // For Multi-City, ensure we have a valid destination string for the DB/Context
+      let finalDestination = tripData.destination;
+      let finalName = tripData.name;
+
+      if (tripData.mode === 'multi-city' && tripData.stops.length > 0) {
+        // Use first stop or a combination
+        const stopNames = tripData.stops.map(s => s.name || s.formatted_address.split(',')[0]).join(' - ');
+        finalDestination = stopNames.length > 30 ? `${tripData.stops[0].name} & others` : stopNames;
+
+        // Also ensure name is set
+        if (!finalName) {
+          finalName = `${tripData.stops[0].name} Multi-City Trip`;
+        }
+      }
+
       const tripCode = await getUniqueTripCode();
 
       // Prepare participants based on trip type - Include owner as first participant
@@ -269,7 +304,8 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         tripCode,
         participants,
         tripType: tripData.tripType,
-        name: tripData.name || `${tripData.destination} Trip`,
+        destination: finalDestination,
+        name: finalName || `${finalDestination} Trip`,
         aiData: aiData // Pass AI data
       });
     } catch (error) {
@@ -282,22 +318,28 @@ export default function TripSetupScreen({ onComplete, onBack }) {
 
   const isStepValid = () => {
     const step = STEPS[currentStep];
+    if (!step) return false;
+
     switch (step.key) {
+      case 'mode':
+        return tripData.mode !== null;
       case 'location':
-        return (
-          tripData.origin &&
-          tripData.destination.trim().length > 0 &&
-          tripData.endLocation &&
-          tripData.startDate &&
-          tripData.endDate
-        );
-      case 'tripType':
-        return tripData.tripType !== '';
+        if (tripData.mode === 'single-base') {
+          return (
+            tripData.origin &&
+            tripData.destination.trim().length > 0 &&
+            tripData.endLocation
+          );
+        } else {
+          return tripData.stops.length > 0;
+        }
+      case 'details':
+        return tripData.tripType !== '' && tripData.startDate && tripData.endDate;
       case 'companions':
         if (tripData.tripType === 'couple') {
           return tripData.partnerName.trim().length > 0;
         }
-        return true; // Friends, family, business can be empty
+        return true;
       default:
         return true;
     }
@@ -440,263 +482,251 @@ export default function TripSetupScreen({ onComplete, onBack }) {
     const step = STEPS[currentStep];
 
     switch (step.key) {
-      case 'location':
+      case 'mode':
         return (
           <View style={styles.stepContent}>
-            {/* Destination Input */}
-            {/* Origin & Destination Inputs */}
-            <View style={[styles.inputSection, { zIndex: 3000 }]}>
-              {/* Trip Start Location */}
-              <View style={{ marginBottom: 16, zIndex: 3000 }}>
-                <Text style={styles.inputLabel}>Trip Start Location</Text>
-                <PlacesAutocomplete
-                  value={tripData.origin?.name || tripData.origin?.fullAddress || ''}
-                  onPlaceSelect={(place) => {
-                    setTripData({ ...tripData, origin: place });
-                  }}
-                  placeholder="Where are you starting from?"
-                  showMap={false}
-                />
-              </View>
-
-              {/* Main Location to Visit */}
-              <View style={{ marginBottom: 16, zIndex: 2000 }}>
-                <Text style={styles.inputLabel}>Main Location to Visit</Text>
-                <Text style={styles.inputHelper}>
-                  You can add more locations after creating the trip.
-                </Text>
-                <PlacesAutocomplete
-                  value={tripData.destination}
-                  onPlaceSelect={(place) => {
-                    if (place) {
-                      setTripData({
-                        ...tripData,
-                        destination: place.name || place.fullAddress,
-                        destinationCoords: place // Store full place object
-                      });
-                    } else {
-                      setTripData({
-                        ...tripData,
-                        destination: '',
-                        destinationCoords: null
-                      });
-                    }
-                  }}
-                  placeholder="Search destination..."
-                  showMap={false} // Hide map in autocomplete
-                />
-              </View>
-            </View>
-
-            {/* Trip End Location */}
-            <View style={{ marginBottom: 16, zIndex: 1000 }}>
-              <Text style={styles.inputLabel}>Trip End Location</Text>
-              <PlacesAutocomplete
-                value={tripData.endLocation?.name || tripData.endLocation?.fullAddress || ''}
-                onPlaceSelect={(place) => {
-                  setTripData({ ...tripData, endLocation: place });
-                }}
-                placeholder="Where will the trip end?"
-                showMap={false}
-              />
-            </View>
-
-            {/* Trip Map Visualization */}
-            <View style={{ marginTop: 8, marginBottom: 24 }}>
-              <TripMap
-                start={tripData.origin}
-                visit={tripData.destinationCoords}
-                end={tripData.endLocation}
-              />
-            </View>
-
-            {/* Date Selection */}
-            {/* Date Selection */}
-            <View style={{ marginTop: 24, marginBottom: 80 }}>
-              <Text style={styles.inputLabel}>Travel Dates</Text>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.dateInputBtn,
-                  pressed && { opacity: 0.8 }
-                ]}
-                onPress={() => setShowCalendar(true)}
-              >
-                <Icon name="calendar" size={24} color={colors.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.dateInputHtml, !tripData.startDate && { color: colors.textMuted }]}>
-                    {tripData.startDate && tripData.endDate
-                      ? `${typeof tripData.startDate === 'string' ? tripData.startDate : tripData.startDate.toLocaleDateString()}  →  ${typeof tripData.endDate === 'string' ? tripData.endDate : tripData.endDate.toLocaleDateString()}`
-                      : 'Select Trip Duration'}
-                  </Text>
-                  {tripData.startDate && tripData.endDate && (
-                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
-                      {calculateDuration(tripData.startDate, tripData.endDate)} Days Trip
-                    </Text>
-                  )}
-                </View>
-                <Icon name="arrow-right" size={20} color={colors.textMuted} />
-              </Pressable>
-
-              <Calendar
-                visible={showCalendar}
-                onClose={() => setShowCalendar(false)}
-                onSelect={(start, end) => {
-                  setTripData({ ...tripData, startDate: start, endDate: end });
-                }}
-                mode="range"
-                initialStartDate={tripData.startDate}
-                initialEndDate={tripData.endDate}
-              />
-            </View>
-          </View>
-        );
-
-      case 'tripType':
-        return (
-          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>What kind of trip is this?</Text>
             <View style={styles.tripTypeGrid}>
-              {TRIP_TYPES.map((type, index) => (
+              {TRIP_MODES.map((mode) => (
                 <Pressable
-                  key={type.key}
+                  key={mode.key}
                   style={({ pressed }) => [
                     styles.tripTypeCard,
-                    { borderLeftColor: type.color },
-                    tripData.tripType === type.key && styles.tripTypeCardActive,
-                    tripData.tripType === type.key && { borderColor: type.color },
-                    pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }
+                    tripData.mode === mode.key && { borderColor: colors.primary, backgroundColor: colors.primary + '10' },
+                    pressed && { opacity: 0.8 }
                   ]}
-                  onPress={() => selectTripType(type)}
+                  onPress={() => setTripData(prev => ({ ...prev, mode: mode.key }))}
                 >
-                  <View style={[styles.tripTypeIconBg, { backgroundColor: type.color + '20' }]}>
-                    <Icon name={type.icon} size={28} color={type.color} />
+                  <View style={[styles.tripTypeIconBg, { backgroundColor: colors.primary + '20' }]}>
+                    <Icon name={mode.icon} size={28} color={colors.primary} />
                   </View>
                   <View style={styles.tripTypeInfo}>
-                    <Text style={styles.tripTypeLabel}>{type.label}</Text>
-                    <Text style={styles.tripTypeDesc}>{type.description}</Text>
+                    <Text style={styles.tripTypeLabel}>{mode.label}</Text>
+                    <Text style={styles.tripTypeDesc}>{mode.description}</Text>
                   </View>
-                  <View style={[
-                    styles.tripTypeCheck,
-                    tripData.tripType === type.key && { backgroundColor: type.color }
-                  ]}>
-                    {tripData.tripType === type.key && (
+                  {tripData.mode === mode.key && (
+                    <View style={[styles.tripTypeCheck, { backgroundColor: colors.primary }]}>
                       <Icon name="check" size={14} color="#FFF" />
-                    )}
-                  </View>
+                    </View>
+                  )}
                 </Pressable>
               ))}
             </View>
           </View>
         );
 
-      case 'companions':
-        return renderCompanionsContent();
+      case 'location':
+        if (tripData.mode === 'multi-city') {
+          return (
+            <View style={styles.fullScreenContent}>
+              {/* Map Section - Top 60% */}
+              <View style={styles.fullMapSection}>
+                <TripMap
+                  stops={tripData.stops}
+                  mode="multi-city"
+                  style={{ height: '100%', width: '100%' }}
+                />
+                {/* Floating Badge */}
+                <View style={styles.floatingCityBadge}>
+                  <Text style={styles.badgeText}>{tripData.stops.length} Cities</Text>
+                </View>
+              </View>
 
-      case 'budget':
+              {/* Controls Section - Bottom 40% */}
+              <View style={styles.fullControlsSection}>
+                <View style={styles.plannerHeader}>
+                  <Text style={styles.plannerTitle}>Route Planner</Text>
+                  <Text style={styles.plannerSubtitle}>Build your dream itinerary by adding cities in order.</Text>
+                </View>
+
+                <View style={{ zIndex: 3000, marginVertical: 15 }}>
+                  <PlacesAutocomplete
+                    placeholder="Where to next?"
+                    onPlaceSelect={(place) => {
+                      if (place) {
+                        setTripData(prev => ({
+                          ...prev,
+                          stops: [...prev.stops, place]
+                        }));
+                      }
+                    }}
+                    showMap={false}
+                    clearOnSelect={true}
+                  />
+                </View>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                  style={{ flex: 1 }}
+                >
+                  {tripData.stops.map((stop, index) => (
+                    <View key={index} style={styles.premiumStopCard}>
+                      <View style={styles.premiumStopNumber}>
+                        <Text style={styles.premiumStopNumberText}>{index + 1}</Text>
+                      </View>
+                      <View style={{ flex: 1, paddingHorizontal: 16 }}>
+                        <Text style={styles.premiumStopName}>{stop.name || stop.fullAddress.split(',')[0]}</Text>
+                        <Text style={styles.premiumStopAddress} numberOfLines={1}>{stop.fullAddress}</Text>
+                      </View>
+                      <Pressable
+                        onPress={() => setTripData(prev => ({ ...prev, stops: prev.stops.filter((_, i) => i !== index) }))}
+                        style={styles.premiumRemoveBtn}
+                      >
+                        <Icon name="close" size={14} color="#EF4444" />
+                      </Pressable>
+                    </View>
+                  ))}
+
+                  {tripData.stops.length === 0 && (
+                    <View style={styles.emptyStateContainer}>
+                      <Icon name="location" size={40} color={colors.textMuted} />
+                      <Text style={styles.emptyStateText}>No destinations added</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          );
+        }
+
         return (
           <View style={styles.stepContent}>
-            {/* Budget Input */}
-            <View style={styles.budgetInputSection}>
-              <Text style={styles.budgetCurrency}>$</Text>
-              <TextInput
-                style={[styles.budgetInput, { outlineStyle: 'none' }]}
-                placeholder="0"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                value={tripData.budget}
-                onChangeText={(text) => setTripData({ ...tripData, budget: text.replace(/[^0-9]/g, '') })}
-              />
-            </View>
-
-            {/* Budget Presets */}
-            <View style={styles.presetsSection}>
-              <Text style={styles.presetsTitle}>Quick Select</Text>
-              <View style={styles.presetsGrid}>
-                {BUDGET_PRESETS.map((preset, index) => (
-                  <Pressable
-                    key={index}
-                    style={({ pressed }) => [
-                      styles.presetCard,
-                      tripData.budget === preset.value.toString() && styles.presetCardActive,
-                      pressed && { opacity: 0.8 }
-                    ]}
-                    onPress={() => selectBudgetPreset(preset)}
-                  >
-
-                    <Icon name={preset.icon} size={28} color={tripData.budget === preset.value.toString() ? '#FFF' : colors.primary} style={{ marginBottom: 8 }} />
-                    <Text style={[styles.presetLabel, tripData.budget === preset.value.toString() && styles.presetLabelActive]}>
-                      {preset.label}
-                    </Text>
-                    <Text style={[styles.presetRange, tripData.budget === preset.value.toString() && styles.presetRangeActive]}>
-                      {preset.range}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Trip Summary */}
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>Trip Summary</Text>
-
-              <View style={styles.summaryRow}>
-                <Icon name="location" size={20} color={colors.primary} style={{ marginRight: 10 }} />
-                <View style={styles.summaryContent}>
-                  <Text style={styles.summaryLabel}>Destination</Text>
-                  <Text style={styles.summaryValue}>{tripData.destination}</Text>
-                </View>
+            <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+              <View style={{ marginBottom: 16, zIndex: 3000 }}>
+                <Text style={styles.inputLabel}>Departure City</Text>
+                <PlacesAutocomplete
+                  value={tripData.origin?.name || tripData.origin?.fullAddress || ''}
+                  onPlaceSelect={(place) => setTripData(prev => ({ ...prev, origin: place }))}
+                  placeholder="Where are you starting?"
+                  showMap={false}
+                />
               </View>
 
-              <View style={styles.summaryRow}>
-                <Icon name="calendar" size={20} color={colors.primary} style={{ marginRight: 10 }} />
-                <View style={styles.summaryContent}>
-                  <Text style={styles.summaryLabel}>Dates</Text>
-                  <Text style={styles.summaryValue}>
-                    {typeof tripData.startDate === 'string' ? tripData.startDate : tripData.startDate?.toLocaleDateString()} → {typeof tripData.endDate === 'string' ? tripData.endDate : tripData.endDate?.toLocaleDateString()}
-                  </Text>
-                </View>
+              <View style={{ marginBottom: 16, zIndex: 2000 }}>
+                <Text style={styles.inputLabel}>Main Location to Visit</Text>
+                <PlacesAutocomplete
+                  value={tripData.destination}
+                  onPlaceSelect={(place) => {
+                    if (place) {
+                      setTripData(prev => ({
+                        ...prev,
+                        destination: place.name || place.fullAddress,
+                        destinationCoords: place
+                      }));
+                    }
+                  }}
+                  placeholder="Search destination..."
+                  showMap={false}
+                />
               </View>
 
-              <View style={styles.summaryRow}>
-                <Icon name={TRIP_TYPES.find(t => t.key === tripData.tripType)?.icon || 'profile'} size={20} color={colors.primary} style={{ marginRight: 10 }} />
-                <View style={styles.summaryContent}>
-                  <Text style={styles.summaryLabel}>Trip Type</Text>
-                  <Text style={styles.summaryValue}>
-                    {TRIP_TYPES.find(t => t.key === tripData.tripType)?.label || 'Solo'}
-                    {getTravelersCount() > 1 && ` (${getTravelersCount()} travelers)`}
-                  </Text>
-                </View>
+              <View style={{ marginBottom: 16, zIndex: 1000 }}>
+                <Text style={styles.inputLabel}>Trip End Location</Text>
+                <PlacesAutocomplete
+                  value={tripData.endLocation?.name || tripData.endLocation?.fullAddress || ''}
+                  onPlaceSelect={(place) => setTripData(prev => ({ ...prev, endLocation: place }))}
+                  placeholder="Where will you end up?"
+                  showMap={false}
+                />
               </View>
-            </View>
 
-            {/* Tip */}
-            <View style={styles.tipCard}>
-              <Icon name="bulb" size={20} color="#F59E0B" style={{ marginRight: 10 }} />
-              <Text style={styles.tipText}>
-                Budget can be adjusted anytime during your trip planning.
+              <Text style={[styles.inputHelper, { marginTop: 20, textAlign: 'center', color: colors.primary }]}>
+                You can edit all information after creating the trip.
               </Text>
-            </View>
-
-            {/* AI Magic Build Button */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.aiButton,
-                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
-              ]}
-              onPress={handleMagicBuild}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <Text style={styles.aiButtonText}>Generating Itinerary...</Text>
-              ) : (
-                <>
-                  <Text style={styles.aiButtonIcon}>✨</Text>
-                  <Text style={styles.aiButtonText}>Magic Build with AI</Text>
-                </>
-              )}
-            </Pressable>
+            </ScrollView>
           </View>
         );
+
+      case 'details':
+        const selectedType = TRIP_TYPES.find(t => t.key === tripData.tripType);
+        return (
+          <View style={styles.stepContent}>
+            {/* Trip Type Dropdown */}
+            <View style={{ zIndex: 5000, marginBottom: 20 }}>
+              <Text style={styles.inputLabel}>Trip Type</Text>
+              <Pressable
+                style={[styles.dropdownTrigger, showTypeDropdown && styles.dropdownTriggerActive]}
+                onPress={() => setShowTypeDropdown(!showTypeDropdown)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  {selectedType ? (
+                    <>
+                      <View style={[styles.dropdownIconBg, { backgroundColor: selectedType.color + '20' }]}>
+                        <Icon name={selectedType.icon} size={20} color={selectedType.color} />
+                      </View>
+                      <Text style={styles.dropdownValue}>{selectedType.label}</Text>
+                    </>
+                  ) : (
+                    <Text style={[styles.dropdownValue, { color: colors.textMuted }]}>Select Trip Type</Text>
+                  )}
+                </View>
+                <Icon name={showTypeDropdown ? "arrow-up" : "arrow-down"} size={20} color={colors.textMuted} />
+              </Pressable>
+
+              {showTypeDropdown && (
+                <View style={styles.dropdownMenu}>
+                  {TRIP_TYPES.map((type) => (
+                    <Pressable
+                      key={type.key}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        selectTripType(type);
+                        setShowTypeDropdown(false);
+                      }}
+                    >
+                      <Icon name={type.icon} size={18} color={type.color} />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.dropdownItemLabel}>{type.label}</Text>
+                        <Text style={styles.dropdownItemDesc}>{type.description}</Text>
+                      </View>
+                      {tripData.tripType === type.key && (
+                        <Icon name="check" size={14} color={colors.primary} />
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Dates Selection */}
+            <View>
+              <Text style={styles.inputLabel}>When are you going?</Text>
+              <Pressable
+                style={styles.dateInputBtn}
+                onPress={() => setShowCalendar(true)}
+              >
+                <Icon name="calendar" size={24} color={colors.primary} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.dateInputHtml, !tripData.startDate && { color: colors.textMuted }]}>
+                    {tripData.startDate && tripData.endDate
+                      ? `${typeof tripData.startDate === 'string' ? tripData.startDate : tripData.startDate.toLocaleDateString()} → ${typeof tripData.endDate === 'string' ? tripData.endDate : tripData.endDate.toLocaleDateString()}`
+                      : 'Select Trip Duration'}
+                  </Text>
+                  {tripData.startDate && tripData.endDate && (
+                    <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 2 }}>
+                      {calculateDuration(tripData.startDate, tripData.endDate)} Day Journey
+                    </Text>
+                  )}
+                </View>
+              </Pressable>
+            </View>
+
+            <Calendar
+              visible={showCalendar}
+              onClose={() => setShowCalendar(false)}
+              onSelect={(start, end) => {
+                setTripData({ ...tripData, startDate: start, endDate: end });
+              }}
+              mode="range"
+              initialStartDate={tripData.startDate}
+              initialEndDate={tripData.endDate}
+            />
+          </View>
+        );
+
+      case 'companions':
+        return renderCompanionsContent();
 
       default:
         return null;
@@ -977,22 +1007,34 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         style={styles.keyboardView}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[
+          styles.header,
+          STEPS[currentStep].key === 'location' && tripData.mode === 'multi-city' ? {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 5000,
+            backgroundColor: 'transparent',
+            borderBottomWidth: 0,
+          } : {}
+        ]}>
           <Pressable style={styles.backButton} onPress={handleBack}>
             <Icon name="back" size={24} color={colors.text} />
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.stepIndicator}>Step {currentStep + 1} of {totalSteps}</Text>
+            {/* Tiny Pill Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressTrack}>
+                <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+              </View>
+            </View>
           </View>
           <View style={styles.headerRight} />
         </View>
 
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
-            <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
-          </View>
-        </View>
+
 
         {/* Step Header - Hidden for location step and family companions */}
         {!((STEPS[currentStep].key === 'location') || (STEPS[currentStep].key === 'companions' && tripData.tripType === 'family')) && (
@@ -1006,17 +1048,25 @@ export default function TripSetupScreen({ onComplete, onBack }) {
         )}
 
         {/* Content */}
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            {renderStepContent()}
-          </Animated.View>
-        </ScrollView>
+        {STEPS[currentStep].key === 'location' && tripData.mode === 'multi-city' ? (
+          <View style={{ flex: 1 }}>
+            <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              {renderStepContent()}
+            </Animated.View>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              {renderStepContent()}
+            </Animated.View>
+          </ScrollView>
+        )}
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -1084,19 +1134,21 @@ const createStyles = (colors) => StyleSheet.create({
     width: 44,
   },
   progressContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: 0,
+    marginTop: 6,
+    width: 60,
+    alignSelf: 'center',
   },
   progressTrack: {
-    height: 6,
+    height: 4,
     backgroundColor: colors.cardLight,
-    borderRadius: 3,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: colors.primary,
-    borderRadius: 3,
+    borderRadius: 2,
   },
   stepHeader: {
     alignItems: 'center',
@@ -1802,7 +1854,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: colors.primaryBorder,
     backgroundColor: colors.bg,
@@ -1812,9 +1864,11 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
-    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 10, // More compact
+    gap: 6,
+    width: '80%', // Even smaller width
+    alignSelf: 'center',
   },
   nextButtonDisabled: {
     opacity: 0.5,
@@ -1865,5 +1919,119 @@ const createStyles = (colors) => StyleSheet.create({
   },
   aiButtonIcon: {
     fontSize: 18,
+  },
+  // Full Screen Layout Styles
+  fullScreenContent: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  fullMapSection: {
+    height: '60%',
+    width: '100%',
+    position: 'relative',
+    backgroundColor: colors.cardLight,
+  },
+  floatingCityBadge: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  badgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  fullControlsSection: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 36, // Smoother curve
+    borderTopRightRadius: 36, // Smoother curve
+    marginTop: -36, // Deeper overlay
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  plannerHeader: {
+    marginBottom: 0,
+  },
+  plannerTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.text,
+    letterSpacing: -0.3,
+  },
+  plannerSubtitle: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 1,
+    lineHeight: 14,
+  },
+  premiumStopCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 8,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  premiumStopNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumStopNumberText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  premiumStopName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  premiumStopAddress: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  premiumRemoveBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: colors.cardLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    opacity: 0.3,
+  },
+  emptyStateText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textMuted,
+    fontWeight: '600',
   },
 });

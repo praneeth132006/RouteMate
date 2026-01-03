@@ -9,11 +9,11 @@ import { auth } from '../config/firebase';
 import Icon from '../components/Icon';
 import HomeMap from '../components/HomeMap';
 
-export default function HomeScreen({ onBackToHome, onPersonalizedPlan }) {
+export default function HomeScreen({ onBackToHome, onSetScreen }) {
   const {
     tripInfo, setTripInfo, budget, setBudget, getTotalExpenses, getRemainingBudget,
     packingItems, itinerary, expenses, clearTrip, endTrip, formatCurrency, currency, isLoading, deleteTrip,
-    getAllTravelers, localParticipantId
+    getAllTravelers, localParticipantId, tripPreferences
   } = useTravelContext();
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -136,6 +136,18 @@ export default function HomeScreen({ onBackToHome, onPersonalizedPlan }) {
 
   const goToItinerary = () => navigation.navigate('Itinerary');
   const goToExpenses = () => navigation.navigate('Expenses');
+
+
+
+  const handlePersonalizedPlan = () => {
+    // Check if we have preferences. If not, go to wizard first.
+    // We check for some key field like 'style' to know if wizard was done.
+    if (!tripPreferences || !tripPreferences.style) {
+      onSetScreen('TripPreferences');
+    } else {
+      onSetScreen('AIPersonalizedPlan');
+    }
+  };
 
   // Trip management functions
   const handleUpdateBudget = () => {
@@ -331,7 +343,7 @@ export default function HomeScreen({ onBackToHome, onPersonalizedPlan }) {
               </View>
               <Pressable
                 style={({ pressed }) => [styles.ctaButton, pressed && { opacity: 0.9 }]}
-                onPress={onPersonalizedPlan}
+                onPress={handlePersonalizedPlan}
               >
                 <Text style={styles.ctaButtonText}>Generate Plan ✨</Text>
               </Pressable>

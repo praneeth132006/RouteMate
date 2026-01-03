@@ -24,6 +24,7 @@ const PlacesAutocomplete = ({
     placeholder = 'Search destination...',
     style,
     showMap = false,
+    clearOnSelect = false,
 }) => {
     const { colors } = useTheme();
     const [query, setQuery] = useState(value || '');
@@ -99,18 +100,26 @@ const PlacesAutocomplete = ({
             return false;
         };
 
+        let checkInterval;
+        let checkTimeout;
+
         loadGoogleMapsScript()
             .then(() => {
-                const checkInterval = setInterval(() => {
+                checkInterval = setInterval(() => {
                     if (initGoogleServices()) {
                         clearInterval(checkInterval);
                     }
                 }, 100);
-                setTimeout(() => clearInterval(checkInterval), 5000);
+                checkTimeout = setTimeout(() => clearInterval(checkInterval), 5000);
             })
             .catch((error) => {
                 console.error('Failed to load Google Maps script:', error);
             });
+
+        return () => {
+            if (checkInterval) clearInterval(checkInterval);
+            if (checkTimeout) clearTimeout(checkTimeout);
+        };
     }, []);
 
     useEffect(() => {
@@ -217,7 +226,9 @@ const PlacesAutocomplete = ({
     };
 
     const handleSelectPlace = (prediction) => {
-        setQuery(prediction.description);
+        if (!clearOnSelect) {
+            setQuery(prediction.description);
+        }
         setShowDropdown(false);
         setPredictions([]);
 
@@ -255,6 +266,10 @@ const PlacesAutocomplete = ({
                 fullAddress: prediction.description,
                 placeId: prediction.place_id,
             });
+        }
+
+        if (clearOnSelect) {
+            setQuery('');
         }
     };
 
@@ -352,16 +367,21 @@ const createStyles = (colors) =>
         inputContainer: {
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: colors.cardLight,
+            backgroundColor: colors.card,
             borderRadius: 14,
             borderWidth: 1,
             borderColor: colors.primaryBorder,
-            paddingHorizontal: 4,
+            padding: 2, // More compact
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 4,
+            elevation: 2,
             marginBottom: 16, // Add margin for spacing above map
         },
         iconContainer: {
-            width: 44,
-            height: 44,
+            width: 32, // Smaller
+            height: 32, // Smaller
             borderRadius: 10,
             backgroundColor: colors.primaryMuted,
             alignItems: 'center',
@@ -370,9 +390,9 @@ const createStyles = (colors) =>
         },
         input: {
             flex: 1,
-            fontSize: 16,
+            fontSize: 14, // Smaller font
             color: colors.text,
-            paddingVertical: 14,
+            paddingVertical: 10, // More compact
             paddingHorizontal: 8,
             outlineStyle: 'none',
         },

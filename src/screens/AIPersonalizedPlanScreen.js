@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput, Pressable,
     ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal
@@ -12,7 +12,7 @@ import { generateFullPersonalizedPlan } from '../services/aiService';
 
 export default function AIPersonalizedPlanScreen({ navigation }) {
     const { colors } = useTheme();
-    const { currency } = useTravelContext();
+    const { currency, tripInfo, tripPreferences } = useTravelContext();
     const [loading, setLoading] = useState(false);
 
     // Form State
@@ -24,6 +24,34 @@ export default function AIPersonalizedPlanScreen({ navigation }) {
     const [ages, setAges] = useState('');
     const [budget, setBudget] = useState('2000');
     const [additionalNotes, setAdditionalNotes] = useState('');
+
+    // Pre-fill from Context
+    useEffect(() => {
+        if (tripInfo) {
+            if (tripInfo.destination) setEndLocation(tripInfo.destination);
+            if (tripInfo.budget?.total) setBudget(tripInfo.budget.total.toString());
+            const count = tripInfo.participants?.length || 1;
+            setTravelers(count.toString());
+        }
+
+        if (tripPreferences && Object.keys(tripPreferences).length > 0) {
+            const parts = [];
+            if (tripPreferences.style) parts.push(`Travel Pace: ${tripPreferences.style}`);
+            if (tripPreferences.luxury) parts.push(`Comfort Level: ${tripPreferences.luxury}`);
+            if (tripPreferences.immersion) parts.push(`Experience: ${tripPreferences.immersion}`);
+            if (tripPreferences.interests?.length) parts.push(`Interests: ${tripPreferences.interests.join(', ')}`);
+            if (tripPreferences.rhythm) parts.push(`Daily Rhythm: ${tripPreferences.rhythm}`);
+
+            // Map dietary if common match found
+            if (tripPreferences.dietary?.some(d => d.toLowerCase().includes('veg') && !d.toLowerCase().includes('non'))) {
+                setDietary('Veg');
+            } else {
+                setDietary('Non-Veg');
+            }
+
+            setAdditionalNotes(prev => [prev, ...parts].filter(Boolean).join('\n'));
+        }
+    }, [tripInfo, tripPreferences]);
 
     // Result State
     const [planResult, setPlanResult] = useState(null);

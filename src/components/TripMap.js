@@ -7,13 +7,11 @@ import GOOGLE_MAPS_CONFIG, { MAP_DEFAULTS } from '../config/googleMaps';
  * TripMap Component
  * Visualizes the trip Start, Visit, and End points on a read-only map.
  */
-const TripMap = ({ start, visit, end, style }) => {
+const TripMap = ({ start, visit, end, stops, mode, style }) => {
     const { colors } = useTheme();
     const mapRef = useRef(null);
     const mapInstance = useRef(null);
-    const startMarker = useRef(null);
-    const visitMarker = useRef(null);
-    const endMarker = useRef(null);
+    const markers = useRef([]);
     const bounds = useRef(null);
     const directionsService = useRef(null);
     const directionsRenderer = useRef(null);
@@ -38,16 +36,14 @@ const TripMap = ({ start, visit, end, style }) => {
                 directionsService.current = new window.google.maps.DirectionsService();
                 directionsRenderer.current = new window.google.maps.DirectionsRenderer({
                     map: mapInstance.current,
-                    suppressMarkers: true, // Keep our custom A/B/C markers
-                    preserveViewport: false, // Let the route dictate viewport if valid
+                    suppressMarkers: true,
+                    preserveViewport: false,
                     polylineOptions: {
-                        strokeColor: '#FFD2AD', // Match theme primary color
+                        strokeColor: '#FFD2AD',
                         strokeWeight: 5,
                         strokeOpacity: 0.8,
                     }
                 });
-
-                console.log('TripMap initialized with Directions');
             }
         };
 
@@ -59,50 +55,62 @@ const TripMap = ({ start, visit, end, style }) => {
     useEffect(() => {
         if (!mapInstance.current || !window.google) return;
 
-        // Clear existing bounds
+        // Clear existing markers
+        markers.current.forEach(m => m.setMap(null));
+        markers.current = [];
+
         bounds.current = new window.google.maps.LatLngBounds();
-        let hasPoints = false;
-        const points = [];
+        let validLocations = [];
 
-        // Helper to handle marker logic
-        const updateMarker = (point, markerRef, label, title) => {
-            if (point && point.latitude && point.longitude) {
-                const position = { lat: point.latitude, lng: point.longitude };
-                points.push({ location: position });
+        // Determine points to show based on mode
+        if (stops && stops.length > 0) {
+            stops.forEach((stop, index) => {
+                if (stop && stop.latitude && stop.longitude) {
+                    const position = { lat: stop.latitude, lng: stop.longitude };
+                    validLocations.push(position);
 
-                if (!markerRef.current) {
-                    markerRef.current = new window.google.maps.Marker({
+                    const marker = new window.google.maps.Marker({
                         position,
                         map: mapInstance.current,
-                        label,
-                        title,
+                        label: (index + 1).toString(),
+                        title: stop.name || `Stop ${index + 1}`,
                     });
-                } else {
-                    markerRef.current.setPosition(position);
-                    markerRef.current.setMap(mapInstance.current);
+                    markers.current.push(marker);
+                    bounds.current.extend(position);
                 }
-                bounds.current.extend(position);
-                hasPoints = true;
-                return position;
-            } else if (markerRef.current) {
-                markerRef.current.setMap(null);
-                return null;
-            }
-        };
+            });
+        } else {
+            // Fallback to start, visit, end for single-base or legacy
+            const pointsData = [
+                { p: start, label: 'A', title: 'Start' },
+                { p: visit, label: 'B', title: 'Visit' },
+                { p: end, label: 'C', title: 'End' }
+            ];
 
-        const startPos = updateMarker(start, startMarker, 'A', 'Start Location');
-        const visitPos = updateMarker(visit, visitMarker, 'B', 'Visit Location');
-        const endPos = updateMarker(end, endMarker, 'C', 'End Location');
+            pointsData.forEach(item => {
+                if (item.p && item.p.latitude && item.p.longitude) {
+                    const position = { lat: item.p.latitude, lng: item.p.longitude };
+                    validLocations.push(position);
+                    const marker = new window.google.maps.Marker({
+                        position,
+                        map: mapInstance.current,
+                        label: item.label,
+                        title: item.p.name || item.title,
+                    });
+                    markers.current.push(marker);
+                    bounds.current.extend(position);
+                }
+            });
+        }
 
-        // Calculate Route if we have at least 2 points
+        // Calculate Route
         if (directionsService.current && directionsRenderer.current) {
-            // Determine origin and destination based on what is available
-            const validPoints = [startPos, visitPos, endPos].filter(p => p !== null);
-
-            if (validPoints.length >= 2) {
-                const origin = validPoints[0];
-                const destination = validPoints[validPoints.length - 1];
-                const waypoints = validPoints.length > 2 ? [{ location: validPoints[1], stopover: true }] : [];
+            if (validLocations.length >= 2) {
+                const origin = validLocations[0];
+                const destination = validLocations[validLocations.length - 1];
+                const waypoints = validLocations.length > 2
+                    ? validLocations.slice(1, -1).map(loc => ({ location: loc, stopover: true }))
+                    : [];
 
                 directionsService.current.route({
                     origin,
@@ -115,27 +123,20 @@ const TripMap = ({ start, visit, end, style }) => {
                         directionsRenderer.current.setDirections(result);
                     } else {
                         console.warn('Directions request failed due to ' + status);
-                        // Fallback to bounds if route fails
-                        if (hasPoints) mapInstance.current.fitBounds(bounds.current);
+                        mapInstance.current.fitBounds(bounds.current);
                     }
                 });
             } else {
-                directionsRenderer.current.setDirections({ routes: [] }); // Clear route
-                if (hasPoints) {
+                directionsRenderer.current.setDirections({ routes: [] });
+                if (validLocations.length > 0) {
                     mapInstance.current.fitBounds(bounds.current);
                     if (bounds.current.getNorthEast().equals(bounds.current.getSouthWest())) {
                         mapInstance.current.setZoom(10);
                     }
                 }
             }
-        } else if (hasPoints) {
-            // Fallback if directions service not ready
-            mapInstance.current.fitBounds(bounds.current);
-            if (bounds.current.getNorthEast().equals(bounds.current.getSouthWest())) {
-                mapInstance.current.setZoom(10);
-            }
         }
-    }, [start, visit, end]);
+    }, [start, visit, end, stops]);
 
     const styles = createStyles(colors);
 

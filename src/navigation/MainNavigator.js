@@ -15,9 +15,11 @@ import MapScreen from '../screens/MapScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import TripSetupScreen from '../screens/TripSetupScreen';
 import BudgetScreen from '../screens/BudgetScreen';
+
 import JoinSelectionScreen from '../screens/JoinSelectionScreen';
 import AIChatScreen from '../screens/AIChatScreen';
 import AIPersonalizedPlanScreen from '../screens/AIPersonalizedPlanScreen';
+import TripPreferencesScreen from '../screens/TripPreferencesScreen';
 import Icon from '../components/Icon';
 
 const Tab = createBottomTabNavigator();
@@ -63,7 +65,7 @@ function TabNavigator({ onBackToHome, onSetScreen }) {
           tabBarIcon: ({ focused, color }) => <TabIcon name="home" focused={focused} color={color} />,
         }}
       >
-        {(props) => <HomeScreen {...props} onBackToHome={onBackToHome} onPersonalizedPlan={() => onSetScreen('AIPersonalizedPlan')} />}
+        {(props) => <HomeScreen {...props} onBackToHome={onBackToHome} onSetScreen={onSetScreen} />}
       </Tab.Screen>
       <Tab.Screen
         name="Itinerary"
@@ -218,8 +220,9 @@ export default function MainNavigator() {
         }
       }
 
-      // 3. Navigate to dashboard
-      setCurrentScreen('TripDashboard');
+      // 3. Navigate to Preferences Wizard to personalize
+      // User can skip from there to Dashboard
+      setCurrentScreen('TripPreferences');
     } catch (error) {
       console.error('Error in handleTripSetupComplete:', error);
       Alert.alert('Error', 'Failed to save trip. Please try again.');
@@ -232,12 +235,32 @@ export default function MainNavigator() {
 
   console.log('MainNavigator - currentScreen:', currentScreen);
 
+  // Navigation Handlers for Preferences
+  const handlePreferencesBack = () => {
+    // If they go back from preferences, generally go to dashboard
+    setCurrentScreen('TripDashboard');
+  };
+
+  const handlePreferencesComplete = (data) => {
+    // After finishing preferences, go to dashboard
+    setCurrentScreen('TripDashboard');
+  };
+
   // Render based on current screen
   if (currentScreen === 'TripSetup') {
     return (
       <TripSetupScreen
         onComplete={handleTripSetupComplete}
         onBack={handleTripSetupBack}
+      />
+    );
+  }
+
+  if (currentScreen === 'TripPreferences') {
+    return (
+      <TripPreferencesScreen
+        onBack={handlePreferencesBack}
+        onComplete={handlePreferencesComplete}
       />
     );
   }
